@@ -15,6 +15,7 @@
 		activeTab: 'chat',
 		teaserTimer: null,
 		attribution: null,
+		soundEnabled: true,
 	};
 
 	// 1. First-Touch Attribution Tracking
@@ -54,6 +55,34 @@
 		return attr;
 	}
 
+	// 2. Client-Synthesized Audio Chime (Zero External Files)
+	function playMessageTone() {
+		if ( ! state.soundEnabled ) {
+			return;
+		}
+		try {
+			const AudioCtx = window.AudioContext || window.webkitAudioContext;
+			if ( ! AudioCtx ) {
+				return;
+			}
+			const ctx = new AudioCtx();
+			if ( ctx.state === 'suspended' ) {
+				ctx.resume();
+			}
+			const osc = ctx.createOscillator();
+			const gain = ctx.createGain();
+			osc.type = 'sine';
+			osc.frequency.setValueAtTime( 587.33, ctx.currentTime ); // D5
+			osc.frequency.exponentialRampToValueAtTime( 880, ctx.currentTime + 0.12 ); // A5
+			gain.gain.setValueAtTime( 0.05, ctx.currentTime );
+			gain.gain.exponentialRampToValueAtTime( 0.001, ctx.currentTime + 0.18 );
+			osc.connect( gain );
+			gain.connect( ctx.destination );
+			osc.start();
+			osc.stop( ctx.currentTime + 0.18 );
+		} catch ( e ) {}
+	}
+
 	function el( tag, className, text ) {
 		const node = document.createElement( tag );
 		if ( className ) {
@@ -65,25 +94,143 @@
 		return node;
 	}
 
-	// Simple markdown renderer for bold, italic, linebreaks, and links
+	function formatTime() {
+		try {
+			return new Date().toLocaleTimeString( [], { hour: '2-digit', minute: '2-digit' } );
+		} catch ( e ) {
+			return '';
+		}
+	}
+
+	// 3. Rich Markdown & List Renderer
 	function renderMarkdown( text ) {
-		const div = document.createElement( 'div' );
-		let html = text
+		const container = document.createElement( 'div' );
+		container.className = 'vmsos-msg-content';
+
+		if ( ! text ) {
+			return container;
+		}
+
+		// Escape HTML
+		let src = text
 			.replace( /&/g, '&amp;' )
 			.replace( /</g, '&lt;' )
 			.replace( />/g, '&gt;' );
 
-		// Bold **text**
+		// Code blocks ```lang ... ```
+		src = src.replace( /```(?:[a-zA-Z0-9_-]+)?\n([\s\S]*?)```/g, function ( _, code ) {
+			return '<pre class="vmsos-code-block"><code>' + code + '</code></pre>';
+		} );
+
+		// Inline code `code`
+		src = src.replace( /`([^`]+)`/g, '<code class="vmsos-code-inline">$1</code>' );
+
+		// Process by lines for lists and blockquotes
+		const rawLines = src.split( '\n' );
+		const parsedLines = [];
+		let inUl = false;
+		let inOl = false;
+
+		for ( let i = 0; i < rawLines.length; i++ ) {
+			const line = rawLines[ i ];
+			const ulMatch = line.match( /^\s*[-*•]\s+(.*)$/ );
+			const olMatch = line.match( /^\s*(\d+)\.\s+(.*)$/ );
+
+			if ( ulMatch ) {
+				if ( ! inUl ) {
+					if ( inOl ) {
+						parsedLines.push( '</ol>' );
+						inOl = false;
+					}
+					parsedLines.push( '<ul class="vmsos-list">' );
+					inUl = true;
+				}
+				parsedLines.push( '<li>' + ulMatch[ 1 ] + '</li>' );
+				continue;
+			} else if ( inUl ) {
+				parsedLines.push( '</ul>' );
+				inUl = false;
+			}
+
+			if ( olMatch ) {
+				if ( ! inOl ) {
+					if ( inUl ) {
+						parsedLines.push( '</ul>' );
+						inUl = false;
+					}
+					parsedLines.push( '<ol class="vmsos-list">' );
+					inOl = true;
+				}
+				parsedLines.push( '<li>' + olMatch[ 2 ] + '</li>' );
+				continue;
+			} else if ( inOl ) {
+				parsedLines.push( '</ol>' );
+				inOl = false;
+			}
+
+			// Blockquote >
+			const bqMatch = line.match( /^\s*&gt;\s+(.*)$/ );
+			if ( bqMatch ) {
+				parsedLines.push( '<blockquote class="vmsos-blockquote">' + bqMatch[ 1 ] + '</blockquote>' );
+				continue;
+			}
+
+			parsedLines.push( line );
+		}
+
+		if ( inUl ) {
+			parsedLines.push( '</ul>' );
+		}
+		if ( inOl ) {
+			parsedLines.push( '</ol>' );
+		}
+
+		let html = parsedLines.join( '\n' );
+
+		// Bold **text** or __text__
 		html = html.replace( /\*\*(.*?)\*\*/g, '<strong>$1</strong>' );
-		// Italic *text*
+		html = html.replace( /__(.*?)__/g, '<strong>$1</strong>' );
+
+		// Italic *text* or _text_
 		html = html.replace( /\*(.*?)\*/g, '<em>$1</em>' );
+		html = html.replace( /_([^_]+)_/g, '<em>$1</em>' );
+
 		// Markdown links [text](url)
 		html = html.replace( /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>' );
-		// Linebreaks
-		html = html.replace( /\n/g, '<br />' );
 
-		div.innerHTML = html;
-		return div;
+		// Auto-link raw URLs if not already linked
+		html = html.replace( /(^|[^"'])(https?:\/\/[^\s<]+)/g, '$1<a href="$2" target="_blank" rel="noopener noreferrer">$2</a>' );
+
+		// Convert non-list newlines to <br>
+		html = html.replace( /([^>])\n([^<])/g, '$1<br />$2' );
+
+		container.innerHTML = html;
+		return container;
+	}
+
+	// 4. In-Chat Phone & Contact Extraction
+	function detectPhoneNumber( message ) {
+		if ( ! message || typeof message !== 'string' ) {
+			return null;
+		}
+		// Match international and local mobile patterns
+		const match = message.match( /(?:(?:\+|00)\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?)?\d{3,4}[\s.-]?\d{3,4}/ );
+		if ( match ) {
+			const raw = match[ 0 ];
+			const digitsOnly = raw.replace( /[^0-9]/g, '' );
+			if ( digitsOnly.length >= 8 && digitsOnly.length <= 15 ) {
+				return raw.trim();
+			}
+		}
+		return null;
+	}
+
+	function detectEmail( message ) {
+		if ( ! message || typeof message !== 'string' ) {
+			return null;
+		}
+		const match = message.match( /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/ );
+		return match ? match[ 0 ] : null;
 	}
 
 	function build() {
@@ -108,7 +255,7 @@
 		const teaserMeta = el( 'div', 'vmsos-teaser__meta' );
 		teaserMeta.append(
 			el( 'div', 'vmsos-teaser__name', vmsosWidget.agent ),
-			el( 'div', 'vmsos-teaser__sub', vmsosWidget.agentTitle || 'Online • Live Assistant' )
+			el( 'div', 'vmsos-teaser__sub', vmsosWidget.agentTitle || 'Online • Live Specialist' )
 		);
 
 		const teaserClose = el( 'button', 'vmsos-teaser__close', '×' );
@@ -189,6 +336,17 @@
 			phoneBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>';
 			headControls.appendChild( phoneBtn );
 		}
+
+		// Sound Toggle Button
+		const soundBtn = el( 'button', 'vmsos-btn-action vmsos-btn-sound', '🔔' );
+		soundBtn.type = 'button';
+		soundBtn.title = 'Mute notification sound';
+		soundBtn.addEventListener( 'click', function () {
+			state.soundEnabled = ! state.soundEnabled;
+			soundBtn.textContent = state.soundEnabled ? '🔔' : '🔕';
+			soundBtn.title = state.soundEnabled ? 'Mute notification sound' : 'Unmute notification sound';
+		} );
+		headControls.appendChild( soundBtn );
 
 		// Restart Button
 		const restartBtn = el( 'button', 'vmsos-btn-action vmsos-btn-restart', '↻' );
@@ -281,6 +439,7 @@
 			honeypot,
 			close,
 			restartBtn,
+			soundBtn,
 			tabChat,
 			tabForm,
 			chatView,
@@ -289,16 +448,55 @@
 		};
 	}
 
-	function bubble( log, role, text ) {
-		const node = el( 'div', 'vmsos-msg is-' + role );
-		if ( typeof text === 'string' ) {
-			node.appendChild( renderMarkdown( text ) );
-		}
+	// 5. Typing Wave Bubble
+	function showTypingIndicator( log ) {
+		const node = el( 'div', 'vmsos-msg is-agent is-typing' );
+		const dots = el( 'div', 'vmsos-typing-dots' );
+		dots.innerHTML = '<span></span><span></span><span></span>';
+		node.appendChild( dots );
 		log.appendChild( node );
 		log.scrollTop = log.scrollHeight;
 		return node;
 	}
 
+	// 6. Message Bubble Builder
+	function bubble( log, role, content ) {
+		const node = el( 'div', 'vmsos-msg is-' + role );
+
+		if ( typeof content === 'string' ) {
+			node.appendChild( renderMarkdown( content ) );
+		} else if ( content instanceof HTMLElement ) {
+			node.appendChild( content );
+		}
+
+		// Subtle copy button on agent bubbles
+		if ( role === 'agent' && typeof content === 'string' && content.length > 5 ) {
+			const copyBtn = el( 'button', 'vmsos-msg-copy', '📋' );
+			copyBtn.type = 'button';
+			copyBtn.title = 'Copy message';
+			copyBtn.addEventListener( 'click', function ( e ) {
+				e.stopPropagation();
+				if ( navigator.clipboard && navigator.clipboard.writeText ) {
+					navigator.clipboard.writeText( content ).then( function () {
+						copyBtn.textContent = '✓';
+						setTimeout( function () {
+							copyBtn.textContent = '📋';
+						}, 1600 );
+					} );
+				}
+			} );
+			node.appendChild( copyBtn );
+		}
+
+		const timeEl = el( 'span', 'vmsos-msg-time', formatTime() );
+		node.appendChild( timeEl );
+
+		log.appendChild( node );
+		log.scrollTop = log.scrollHeight;
+		return node;
+	}
+
+	// 7. Starter & Follow-Up Chips
 	function renderStarterChips( log, chips, onSelect ) {
 		if ( ! chips || ! chips.length ) {
 			return;
@@ -313,6 +511,72 @@
 			chipsWrap.appendChild( chip );
 		} );
 		log.appendChild( chipsWrap );
+		log.scrollTop = log.scrollHeight;
+	}
+
+	// 8. In-Chat Interactive Action Cards (WhatsApp Handoff / Callback)
+	function renderWhatsAppCard( log, prefillText ) {
+		if ( ! vmsosWidget.whatsapp ) {
+			return;
+		}
+		const text = prefillText || 'Hi ' + ( vmsosWidget.siteName || '' ) + ', I am inquiring from your website chat.';
+		const url = 'https://wa.me/' + encodeURIComponent( vmsosWidget.whatsapp ) + '?text=' + encodeURIComponent( text );
+
+		const card = el( 'div', 'vmsos-action-card vmsos-action-wa' );
+		card.innerHTML =
+			'<div class="vmsos-action-card__inner">' +
+				'<div class="vmsos-action-card__icon">' +
+					'<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766 0-3.187-2.59-5.771-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.312.045-.694.072-2.18-.545-1.898-.787-3.13-2.73-3.224-2.855-.094-.127-.775-1.03-.775-1.965 0-.934.489-1.393.663-1.583.175-.19.38-.238.508-.238.127 0 .254.002.365.008.117.006.273-.044.428.328.16.383.548 1.339.596 1.436.048.098.08.212.015.339-.064.127-.095.207-.19.317-.095.111-.2.248-.286.333-.095.096-.195.2-.084.391.111.19.493.813 1.056 1.314.726.645 1.338.845 1.53.94.19.096.302.08.413-.048.111-.127.476-.556.603-.746.127-.19.254-.159.429-.095.174.064 1.111.524 1.302.619.19.096.317.143.365.223.048.079.048.461-.096.866z"/></svg>' +
+				'</div>' +
+				'<div class="vmsos-action-card__body">' +
+					'<div class="vmsos-action-card__title">Direct WhatsApp Support</div>' +
+					'<div class="vmsos-action-card__desc">Chat directly with our senior consultant for real-time proposals.</div>' +
+				'</div>' +
+			'</div>' +
+			'<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="vmsos-action-card__btn">Connect on WhatsApp &rarr;</a>';
+
+		log.appendChild( card );
+		log.scrollTop = log.scrollHeight;
+	}
+
+	function renderPhoneCallbackCard( log, phoneStr, switchToFormFn ) {
+		const cleanDigits = phoneStr.replace( /[^0-9+]/g, '' );
+		const card = el( 'div', 'vmsos-action-card vmsos-action-phone' );
+
+		const inner = el( 'div', 'vmsos-action-card__inner' );
+		const icon = el( 'div', 'vmsos-action-card__icon', '📞' );
+		const body = el( 'div', 'vmsos-action-card__body' );
+		body.append(
+			el( 'div', 'vmsos-action-card__title', 'Contact Number Captured' ),
+			el( 'div', 'vmsos-action-card__desc', 'Detected ' + phoneStr + '. Choose how you prefer to connect:' )
+		);
+		inner.append( icon, body );
+
+		const btns = el( 'div', 'vmsos-action-card__btns' );
+
+		if ( vmsosWidget.phone ) {
+			const callLink = el( 'a', 'vmsos-action-card__btn is-secondary', '📞 Call Now' );
+			callLink.href = 'tel:' + encodeURIComponent( vmsosWidget.phone );
+			btns.appendChild( callLink );
+		}
+
+		if ( vmsosWidget.whatsapp ) {
+			const waLink = el( 'a', 'vmsos-action-card__btn is-wa', '🟢 WhatsApp' );
+			waLink.href = 'https://wa.me/' + encodeURIComponent( vmsosWidget.whatsapp ) + '?text=' + encodeURIComponent( 'Hi ' + ( vmsosWidget.siteName || '' ) + ', my number is ' + phoneStr + '. Looking for a quote.' );
+			waLink.target = '_blank';
+			waLink.rel = 'noopener noreferrer';
+			btns.appendChild( waLink );
+		}
+
+		const formBtn = el( 'button', 'vmsos-action-card__btn', '📋 Submit Details' );
+		formBtn.type = 'button';
+		formBtn.addEventListener( 'click', function () {
+			switchToFormFn( phoneStr );
+		} );
+		btns.appendChild( formBtn );
+
+		card.append( inner, btns );
+		log.appendChild( card );
 		log.scrollTop = log.scrollHeight;
 	}
 
@@ -348,7 +612,7 @@
 			}
 		}
 
-		function switchTab( tab ) {
+		function switchTab( tab, prefillPhone ) {
 			state.activeTab = tab;
 			if ( tab === 'chat' ) {
 				ui.tabChat.classList.add( 'is-active' );
@@ -361,6 +625,13 @@
 				ui.tabChat.classList.remove( 'is-active' );
 				ui.chatView.style.display = 'none';
 				ui.formView.style.display = 'block';
+
+				if ( prefillPhone ) {
+					const phoneInput = ui.inquiryForm.querySelector( 'input[name="phone"]' );
+					if ( phoneInput ) {
+						phoneInput.value = prefillPhone;
+					}
+				}
 			}
 		}
 
@@ -474,7 +745,17 @@
 			ui.input.value = '';
 			bubble( ui.log, 'visitor', message );
 
-			const pending = bubble( ui.log, 'agent is-pending', '…' );
+			// Check for in-chat phone detection
+			const detectedPhone = detectPhoneNumber( message );
+			const detectedMail = detectEmail( message );
+
+			if ( detectedPhone ) {
+				renderPhoneCallbackCard( ui.log, detectedPhone, function ( p ) {
+					switchTab( 'form', p );
+				} );
+			}
+
+			const typingBubble = showTypingIndicator( ui.log );
 			const attr = getAttribution();
 
 			try {
@@ -495,21 +776,29 @@
 
 				state.uuid = data.uuid || state.uuid;
 
+				// Remove typing indicator before appending reply
+				typingBubble.remove();
+
 				if ( data.reply ) {
-					pending.classList.remove( 'is-pending' );
-					pending.innerHTML = '';
-					pending.appendChild( renderMarkdown( data.reply ) );
+					playMessageTone();
+					bubble( ui.log, 'agent', data.reply );
+
+					// Check if reply references WhatsApp or handover
+					const lowerReply = ( data.reply || '' ).toLowerCase();
+					if ( lowerReply.includes( 'whatsapp' ) || data.handover ) {
+						renderWhatsAppCard( ui.log, 'Hi ' + ( vmsosWidget.siteName || '' ) + ', following up on our chat inquiry.' );
+					}
 				} else {
-					pending.remove();
 					if ( data.handover ) {
 						bubble( ui.log, 'agent is-system', vmsosWidget.strings.waiting );
+						renderWhatsAppCard( ui.log, 'Hi ' + ( vmsosWidget.siteName || '' ) + ', I requested an agent handover from chat.' );
 					}
 				}
 
 				startPolling( ui );
 			} catch ( error ) {
-				pending.classList.remove( 'is-pending' );
-				pending.textContent = vmsosWidget.strings.error;
+				typingBubble.remove();
+				bubble( ui.log, 'agent is-system', vmsosWidget.strings.error );
 			}
 
 			state.busy = false;
@@ -573,7 +862,7 @@
 					// Also post into chat stream so continuity is preserved
 					setTimeout( function () {
 						switchTab( 'chat' );
-						bubble( ui.log, 'visitor', 'Submitted inquiry for ' + ( requirements || 'General Consultation' ) );
+						bubble( ui.log, 'visitor', 'Submitted inquiry for: ' + ( requirements || 'General Consultation' ) );
 						bubble( ui.log, 'agent', 'Thank you, ' + ( firstName || 'there' ) + '! We have received your inquiry. A specialist will review it and follow up shortly.' );
 					}, 1200 );
 				} else {
@@ -616,6 +905,7 @@
 
 				( data.messages || [] ).forEach( function ( message ) {
 					state.lastId = Math.max( state.lastId, Number( message.id ) );
+					playMessageTone();
 					bubble( ui.log, 'agent', message.content );
 				} );
 
