@@ -26,6 +26,21 @@ final class ChatController extends AbstractController {
 			]
 		);
 
+		// Public: the widget streams token-by-token using SSE.
+		register_rest_route(
+			self::NAMESPACE,
+			'/chat/stream',
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'stream' ],
+				'permission_callback' => fn( WP_REST_Request $request ) => $this->guardPublic( $request ),
+				'args'                => [
+					'message' => [ 'required' => true, 'type' => 'string' ],
+					'uuid'    => [ 'type' => 'string' ],
+				],
+			]
+		);
+
 		// Public: the widget polls this so a human reply lands without a refresh.
 		register_rest_route(
 			self::NAMESPACE,
@@ -103,6 +118,58 @@ final class ChatController extends AbstractController {
 		);
 
 		return $this->ok( $result );
+	}
+
+	public function stream( WP_REST_Request $request ) {
+		$message = $this->textParam( $request, 'message', 4000 );
+
+		if ( '' === trim( $message ) ) {
+			return $this->fail( 'vmsos_empty_message', __( 'Type a message first.', 'vm-sales-os' ) );
+		}
+
+		$attribution = $request->get_param( 'attribution' );
+		$context     = [
+			'channel'      => 'web',
+			'visitor_hash' => $this->visitorHash( $request ),
+			'page_url'     => esc_url_raw( (string) $request->get_param( 'page_url' ) ),
+		];
+		if ( is_array( $attribution ) ) {
+			$context['attribution'] = $attribution;
+		}
+
+		if ( function_exists( 'set_time_limit' ) ) {
+			@set_time_limit( 0 );
+		}
+		while ( ob_get_level() > 0 ) {
+			ob_end_clean();
+		}
+
+		header( 'Content-Type: text/event-stream; charset=utf-8' );
+		header( 'Cache-Control: no-cache, no-transform' );
+		header( 'Connection: keep-alive' );
+		header( 'X-Accel-Buffering: no' );
+
+		echo ": ping\n\n";
+		flush();
+
+		$result = $this->chat->streamReply(
+			$this->param( $request, 'uuid' ),
+			$message,
+			$context,
+			static function( string $token ) {
+				echo 'data: ' . wp_json_encode( [ 'token' => $token ] ) . "\n\n";
+				flush();
+			}
+		);
+
+		echo 'data: ' . wp_json_encode( [
+			'done'     => true,
+			'uuid'     => $result['uuid'],
+			'reply'    => $result['reply'],
+			'handover' => $result['handover'],
+		] ) . "\n\n";
+		flush();
+		exit;
 	}
 
 	public function index( WP_REST_Request $request ) {

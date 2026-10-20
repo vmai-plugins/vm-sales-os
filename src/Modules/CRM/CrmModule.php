@@ -25,6 +25,14 @@ final class CrmModule extends Module {
 		$container->singleton( DealRepository::class, static fn() => new DealRepository() );
 		$container->singleton( PipelineRepository::class, static fn() => new PipelineRepository() );
 		$container->singleton( LeadForm::class, static fn() => new LeadForm() );
+		$container->singleton( LeadScoreEngine::class, static fn( Container $c ) => new LeadScoreEngine(
+			$c->get( \VMStudio\SalesOS\AI\ProviderManager::class ),
+			$c->get( \VMStudio\SalesOS\Modules\Chat\ConversationRepository::class ),
+			$c->get( ContactRepository::class ),
+			$c->get( \VMStudio\SalesOS\Modules\Channels\WhatsAppClient::class ),
+			$c->get( \VMStudio\SalesOS\Modules\Channels\EvolutionClient::class ),
+			$c->get( \VMStudio\SalesOS\Support\Logger::class )
+		) );
 	}
 
 	public function boot( Container $container ): void {
@@ -37,6 +45,17 @@ final class CrmModule extends Module {
 		$this->registerTools( $container );
 
 		$events = $container->get( EventBus::class );
+
+		// Autonomous live BANT scoring on every reply turn
+		$events->listen(
+			'chat.replied',
+			static function ( array $payload ) use ( $container ): void {
+				$conversationId = (int) ( $payload['conversation_id'] ?? 0 );
+				if ( $conversationId > 0 ) {
+					$container->get( LeadScoreEngine::class )->evaluate( $conversationId );
+				}
+			}
+		);
 
 		// A finished conversation is the moment we know most about a lead.
 		$events->listen(

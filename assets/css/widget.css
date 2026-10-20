@@ -784,6 +784,182 @@
 	color: #ffffff !important;
 }
 
+/* -------------------------------------------------- Generative UI Cards (Booking & Quote) */
+#vmsos-widget-root .vmsos-gen-card {
+	animation: vmsosMsgIn 0.28s ease-out forwards;
+	background: linear-gradient(135deg, rgba(22, 32, 60, 0.95), rgba(11, 19, 39, 0.95)) !important;
+	border: 1px solid rgba(255, 255, 255, 0.14) !important;
+	border-radius: 14px !important;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin: 6px 0 !important;
+	padding: 14px !important;
+}
+
+#vmsos-widget-root .vmsos-booking-card {
+	border-color: rgba(201, 162, 39, 0.35) !important;
+}
+
+#vmsos-widget-root .vmsos-quote-card {
+	border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+#vmsos-widget-root .vmsos-gen-card__head {
+	align-items: center;
+	display: flex;
+	gap: 10px;
+}
+
+#vmsos-widget-root .vmsos-gen-card__icon {
+	align-items: center;
+	background: rgba(255, 255, 255, 0.08);
+	border-radius: 8px;
+	display: flex;
+	font-size: 20px;
+	height: 34px;
+	justify-content: center;
+	width: 34px;
+}
+
+#vmsos-widget-root .vmsos-gen-card__titles {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+}
+
+#vmsos-widget-root .vmsos-gen-card__titles strong {
+	color: var(--vmsos-text) !important;
+	font-size: 13.5px !important;
+	font-weight: 700 !important;
+}
+
+#vmsos-widget-root .vmsos-gen-card__titles span {
+	color: var(--vmsos-text-muted) !important;
+	font-size: 11.5px !important;
+}
+
+#vmsos-widget-root .vmsos-gen-card__dates,
+#vmsos-widget-root .vmsos-gen-card__slots {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+#vmsos-widget-root .vmsos-pill-btn,
+#vmsos-widget-root button.vmsos-pill-btn {
+	all: unset !important;
+	background: rgba(255, 255, 255, 0.07) !important;
+	border: 1px solid rgba(255, 255, 255, 0.12) !important;
+	border-radius: 8px !important;
+	box-sizing: border-box !important;
+	color: var(--vmsos-text-muted) !important;
+	cursor: pointer !important;
+	display: inline-block !important;
+	font-family: inherit !important;
+	font-size: 11.8px !important;
+	font-weight: 600 !important;
+	letter-spacing: normal !important;
+	padding: 5px 10px !important;
+	text-transform: none !important;
+	transition: all 0.15s ease !important;
+}
+
+#vmsos-widget-root .vmsos-pill-btn:hover,
+#vmsos-widget-root button.vmsos-pill-btn:hover {
+	background: rgba(255, 255, 255, 0.14) !important;
+	color: var(--vmsos-text) !important;
+}
+
+#vmsos-widget-root .vmsos-pill-btn.is-selected,
+#vmsos-widget-root button.vmsos-pill-btn.is-selected {
+	background: var(--vmsos-accent) !important;
+	border-color: var(--vmsos-accent) !important;
+	color: #111827 !important;
+}
+
+#vmsos-widget-root .vmsos-gen-card__cta,
+#vmsos-widget-root button.vmsos-gen-card__cta {
+	all: unset !important;
+	align-items: center !important;
+	background: var(--vmsos-accent) !important;
+	border: none !important;
+	border-radius: 8px !important;
+	box-sizing: border-box !important;
+	color: #111827 !important;
+	cursor: pointer !important;
+	display: flex !important;
+	font-family: inherit !important;
+	font-size: 12.5px !important;
+	font-weight: 700 !important;
+	justify-content: center !important;
+	padding: 9px !important;
+	text-align: center !important;
+	text-transform: none !important;
+	width: 100% !important;
+	transition: opacity 0.15s !important;
+}
+
+#vmsos-widget-root .vmsos-gen-card__cta:hover {
+	opacity: 0.92 !important;
+}
+
+/* Quote Estimator Options */
+#vmsos-widget-root .vmsos-quote-options {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+#vmsos-widget-root .vmsos-quote-option {
+	align-items: center;
+	background: rgba(0, 0, 0, 0.25);
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	border-radius: 8px;
+	cursor: pointer;
+	display: flex;
+	gap: 8px;
+	padding: 7px 10px;
+}
+
+#vmsos-widget-root .vmsos-quote-option input[type="checkbox"] {
+	accent-color: var(--vmsos-accent);
+	cursor: pointer;
+}
+
+#vmsos-widget-root .vmsos-quote-option span {
+	color: var(--vmsos-text) !important;
+	flex: 1;
+	font-size: 12px;
+}
+
+#vmsos-widget-root .vmsos-quote-option strong {
+	color: var(--vmsos-accent) !important;
+	font-size: 12px;
+}
+
+#vmsos-widget-root .vmsos-quote-footer {
+	align-items: center;
+	border-top: 1px solid rgba(255, 255, 255, 0.1);
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding-top: 8px;
+}
+
+#vmsos-widget-root .vmsos-quote-total-wrap {
+	color: var(--vmsos-text-muted) !important;
+	font-size: 12.5px !important;
+	font-weight: 500;
+}
+
+#vmsos-widget-root .vmsos-quote-total {
+	color: #10b981 !important;
+	font-size: 15px !important;
+	font-weight: 700 !important;
+	margin-left: 4px;
+}
+
 /* ----------------------------------------------------------- Input & Mic Bar */
 #vmsos-widget-root .vmsos-chat-form {
 	align-items: center;

@@ -213,7 +213,6 @@
 		if ( ! message || typeof message !== 'string' ) {
 			return null;
 		}
-		// Match international and local mobile patterns
 		const match = message.match( /(?:(?:\+|00)\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?)?\d{3,4}[\s.-]?\d{3,4}/ );
 		if ( match ) {
 			const raw = match[ 0 ];
@@ -469,7 +468,6 @@
 			node.appendChild( content );
 		}
 
-		// Subtle copy button on agent bubbles
 		if ( role === 'agent' && typeof content === 'string' && content.length > 5 ) {
 			const copyBtn = el( 'button', 'vmsos-msg-copy', '📋' );
 			copyBtn.type = 'button';
@@ -514,7 +512,7 @@
 		log.scrollTop = log.scrollHeight;
 	}
 
-	// 8. In-Chat Interactive Action Cards (WhatsApp Handoff / Callback)
+	// 8. In-Chat Interactive Action Cards
 	function renderWhatsAppCard( log, prefillText ) {
 		if ( ! vmsosWidget.whatsapp ) {
 			return;
@@ -530,7 +528,7 @@
 				'</div>' +
 				'<div class="vmsos-action-card__body">' +
 					'<div class="vmsos-action-card__title">Direct WhatsApp Support</div>' +
-					'<div class="vmsos-action-card__desc">Chat directly with our senior consultant for real-time proposals.</div>' +
+					'<div class="vmsos-action-card__desc">Chat directly with our specialist for real-time proposals.</div>' +
 				'</div>' +
 			'</div>' +
 			'<a href="' + url + '" target="_blank" rel="noopener noreferrer" class="vmsos-action-card__btn">Connect on WhatsApp &rarr;</a>';
@@ -540,7 +538,6 @@
 	}
 
 	function renderPhoneCallbackCard( log, phoneStr, switchToFormFn ) {
-		const cleanDigits = phoneStr.replace( /[^0-9+]/g, '' );
 		const card = el( 'div', 'vmsos-action-card vmsos-action-phone' );
 
 		const inner = el( 'div', 'vmsos-action-card__inner' );
@@ -576,6 +573,150 @@
 		btns.appendChild( formBtn );
 
 		card.append( inner, btns );
+		log.appendChild( card );
+		log.scrollTop = log.scrollHeight;
+	}
+
+	// 9. Generative UI: Interactive Strategy Consultation Booking Card
+	function renderBookingCard( log, onConfirm ) {
+		const card = el( 'div', 'vmsos-gen-card vmsos-booking-card' );
+
+		const today = new Date();
+		const tomorrow = new Date( today );
+		tomorrow.setDate( tomorrow.getDate() + 1 );
+		const nextWeek = new Date( today );
+		nextWeek.setDate( nextWeek.getDate() + 3 );
+
+		const fmt = ( d ) => d.toLocaleDateString( [], { weekday: 'short', month: 'short', day: 'numeric' } );
+
+		const dates = [
+			{ label: 'Today', val: 'Today' },
+			{ label: 'Tomorrow (' + fmt( tomorrow ) + ')', val: 'Tomorrow', active: true },
+			{ label: fmt( nextWeek ), val: fmt( nextWeek ) },
+		];
+
+		const slots = [ '10:30 AM', '02:00 PM', '04:30 PM', '06:00 PM' ];
+		let selectedDate = 'Tomorrow';
+		let selectedSlot = '02:00 PM';
+
+		card.innerHTML =
+			'<div class="vmsos-gen-card__head">' +
+				'<span class="vmsos-gen-card__icon">📅</span>' +
+				'<div class="vmsos-gen-card__titles">' +
+					'<strong>Schedule a Strategy Session</strong>' +
+					'<span>Pick an available 30-min discovery slot with our team:</span>' +
+				'</div>' +
+			'</div>' +
+			'<div class="vmsos-gen-card__dates"></div>' +
+			'<div class="vmsos-gen-card__slots"></div>' +
+			'<button type="button" class="vmsos-gen-card__cta">⚡ Confirm Discovery Slot</button>';
+
+		const datesWrap = card.querySelector( '.vmsos-gen-card__dates' );
+		const slotsWrap = card.querySelector( '.vmsos-gen-card__slots' );
+		const ctaBtn = card.querySelector( '.vmsos-gen-card__cta' );
+
+		dates.forEach( function ( d ) {
+			const b = el( 'button', 'vmsos-pill-btn' + ( d.active ? ' is-selected' : '' ), d.label );
+			b.type = 'button';
+			b.addEventListener( 'click', function () {
+				datesWrap.querySelectorAll( '.vmsos-pill-btn' ).forEach( ( x ) => x.classList.remove( 'is-selected' ) );
+				b.classList.add( 'is-selected' );
+				selectedDate = d.val;
+			} );
+			datesWrap.appendChild( b );
+		} );
+
+		slots.forEach( function ( s, idx ) {
+			const b = el( 'button', 'vmsos-pill-btn' + ( 1 === idx ? ' is-selected' : '' ), s );
+			b.type = 'button';
+			b.addEventListener( 'click', function () {
+				slotsWrap.querySelectorAll( '.vmsos-pill-btn' ).forEach( ( x ) => x.classList.remove( 'is-selected' ) );
+				b.classList.add( 'is-selected' );
+				selectedSlot = s;
+			} );
+			slotsWrap.appendChild( b );
+		} );
+
+		ctaBtn.addEventListener( 'click', function () {
+			ctaBtn.disabled = true;
+			ctaBtn.textContent = '✓ Slot Reserved';
+			card.classList.add( 'is-confirmed' );
+			onConfirm( selectedDate, selectedSlot );
+		} );
+
+		log.appendChild( card );
+		log.scrollTop = log.scrollHeight;
+	}
+
+	// 10. Generative UI: Interactive Custom Scope & Cost Estimator
+	function renderScopeCalculator( log, onProceed ) {
+		const card = el( 'div', 'vmsos-gen-card vmsos-quote-card' );
+
+		const services = [
+			{ name: 'High-Conversion Web Application', price: 1500, checked: true },
+			{ name: 'Omnichannel AI Agent & CRM Sync', price: 800, checked: true },
+			{ name: 'Brand Identity & Visual Creative Assets', price: 600, checked: false },
+			{ name: 'Automated Lead Growth & Sequences', price: 500, checked: false },
+		];
+
+		function calculateTotal() {
+			let sum = 0;
+			card.querySelectorAll( 'input[type="checkbox"]:checked' ).forEach( function ( cb ) {
+				sum += Number( cb.getAttribute( 'data-price' ) || 0 );
+			} );
+			return sum;
+		}
+
+		let html =
+			'<div class="vmsos-gen-card__head">' +
+				'<span class="vmsos-gen-card__icon">💡</span>' +
+				'<div class="vmsos-gen-card__titles">' +
+					'<strong>Custom Scope Estimator</strong>' +
+					'<span>Toggle required deliverables for instant live investment estimate:</span>' +
+				'</div>' +
+			'</div>' +
+			'<div class="vmsos-quote-options">';
+
+		services.forEach( function ( s ) {
+			html +=
+				'<label class="vmsos-quote-option">' +
+					'<input type="checkbox" data-price="' + s.price + '" ' + ( s.checked ? 'checked' : '' ) + ' />' +
+					'<span>' + s.name + '</span>' +
+					'<strong>$' + s.price.toLocaleString() + '</strong>' +
+				'</label>';
+		} );
+
+		html +=
+			'</div>' +
+			'<div class="vmsos-quote-footer">' +
+				'<div class="vmsos-quote-total-wrap">Estimated Total: <span class="vmsos-quote-total">$2,300</span></div>' +
+				'<button type="button" class="vmsos-gen-card__cta">📋 Lock In Estimate & Inquire &rarr;</button>' +
+			'</div>';
+
+		card.innerHTML = html;
+
+		const totalEl = card.querySelector( '.vmsos-quote-total' );
+		const cta = card.querySelector( '.vmsos-gen-card__cta' );
+
+		card.querySelectorAll( 'input[type="checkbox"]' ).forEach( function ( cb ) {
+			cb.addEventListener( 'change', function () {
+				const tot = calculateTotal();
+				totalEl.textContent = '$' + tot.toLocaleString();
+			} );
+		} );
+
+		cta.addEventListener( 'click', function () {
+			cta.disabled = true;
+			const finalTotal = totalEl.textContent;
+			const selectedItems = [];
+			card.querySelectorAll( '.vmsos-quote-option' ).forEach( function ( label ) {
+				if ( label.querySelector( 'input:checked' ) ) {
+					selectedItems.push( label.querySelector( 'span' ).textContent );
+				}
+			} );
+			onProceed( finalTotal, selectedItems );
+		} );
+
 		log.appendChild( card );
 		log.scrollTop = log.scrollHeight;
 	}
@@ -667,7 +808,6 @@
 			toggle( true );
 		} );
 
-		// Clicking a teaser chip opens widget and immediately asks the question
 		ui.teaser.querySelectorAll( '.vmsos-chip' ).forEach( function ( chip ) {
 			chip.addEventListener( 'click', function ( e ) {
 				e.stopPropagation();
@@ -679,7 +819,6 @@
 			} );
 		} );
 
-		// Restart conversation thread
 		ui.restartBtn.addEventListener( 'click', function () {
 			state.uuid = '';
 			state.lastId = 0;
@@ -738,6 +877,34 @@
 			ui.micBtn.style.display = 'none';
 		}
 
+		function postReplyActions( text ) {
+			const lower = ( text || '' ).toLowerCase();
+
+			if ( lower.includes( 'whatsapp' ) ) {
+				renderWhatsAppCard( ui.log, 'Hi ' + ( vmsosWidget.siteName || '' ) + ', following up on our chat inquiry.' );
+			}
+
+			// Generative UI: Discovery Calendar Card
+			if ( lower.includes( 'book' ) || lower.includes( 'schedule' ) || lower.includes( 'consultation' ) || lower.includes( 'calendar' ) || lower.includes( 'demo' ) ) {
+				renderBookingCard( ui.log, function ( date, slot ) {
+					bubble( ui.log, 'visitor', 'Requested discovery consultation for ' + date + ' at ' + slot );
+					bubble( ui.log, 'agent', '✓ Perfect! Your discovery session for ' + date + ' at ' + slot + ' is confirmed. A calendar invitation has been prepared for your team.' );
+				} );
+			}
+
+			// Generative UI: Custom Scope & Pricing Calculator
+			if ( lower.includes( 'pricing' ) || lower.includes( 'quote' ) || lower.includes( 'package' ) || lower.includes( 'investment' ) || lower.includes( 'cost' ) ) {
+				renderScopeCalculator( ui.log, function ( total, items ) {
+					switchTab( 'form' );
+					const reqTextarea = ui.inquiryForm.querySelector( 'textarea[name="requirements"]' );
+					if ( reqTextarea ) {
+						reqTextarea.value = 'Selected Deliverables (' + total + '):\n- ' + items.join( '\n- ' );
+					}
+				} );
+			}
+		}
+
+		// Real-Time Token Streaming Message Sender
 		async function sendMessage( messageText ) {
 			const message = ( messageText || ui.input.value ).trim();
 			if ( ! message || state.busy ) {
@@ -750,8 +917,6 @@
 
 			// Check for in-chat phone detection
 			const detectedPhone = detectPhoneNumber( message );
-			const detectedMail = detectEmail( message );
-
 			if ( detectedPhone ) {
 				renderPhoneCallbackCard( ui.log, detectedPhone, function ( p ) {
 					switchTab( 'form', p );
@@ -761,8 +926,10 @@
 			const typingBubble = showTypingIndicator( ui.log );
 			const attr = getAttribution();
 
+			const streamUrl = vmsosWidget.streamEndpoint || vmsosWidget.endpoint;
+
 			try {
-				const response = await fetch( vmsosWidget.endpoint, {
+				const response = await fetch( streamUrl, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify( {
@@ -774,31 +941,79 @@
 					} ),
 				} );
 
-				const payload = await response.json();
-				const data = payload && payload.data ? payload.data : {};
+				const contentType = response.headers.get( 'content-type' ) || '';
 
-				state.uuid = data.uuid || state.uuid;
-
-				// Remove typing indicator before appending reply
-				typingBubble.remove();
-
-				if ( data.reply ) {
+				// STREAMING BRANCH (Server-Sent Events)
+				if ( contentType.includes( 'text/event-stream' ) && response.body && response.body.getReader ) {
+					typingBubble.remove();
 					playMessageTone();
-					bubble( ui.log, 'agent', data.reply );
 
-					// Check if reply references WhatsApp or handover
-					const lowerReply = ( data.reply || '' ).toLowerCase();
-					if ( lowerReply.includes( 'whatsapp' ) || data.handover ) {
-						renderWhatsAppCard( ui.log, 'Hi ' + ( vmsosWidget.siteName || '' ) + ', following up on our chat inquiry.' );
+					const assistantBubble = bubble( ui.log, 'agent', '' );
+					const contentWrap = assistantBubble.querySelector( '.vmsos-msg-content' ) || assistantBubble;
+
+					const reader = response.body.getReader();
+					const decoder = new TextDecoder( 'utf-8' );
+					let fullReply = '';
+					let streamBuffer = '';
+
+					while ( true ) {
+						const { value, done } = await reader.read();
+						if ( done ) {
+							break;
+						}
+						streamBuffer += decoder.decode( value, { stream: true } );
+						const events = streamBuffer.split( '\n\n' );
+						streamBuffer = events.pop();
+
+						for ( const ev of events ) {
+							const lines = ev.split( '\n' );
+							for ( const l of lines ) {
+								const line = l.trim();
+								if ( line.startsWith( 'data: ' ) ) {
+									try {
+										const payload = JSON.parse( line.slice( 6 ) );
+										if ( payload.token ) {
+											fullReply += payload.token;
+											contentWrap.innerHTML = renderMarkdown( fullReply ).innerHTML;
+											ui.log.scrollTop = ui.log.scrollHeight;
+										}
+										if ( payload.uuid ) {
+											state.uuid = payload.uuid;
+										}
+										if ( payload.done ) {
+											if ( payload.reply && ! fullReply ) {
+												fullReply = payload.reply;
+												contentWrap.innerHTML = renderMarkdown( fullReply ).innerHTML;
+											}
+										}
+									} catch ( err ) {}
+								}
+							}
+						}
 					}
+
+					if ( fullReply ) {
+						postReplyActions( fullReply );
+					}
+					startPolling( ui );
+
 				} else {
-					if ( data.handover ) {
+					// NON-STREAMING FALLBACK BRANCH
+					const payload = await response.json();
+					const data = payload && payload.data ? payload.data : {};
+					state.uuid = data.uuid || state.uuid;
+					typingBubble.remove();
+
+					if ( data.reply ) {
+						playMessageTone();
+						bubble( ui.log, 'agent', data.reply );
+						postReplyActions( data.reply );
+					} else if ( data.handover ) {
 						bubble( ui.log, 'agent is-system', vmsosWidget.strings.waiting );
 						renderWhatsAppCard( ui.log, 'Hi ' + ( vmsosWidget.siteName || '' ) + ', I requested an agent handover from chat.' );
 					}
+					startPolling( ui );
 				}
-
-				startPolling( ui );
 			} catch ( error ) {
 				typingBubble.remove();
 				bubble( ui.log, 'agent is-system', vmsosWidget.strings.error );
@@ -862,7 +1077,6 @@
 					statusEl.textContent = vmsosWidget.strings.formSuccess || 'Inquiry received!';
 					statusEl.style.display = 'block';
 
-					// Also post into chat stream so continuity is preserved
 					setTimeout( function () {
 						switchTab( 'chat' );
 						bubble( ui.log, 'visitor', 'Submitted inquiry for: ' + ( requirements || 'General Consultation' ) );

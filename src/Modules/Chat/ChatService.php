@@ -130,6 +130,147 @@ final class ChatService {
 	}
 
 	/**
+	 * Stream a visitor reply token-by-token.
+	 *
+	 * @param string $uuid Conversation UUID.
+	 * @param string $message Visitor text.
+	 * @param array<string, mixed> $context Channel, visitor hash, page URL.
+	 * @param callable(string): void $onToken Invoked for each token chunk.
+	 * @return array{uuid:string, reply:string, handover:bool, blocked?:string}
+	 */
+	public function streamReply( string $uuid, string $message, array $context, callable $onToken ): array {
+		$verdict = $this->guard->inspect( $message );
+
+		if ( ! $verdict['allowed'] ) {
+			$this->events->dispatch( 'chat.blocked', [ 'reason' => $verdict['reason'] ] );
+			$blockedReply = __( 'Send a short message about what you need and I will help.', 'vm-sales-os' );
+			$onToken( $blockedReply );
+			return [
+				'uuid'     => $uuid,
+				'reply'    => $blockedReply,
+				'handover' => false,
+				'blocked'  => $verdict['reason'],
+			];
+		}
+
+		$conversation = '' !== $uuid ? $this->conversations->findByUuid( $uuid ) : null;
+
+		if ( ! $conversation ) {
+			$started      = $this->conversations->start(
+				(string) ( $context['channel'] ?? 'web' ),
+				(string) ( $context['visitor_hash'] ?? '' )
+			);
+			$conversation = [ 'id' => $started['id'], 'uuid' => $started['uuid'], 'contact_id' => 0 ];
+		}
+
+		$conversationId = (int) $conversation['id'];
+		$this->conversations->addMessage( $conversationId, 'user', $message );
+
+		if ( ! empty( $conversation['handover'] ) && 'closed' !== (string) ( $conversation['status'] ?? '' ) ) {
+			$this->events->dispatch(
+				'conversation.awaiting_human',
+				[
+					'conversation_id' => $conversationId,
+					'contact_id'      => (int) ( $conversation['contact_id'] ?? 0 ),
+					'message'         => $message,
+					'channel'         => (string) ( $context['channel'] ?? 'web' ),
+				]
+			);
+
+			return [
+				'uuid'     => (string) $conversation['uuid'],
+				'reply'    => '',
+				'handover' => true,
+			];
+		}
+
+		$context['conversation_id'] = $conversationId;
+		$context['contact_id']      = (int) ( $conversation['contact_id'] ?? 0 );
+
+		$messages = $this->buildMessages( $conversationId, $message, $context );
+		$grants   = (array) apply_filters( 'vmsos_chat_tool_grants', [ 'public' ], $context );
+		$schemas  = $this->tools->schemasFor( $grants );
+
+		try {
+			if ( ! empty( $schemas ) ) {
+				$checkResponse = $this->ai->chat(
+					new ChatRequest(
+						$messages,
+						temperature: (float) get_option( 'vmsos_chat_temperature', 0.4 ),
+						maxTokens: (int) get_option( 'vmsos_chat_max_tokens', 700 ),
+						tools: $schemas,
+						operation: 'chat'
+					)
+				);
+
+				if ( $checkResponse->hasToolCalls() ) {
+					$messages[] = $checkResponse->assistantEcho();
+
+					foreach ( $checkResponse->toolCalls as $call ) {
+						$result = $this->tools->call(
+							(string) $call['name'],
+							(array) $call['arguments'],
+							$grants,
+							array_merge( $context, [ 'conversation_id' => $conversationId ] )
+						);
+						$messages[] = Message::tool( (string) $call['id'], (string) $call['name'], $result );
+					}
+				}
+			}
+
+			$request = new ChatRequest(
+				$messages,
+				temperature: (float) get_option( 'vmsos_chat_temperature', 0.4 ),
+				maxTokens: (int) get_option( 'vmsos_chat_max_tokens', 700 ),
+				tools: [],
+				operation: 'chat'
+			);
+
+			$response = $this->ai->streamChat( $request, $onToken );
+
+		} catch ( AiException $e ) {
+			$this->logger->error( 'chat', 'Streaming reply failed', [ 'error' => $e->getMessage() ] );
+			$fallback = $this->fallbackLine();
+			$onToken( $fallback );
+			$this->conversations->requestHandover( $conversationId );
+
+			return [
+				'uuid'     => (string) $conversation['uuid'],
+				'reply'    => $fallback,
+				'handover' => true,
+			];
+		}
+
+		$this->conversations->addMessage(
+			$conversationId,
+			'assistant',
+			$response->content,
+			[
+				'provider'   => $response->provider,
+				'model'      => $response->model,
+				'tokens_in'  => $response->tokensIn,
+				'tokens_out' => $response->tokensOut,
+				'latency_ms' => $response->latencyMs,
+			]
+		);
+
+		$this->events->dispatch(
+			'chat.replied',
+			[
+				'conversation_id' => $conversationId,
+				'provider'        => $response->provider,
+				'channel'         => (string) ( $context['channel'] ?? 'web' ),
+			]
+		);
+
+		return [
+			'uuid'     => (string) $conversation['uuid'],
+			'reply'    => $response->content,
+			'handover' => false,
+		];
+	}
+
+	/**
 	 * @param array<int, Message>              $messages Conversation.
 	 * @param array<int, array<string, mixed>> $schemas  Tool schemas.
 	 * @param array<int, string>               $grants   Capabilities.

@@ -101,8 +101,9 @@ final class ChatModule extends Module {
 			'vmsos-widget',
 			'vmsosWidget',
 			[
-				'endpoint'      => esc_url_raw( rest_url( 'vmsos/v1/chat/message' ) ),
-				'poll'          => esc_url_raw( rest_url( 'vmsos/v1/chat/poll' ) ),
+				'endpoint'       => esc_url_raw( rest_url( 'vmsos/v1/chat/message' ) ),
+				'streamEndpoint' => esc_url_raw( rest_url( 'vmsos/v1/chat/stream' ) ),
+				'poll'           => esc_url_raw( rest_url( 'vmsos/v1/chat/poll' ) ),
 				'formSubmit'    => esc_url_raw( rest_url( 'vmsos/v1/forms/submit' ) ),
 				'agent'         => (string) get_option( 'vmsos_agent_name', 'Ava' ),
 				'agentTitle'    => (string) get_option( 'vmsos_agent_title', __( 'Online • Live Sales Specialist', 'vm-sales-os' ) ),

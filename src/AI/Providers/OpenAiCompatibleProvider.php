@@ -157,6 +157,101 @@ class OpenAiCompatibleProvider extends AbstractProvider implements EmbeddingProv
 		);
 	}
 
+	/**
+	 * Stream a chat response token-by-token.
+	 *
+	 * @param ChatRequest $request
+	 * @param callable(string): void $onToken Invoked for each incoming text delta.
+	 * @return ChatResponse
+	 */
+	public function streamChat( ChatRequest $request, callable $onToken ): ChatResponse {
+		if ( ! empty( $request->tools ) ) {
+			return $this->chat( $request );
+		}
+
+		$start = $this->now();
+		$body = [
+			'model'       => $request->model ?: $this->defaultModel(),
+			'messages'    => $request->messagesArray(),
+			'temperature' => $request->temperature,
+			'max_tokens'  => $request->maxTokens,
+			'stream'      => true,
+		];
+
+		if ( $request->jsonMode ) {
+			$body['response_format'] = [ 'type' => 'json_object' ];
+		}
+
+		$url = $this->baseUrl() . '/chat/completions';
+		$headers = $this->headers();
+		$rawHeaders = [ 'Content-Type: application/json' ];
+		foreach ( $headers as $k => $v ) {
+			$rawHeaders[] = "$k: $v";
+		}
+
+		$fullContent = '';
+		$modelName   = (string) $body['model'];
+
+		$ch = curl_init( $url );
+		if ( false === $ch ) {
+			return $this->chat( $request );
+		}
+
+		curl_setopt( $ch, CURLOPT_POST, true );
+		curl_setopt( $ch, CURLOPT_POSTFIELDS, wp_json_encode( $body ) );
+		curl_setopt( $ch, CURLOPT_HTTPHEADER, $rawHeaders );
+		curl_setopt( $ch, CURLOPT_RETURNTRANSFER, false );
+		curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, false );
+		curl_setopt( $ch, CURLOPT_TIMEOUT, 60 );
+
+		$buffer = '';
+		curl_setopt( $ch, CURLOPT_WRITEFUNCTION, function( $curlHandle, $chunk ) use ( &$buffer, &$fullContent, &$modelName, $onToken ) {
+			$buffer .= $chunk;
+			while ( ( $pos = strpos( $buffer, "\n" ) ) !== false ) {
+				$line = trim( substr( $buffer, 0, $pos ) );
+				$buffer = substr( $buffer, $pos + 1 );
+
+				if ( str_starts_with( $line, 'data: ' ) ) {
+					$payload = trim( substr( $line, 6 ) );
+					if ( '[DONE]' === $payload ) {
+						continue;
+					}
+					$decoded = json_decode( $payload, true );
+					if ( is_array( $decoded ) ) {
+						if ( ! empty( $decoded['model'] ) ) {
+							$modelName = (string) $decoded['model'];
+						}
+						$delta = $decoded['choices'][0]['delta']['content'] ?? '';
+						if ( '' !== $delta ) {
+							$fullContent .= $delta;
+							$onToken( $delta );
+						}
+					}
+				}
+			}
+			return strlen( $chunk );
+		} );
+
+		curl_exec( $ch );
+		$err = curl_error( $ch );
+		$code = (int) curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+		curl_close( $ch );
+
+		if ( '' !== $err || $code >= 400 || '' === $fullContent ) {
+			return $this->chat( $request );
+		}
+
+		return new ChatResponse(
+			$fullContent,
+			$this->id(),
+			$modelName,
+			[],
+			0,
+			0,
+			$this->elapsed( $start )
+		);
+	}
+
 	/** @return array<int, array<int, float>> */
 	public function embed( array $texts ): array {
 		$data = $this->post(
