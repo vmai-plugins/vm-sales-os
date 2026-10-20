@@ -26,7 +26,7 @@ final class ChatModule extends Module {
 	public function boot( Container $container ): void {
 		$container->get( RestRouter::class )->add( ChatController::class );
 
-		add_action( 'wp_enqueue_scripts', [ $this, 'enqueueWidget' ] );
+		add_action( 'wp_enqueue_scripts', [ $this, 'enqueueWidget' ], 999 );
 		add_action( 'wp_footer', [ $this, 'renderWidgetRoot' ] );
 		add_shortcode( 'vmsos_chat', [ $this, 'shortcode' ] );
 

@@ -589,10 +589,11 @@
 
 		function toggle( open ) {
 			state.open = open;
-			ui.panel.hidden = ! open;
 			ui.launcher.setAttribute( 'aria-expanded', String( open ) );
 
 			if ( open ) {
+				ui.panel.classList.add( 'is-open' );
+				ui.panel.removeAttribute( 'hidden' );
 				ui.launcherIconChat.style.display = 'none';
 				ui.launcherIconClose.style.display = 'inline-block';
 				ui.teaser.style.display = 'none';
@@ -607,6 +608,8 @@
 					ui.input.focus();
 				}
 			} else {
+				ui.panel.classList.remove( 'is-open' );
+				ui.panel.setAttribute( 'hidden', '' );
 				ui.launcherIconChat.style.display = 'inline-block';
 				ui.launcherIconClose.style.display = 'none';
 			}

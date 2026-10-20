@@ -1,4 +1,4 @@
-/* VM Sales OS High-Intelligence Frontchat Widget */
+/* VM Sales OS High-Intelligence Frontchat Widget - Isolated Scoped Styles */
 #vmsos-widget-root {
 	--vmsos-accent: #c9a227;
 	--vmsos-surface: #0b1327;
@@ -7,10 +7,10 @@
 	--vmsos-text: #eef1f8;
 	--vmsos-text-muted: #9aa8c7;
 	bottom: 24px;
-	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
 	position: fixed;
 	right: 24px;
-	z-index: 99998;
+	z-index: 999999 !important;
 }
 
 #vmsos-widget-root[data-position="left"] {
@@ -18,23 +18,60 @@
 	right: auto;
 }
 
+/* ------------------------------------------------ Elementor & Theme Total Reset */
+#vmsos-widget-root,
+#vmsos-widget-root *,
+#vmsos-widget-root *::before,
+#vmsos-widget-root *::after {
+	box-sizing: border-box !important;
+	letter-spacing: normal !important;
+	text-shadow: none !important;
+	text-transform: none !important;
+	word-break: break-word;
+}
+
+#vmsos-widget-root [hidden],
+#vmsos-widget-root .vmsos-panel[hidden] {
+	display: none !important;
+}
+
+#vmsos-widget-root button {
+	all: unset;
+	box-sizing: border-box !important;
+	cursor: pointer !important;
+	font-family: inherit !important;
+	letter-spacing: normal !important;
+	margin: 0 !important;
+	outline: none !important;
+	text-decoration: none !important;
+	text-shadow: none !important;
+	text-transform: none !important;
+}
+
+#vmsos-widget-root a {
+	all: unset;
+	box-sizing: border-box !important;
+	cursor: pointer !important;
+	text-decoration: none !important;
+}
+
 /* ---------------------------------------------------- Proactive Sales Teaser */
-.vmsos-teaser {
-	background: var(--vmsos-surface);
-	border: 1px solid var(--vmsos-surface-border);
-	border-radius: 16px;
+#vmsos-widget-root .vmsos-teaser {
+	animation: vmsosSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	background: var(--vmsos-surface) !important;
+	border: 1px solid var(--vmsos-surface-border) !important;
+	border-radius: 16px !important;
 	bottom: 74px;
-	box-shadow: 0 16px 40px rgba(4, 8, 20, 0.45);
-	color: var(--vmsos-text);
+	box-shadow: 0 16px 40px rgba(4, 8, 20, 0.5) !important;
+	color: var(--vmsos-text) !important;
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
-	max-width: 310px;
-	padding: 16px;
+	max-width: 320px;
+	padding: 16px !important;
 	position: absolute;
 	right: 0;
 	z-index: 99999;
-	animation: vmsosSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 #vmsos-widget-root[data-position="left"] .vmsos-teaser {
@@ -47,18 +84,18 @@
 	to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.vmsos-teaser__head {
+#vmsos-widget-root .vmsos-teaser__head {
 	align-items: center;
 	display: flex;
 	gap: 10px;
 	position: relative;
 }
 
-.vmsos-teaser__avatar-wrap {
+#vmsos-widget-root .vmsos-teaser__avatar-wrap {
 	align-items: center;
-	background: var(--vmsos-surface-light);
-	border: 1px solid var(--vmsos-surface-border);
-	border-radius: 50%;
+	background: var(--vmsos-surface-light) !important;
+	border: 1px solid var(--vmsos-surface-border) !important;
+	border-radius: 50% !important;
 	display: flex;
 	height: 38px;
 	justify-content: center;
@@ -66,14 +103,15 @@
 	width: 38px;
 }
 
-.vmsos-teaser__avatar {
+#vmsos-widget-root .vmsos-teaser__avatar {
 	font-size: 18px;
+	line-height: 1;
 }
 
-.vmsos-teaser__dot {
-	background: #10b981;
-	border: 2px solid var(--vmsos-surface);
-	border-radius: 50%;
+#vmsos-widget-root .vmsos-teaser__dot {
+	background: #10b981 !important;
+	border: 2px solid var(--vmsos-surface) !important;
+	border-radius: 50% !important;
 	bottom: -1px;
 	height: 10px;
 	position: absolute;
@@ -81,121 +119,141 @@
 	width: 10px;
 }
 
-.vmsos-teaser__meta {
+#vmsos-widget-root .vmsos-teaser__meta {
 	display: flex;
 	flex-direction: column;
 	flex: 1;
 	line-height: 1.25;
 }
 
-.vmsos-teaser__name {
-	font-size: 14px;
-	font-weight: 600;
+#vmsos-widget-root .vmsos-teaser__name {
+	color: var(--vmsos-text) !important;
+	font-size: 14px !important;
+	font-weight: 700 !important;
 }
 
-.vmsos-teaser__sub {
-	color: #10b981;
-	font-size: 11px;
-	font-weight: 500;
+#vmsos-widget-root .vmsos-teaser__sub {
+	color: #10b981 !important;
+	font-size: 11px !important;
+	font-weight: 500 !important;
 }
 
-.vmsos-teaser__close {
-	background: none;
-	border: none;
-	color: var(--vmsos-text-muted);
-	cursor: pointer;
-	font-size: 20px;
-	line-height: 1;
-	padding: 2px 6px;
+#vmsos-widget-root .vmsos-teaser__close,
+#vmsos-widget-root button.vmsos-teaser__close {
+	background: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
+	color: var(--vmsos-text-muted) !important;
+	cursor: pointer !important;
+	font-size: 22px !important;
+	line-height: 1 !important;
+	padding: 2px 6px !important;
 	position: absolute;
 	right: -4px;
 	top: -4px;
 }
 
-.vmsos-teaser__close:hover {
-	color: var(--vmsos-text);
+#vmsos-widget-root .vmsos-teaser__close:hover {
+	color: var(--vmsos-text) !important;
 }
 
-.vmsos-teaser__text {
-	color: #d1d9ec;
-	font-size: 13.5px;
-	line-height: 1.45;
+#vmsos-widget-root .vmsos-teaser__text {
+	color: #d1d9ec !important;
+	font-size: 13.5px !important;
+	line-height: 1.45 !important;
 }
 
-.vmsos-teaser__chips {
+#vmsos-widget-root .vmsos-teaser__chips {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
 }
 
-.vmsos-chip {
-	background: rgba(255, 255, 255, 0.06);
-	border: 1px solid rgba(255, 255, 255, 0.12);
-	border-radius: 20px;
-	color: var(--vmsos-text);
-	cursor: pointer;
-	font-size: 12px;
-	font-weight: 500;
-	padding: 6px 12px;
-	transition: background 0.15s, border-color 0.15s, transform 0.1s;
+/* -------------------------------------------------------------- Chips */
+#vmsos-widget-root .vmsos-chip,
+#vmsos-widget-root button.vmsos-chip {
+	all: unset !important;
+	background: rgba(255, 255, 255, 0.08) !important;
+	border: 1px solid rgba(255, 255, 255, 0.16) !important;
+	border-radius: 20px !important;
+	box-shadow: none !important;
+	box-sizing: border-box !important;
+	color: var(--vmsos-text) !important;
+	cursor: pointer !important;
+	display: inline-block !important;
+	font-family: inherit !important;
+	font-size: 12px !important;
+	font-weight: 500 !important;
+	letter-spacing: normal !important;
+	padding: 6px 12px !important;
+	text-transform: none !important;
+	transition: background 0.15s, border-color 0.15s, transform 0.1s !important;
 }
 
-.vmsos-chip:hover {
-	background: rgba(255, 255, 255, 0.12);
-	border-color: var(--vmsos-accent);
-	transform: translateY(-1px);
+#vmsos-widget-root .vmsos-chip:hover,
+#vmsos-widget-root button.vmsos-chip:hover {
+	background: rgba(255, 255, 255, 0.16) !important;
+	border-color: var(--vmsos-accent) !important;
+	color: #ffffff !important;
+	transform: translateY(-1px) !important;
 }
 
-.vmsos-teaser__cta {
-	align-items: center;
-	background: var(--vmsos-accent);
-	border: none;
-	border-radius: 10px;
-	color: #111827;
-	cursor: pointer;
-	display: flex;
-	font-size: 13px;
-	font-weight: 600;
-	justify-content: space-between;
-	padding: 8px 14px;
-	transition: opacity 0.15s;
+#vmsos-widget-root .vmsos-teaser__cta,
+#vmsos-widget-root button.vmsos-teaser__cta {
+	all: unset !important;
+	align-items: center !important;
+	background: var(--vmsos-accent) !important;
+	border: none !important;
+	border-radius: 10px !important;
+	box-shadow: none !important;
+	box-sizing: border-box !important;
+	color: #111827 !important;
+	cursor: pointer !important;
+	display: flex !important;
+	font-family: inherit !important;
+	font-size: 13px !important;
+	font-weight: 700 !important;
+	justify-content: space-between !important;
+	letter-spacing: normal !important;
+	padding: 9px 14px !important;
+	text-transform: none !important;
+	transition: opacity 0.15s !important;
 }
 
-.vmsos-teaser__cta:hover {
-	opacity: 0.92;
+#vmsos-widget-root .vmsos-teaser__cta:hover {
+	opacity: 0.92 !important;
 }
 
-/* ------------------------------------------------------------- Floating FAB */
-.vmsos-launcher {
-	align-items: center;
-	background: var(--vmsos-surface);
-	border: 1px solid var(--vmsos-surface-border);
-	border-radius: 999px;
-	box-shadow: 0 10px 32px rgba(4, 8, 20, 0.4);
-	color: var(--vmsos-text);
-	cursor: pointer;
-	display: flex;
-	gap: 10px;
-	height: 52px;
-	padding: 0 20px;
-	position: relative;
-	transition: transform 0.15s, box-shadow 0.15s;
+/* ------------------------------------------------------------- Floating Launcher FAB */
+#vmsos-widget-root .vmsos-launcher,
+#vmsos-widget-root button.vmsos-launcher {
+	all: unset !important;
+	align-items: center !important;
+	background: var(--vmsos-surface) !important;
+	border: 1px solid var(--vmsos-surface-border) !important;
+	border-radius: 999px !important;
+	box-shadow: 0 10px 32px rgba(4, 8, 20, 0.45) !important;
+	box-sizing: border-box !important;
+	color: var(--vmsos-text) !important;
+	cursor: pointer !important;
+	display: inline-flex !important;
+	gap: 10px !important;
+	height: 52px !important;
+	padding: 0 20px !important;
+	position: relative !important;
+	text-transform: none !important;
+	transition: transform 0.15s, box-shadow 0.15s !important;
 }
 
-.vmsos-launcher:hover {
-	transform: translateY(-2px);
-	box-shadow: 0 14px 40px rgba(4, 8, 20, 0.5);
+#vmsos-widget-root .vmsos-launcher:hover {
+	box-shadow: 0 14px 40px rgba(4, 8, 20, 0.6) !important;
+	transform: translateY(-2px) !important;
 }
 
-.vmsos-launcher:focus-visible {
-	outline: 2px solid var(--vmsos-accent);
-	outline-offset: 3px;
-}
-
-.vmsos-launcher__pulse {
-	background: #10b981;
-	border: 2px solid var(--vmsos-surface);
-	border-radius: 50%;
+#vmsos-widget-root .vmsos-launcher__pulse {
+	background: #10b981 !important;
+	border: 2px solid var(--vmsos-surface) !important;
+	border-radius: 50% !important;
 	height: 12px;
 	left: 12px;
 	position: absolute;
@@ -203,39 +261,46 @@
 	width: 12px;
 }
 
-.vmsos-launcher__icon-chat {
-	color: var(--vmsos-accent);
-	display: flex;
+#vmsos-widget-root .vmsos-launcher__icon-chat {
 	align-items: center;
+	color: var(--vmsos-accent) !important;
+	display: inline-flex;
 }
 
-.vmsos-launcher__icon-close {
-	font-size: 26px;
-	line-height: 1;
+#vmsos-widget-root .vmsos-launcher__icon-close {
+	font-size: 26px !important;
+	line-height: 1 !important;
 }
 
-.vmsos-launcher__label {
-	font-size: 14px;
-	font-weight: 600;
-	letter-spacing: 0.01em;
+#vmsos-widget-root .vmsos-launcher__label {
+	color: var(--vmsos-text) !important;
+	font-size: 14px !important;
+	font-weight: 600 !important;
+	letter-spacing: normal !important;
+	text-transform: none !important;
 }
 
 /* ---------------------------------------------------------------- Chat Panel */
-.vmsos-panel {
-	background: var(--vmsos-surface);
-	border: 1px solid var(--vmsos-surface-border);
-	border-radius: 20px;
+#vmsos-widget-root .vmsos-panel {
+	animation: vmsosSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	background: var(--vmsos-surface) !important;
+	border: 1px solid var(--vmsos-surface-border) !important;
+	border-radius: 20px !important;
 	bottom: 74px;
-	box-shadow: 0 24px 70px rgba(4, 8, 20, 0.55);
-	color: var(--vmsos-text);
-	display: flex;
+	box-shadow: 0 24px 70px rgba(4, 8, 20, 0.6) !important;
+	color: var(--vmsos-text) !important;
+	display: none !important;
 	flex-direction: column;
 	height: min(74vh, 590px);
 	overflow: hidden;
 	position: absolute;
 	right: 0;
 	width: min(94vw, 395px);
-	animation: vmsosSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+	z-index: 99999;
+}
+
+#vmsos-widget-root .vmsos-panel.is-open {
+	display: flex !important;
 }
 
 #vmsos-widget-root[data-position="left"] .vmsos-panel {
@@ -244,26 +309,26 @@
 }
 
 /* ------------------------------------------------------------- Panel Header */
-.vmsos-head {
+#vmsos-widget-root .vmsos-head {
 	align-items: center;
-	background: var(--vmsos-surface-light);
-	border-bottom: 1px solid var(--vmsos-surface-border);
+	background: var(--vmsos-surface-light) !important;
+	border-bottom: 1px solid var(--vmsos-surface-border) !important;
 	display: flex;
 	justify-content: space-between;
-	padding: 13px 16px;
+	padding: 12px 16px !important;
 }
 
-.vmsos-head__info {
+#vmsos-widget-root .vmsos-head__info {
 	align-items: center;
 	display: flex;
 	gap: 11px;
 }
 
-.vmsos-head__avatar-wrap {
+#vmsos-widget-root .vmsos-head__avatar-wrap {
 	align-items: center;
-	background: rgba(255, 255, 255, 0.08);
-	border: 1px solid var(--vmsos-surface-border);
-	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.08) !important;
+	border: 1px solid var(--vmsos-surface-border) !important;
+	border-radius: 50% !important;
 	display: flex;
 	height: 38px;
 	justify-content: center;
@@ -271,14 +336,15 @@
 	width: 38px;
 }
 
-.vmsos-head__avatar {
+#vmsos-widget-root .vmsos-head__avatar {
 	font-size: 18px;
+	line-height: 1;
 }
 
-.vmsos-head__dot {
-	background: #10b981;
-	border: 2px solid var(--vmsos-surface-light);
-	border-radius: 50%;
+#vmsos-widget-root .vmsos-head__dot {
+	background: #10b981 !important;
+	border: 2px solid var(--vmsos-surface-light) !important;
+	border-radius: 50% !important;
 	bottom: -1px;
 	height: 9px;
 	position: absolute;
@@ -286,102 +352,129 @@
 	width: 9px;
 }
 
-.vmsos-head__name {
-	font-size: 15px;
-	font-weight: 700;
+#vmsos-widget-root .vmsos-head__name {
+	color: var(--vmsos-text) !important;
+	font-size: 15px !important;
+	font-weight: 700 !important;
+	line-height: 1.25;
 }
 
-.vmsos-head__status {
-	color: #10b981;
-	font-size: 11.5px;
-	font-weight: 500;
+#vmsos-widget-root .vmsos-head__status {
+	color: #10b981 !important;
+	font-size: 11.5px !important;
+	font-weight: 500 !important;
 }
 
-.vmsos-head__controls {
+#vmsos-widget-root .vmsos-head__controls {
 	align-items: center;
 	display: flex;
 	gap: 6px;
 }
 
-.vmsos-btn-action {
-	align-items: center;
-	background: rgba(255, 255, 255, 0.08);
-	border: 1px solid rgba(255, 255, 255, 0.1);
-	border-radius: 8px;
-	color: var(--vmsos-text-muted);
-	cursor: pointer;
-	display: flex;
-	height: 30px;
-	justify-content: center;
-	text-decoration: none;
-	width: 30px;
-	transition: background 0.15s, color 0.15s;
+/* Header Action Controls Reset */
+#vmsos-widget-root .vmsos-btn-action,
+#vmsos-widget-root button.vmsos-btn-action,
+#vmsos-widget-root a.vmsos-btn-action {
+	all: unset !important;
+	align-items: center !important;
+	background: rgba(255, 255, 255, 0.08) !important;
+	border: 1px solid rgba(255, 255, 255, 0.12) !important;
+	border-radius: 8px !important;
+	box-shadow: none !important;
+	box-sizing: border-box !important;
+	color: var(--vmsos-text-muted) !important;
+	cursor: pointer !important;
+	display: inline-flex !important;
+	height: 30px !important;
+	justify-content: center !important;
+	padding: 0 !important;
+	text-decoration: none !important;
+	text-transform: none !important;
+	width: 30px !important;
+	transition: background 0.15s, color 0.15s !important;
 }
 
-.vmsos-btn-action:hover {
-	background: rgba(255, 255, 255, 0.16);
-	color: var(--vmsos-text);
+#vmsos-widget-root .vmsos-btn-action:hover,
+#vmsos-widget-root button.vmsos-btn-action:hover,
+#vmsos-widget-root a.vmsos-btn-action:hover {
+	background: rgba(255, 255, 255, 0.18) !important;
+	color: var(--vmsos-text) !important;
 }
 
-.vmsos-btn-wa:hover {
-	color: #25d366;
+#vmsos-widget-root .vmsos-btn-wa:hover {
+	color: #25d366 !important;
 }
 
-.vmsos-btn-phone:hover {
-	color: var(--vmsos-accent);
+#vmsos-widget-root .vmsos-btn-phone:hover {
+	color: var(--vmsos-accent) !important;
 }
 
-.vmsos-btn-sound {
-	font-size: 14px;
+#vmsos-widget-root .vmsos-btn-sound {
+	font-size: 13px !important;
 }
 
-.vmsos-btn-restart {
-	font-size: 16px;
-	line-height: 1;
+#vmsos-widget-root .vmsos-btn-restart {
+	font-size: 15px !important;
+	line-height: 1 !important;
 }
 
-.vmsos-head__close {
-	background: none;
-	border: none;
-	color: var(--vmsos-text-muted);
-	cursor: pointer;
-	font-size: 24px;
-	line-height: 1;
-	padding: 0 4px;
+#vmsos-widget-root .vmsos-head__close,
+#vmsos-widget-root button.vmsos-head__close {
+	all: unset !important;
+	background: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
+	box-sizing: border-box !important;
+	color: var(--vmsos-text-muted) !important;
+	cursor: pointer !important;
+	font-size: 24px !important;
+	line-height: 1 !important;
+	padding: 0 4px !important;
+	text-transform: none !important;
 }
 
-.vmsos-head__close:hover {
-	color: var(--vmsos-text);
+#vmsos-widget-root .vmsos-head__close:hover {
+	color: var(--vmsos-text) !important;
 }
 
 /* ----------------------------------------------------------- Tab Navigation */
-.vmsos-tabs-nav {
-	background: rgba(0, 0, 0, 0.25);
-	border-bottom: 1px solid var(--vmsos-surface-border);
+#vmsos-widget-root .vmsos-tabs-nav {
+	background: rgba(0, 0, 0, 0.3) !important;
+	border-bottom: 1px solid var(--vmsos-surface-border) !important;
 	display: flex;
-	padding: 4px;
+	padding: 4px !important;
 }
 
-.vmsos-tab-btn {
-	background: none;
-	border: none;
-	border-radius: 8px;
-	color: var(--vmsos-text-muted);
-	cursor: pointer;
-	flex: 1;
-	font-size: 12.5px;
-	font-weight: 600;
-	padding: 7px;
-	transition: background 0.15s, color 0.15s;
+#vmsos-widget-root .vmsos-tab-btn,
+#vmsos-widget-root button.vmsos-tab-btn {
+	all: unset !important;
+	background: transparent !important;
+	border: none !important;
+	border-radius: 8px !important;
+	box-shadow: none !important;
+	box-sizing: border-box !important;
+	color: var(--vmsos-text-muted) !important;
+	cursor: pointer !important;
+	display: block !important;
+	flex: 1 !important;
+	font-family: inherit !important;
+	font-size: 12.5px !important;
+	font-weight: 600 !important;
+	letter-spacing: normal !important;
+	padding: 7px 10px !important;
+	text-align: center !important;
+	text-transform: none !important;
+	transition: background 0.15s, color 0.15s !important;
 }
 
-.vmsos-tab-btn.is-active {
-	background: rgba(255, 255, 255, 0.09);
-	color: var(--vmsos-text);
+#vmsos-widget-root .vmsos-tab-btn.is-active,
+#vmsos-widget-root button.vmsos-tab-btn.is-active {
+	background: rgba(255, 255, 255, 0.12) !important;
+	color: var(--vmsos-text) !important;
 }
 
 /* ------------------------------------------------------------- Tab Views */
-.vmsos-tab-view {
+#vmsos-widget-root .vmsos-tab-view {
 	display: flex;
 	flex-direction: column;
 	flex: 1;
@@ -389,26 +482,25 @@
 }
 
 /* ------------------------------------------------------------- Messages Log */
-.vmsos-log {
+#vmsos-widget-root .vmsos-log {
 	display: flex;
 	flex-direction: column;
 	flex: 1;
 	gap: 12px;
 	overflow-y: auto;
-	padding: 16px;
+	padding: 16px !important;
 	scrollbar-width: thin;
 	scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
 
-.vmsos-log::-webkit-scrollbar {
+#vmsos-widget-root .vmsos-log::-webkit-scrollbar {
 	width: 5px;
 }
-.vmsos-log::-webkit-scrollbar-thumb {
+#vmsos-widget-root .vmsos-log::-webkit-scrollbar-thumb {
 	background: rgba(255, 255, 255, 0.15);
 	border-radius: 4px;
 }
 
-/* Message Bubble Entrance Animation */
 @keyframes vmsosMsgIn {
 	from {
 		opacity: 0;
@@ -420,70 +512,71 @@
 	}
 }
 
-.vmsos-msg {
+#vmsos-widget-root .vmsos-msg {
 	animation: vmsosMsgIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-	border-radius: 14px;
-	font-size: 13.8px;
-	line-height: 1.52;
+	border-radius: 14px !important;
+	font-size: 13.8px !important;
+	line-height: 1.52 !important;
 	max-width: 86%;
-	padding: 10px 14px;
+	padding: 10px 14px !important;
 	position: relative;
 	word-break: break-word;
 }
 
-.vmsos-msg a {
-	color: var(--vmsos-accent);
-	text-decoration: underline;
+#vmsos-widget-root .vmsos-msg a {
+	color: var(--vmsos-accent) !important;
+	text-decoration: underline !important;
 }
 
-.vmsos-msg.is-agent {
+#vmsos-widget-root .vmsos-msg.is-agent {
 	align-self: flex-start;
-	background: rgba(255, 255, 255, 0.08);
-	border: 1px solid rgba(255, 255, 255, 0.06);
-	border-bottom-left-radius: 4px;
-	color: var(--vmsos-text);
+	background: rgba(255, 255, 255, 0.08) !important;
+	border: 1px solid rgba(255, 255, 255, 0.08) !important;
+	border-bottom-left-radius: 4px !important;
+	color: var(--vmsos-text) !important;
 }
 
-.vmsos-msg.is-agent:hover .vmsos-msg-copy {
+#vmsos-widget-root .vmsos-msg.is-agent:hover .vmsos-msg-copy {
 	opacity: 0.85;
 }
 
-.vmsos-msg.is-visitor {
+#vmsos-widget-root .vmsos-msg.is-visitor {
 	align-self: flex-end;
-	background: var(--vmsos-accent);
-	border-bottom-right-radius: 4px;
-	color: #111827;
-	font-weight: 500;
+	background: var(--vmsos-accent) !important;
+	border-bottom-right-radius: 4px !important;
+	color: #111827 !important;
+	font-weight: 500 !important;
 }
 
-.vmsos-msg.is-visitor a {
-	color: #0b1327;
+#vmsos-widget-root .vmsos-msg.is-visitor a {
+	color: #0b1327 !important;
 }
 
-/* Copy button for agent messages */
-.vmsos-msg-copy {
-	background: rgba(0, 0, 0, 0.4);
-	border: 1px solid rgba(255, 255, 255, 0.15);
-	border-radius: 6px;
-	color: #e2e8f0;
-	cursor: pointer;
-	font-size: 11px;
+#vmsos-widget-root .vmsos-msg-copy {
+	all: unset !important;
+	background: rgba(0, 0, 0, 0.45) !important;
+	border: 1px solid rgba(255, 255, 255, 0.15) !important;
+	border-radius: 6px !important;
+	box-sizing: border-box !important;
+	color: #e2e8f0 !important;
+	cursor: pointer !important;
+	font-size: 11px !important;
 	opacity: 0;
-	padding: 2px 6px;
+	padding: 2px 6px !important;
 	position: absolute;
 	right: 6px;
 	top: 6px;
 	transition: opacity 0.15s, background 0.15s;
 }
 
-.vmsos-msg-copy:hover {
-	background: rgba(0, 0, 0, 0.7);
+#vmsos-widget-root .vmsos-msg-copy:hover {
+	background: rgba(0, 0, 0, 0.75) !important;
 }
 
-/* Timestamp */
-.vmsos-msg-time {
+#vmsos-widget-root .vmsos-msg-time {
+	color: var(--vmsos-text-muted) !important;
 	display: block;
-	font-size: 10px;
+	font-size: 10px !important;
 	letter-spacing: 0.02em;
 	margin-top: 5px;
 	opacity: 0.65;
@@ -491,43 +584,39 @@
 	user-select: none;
 }
 
-.vmsos-msg.is-visitor .vmsos-msg-time {
-	color: rgba(17, 24, 39, 0.75);
-}
-
-.vmsos-msg.is-agent .vmsos-msg-time {
-	color: var(--vmsos-text-muted);
+#vmsos-widget-root .vmsos-msg.is-visitor .vmsos-msg-time {
+	color: rgba(17, 24, 39, 0.75) !important;
 }
 
 /* ------------------------------------------------- Animated Typing Dots Wave */
-.vmsos-msg.is-typing {
+#vmsos-widget-root .vmsos-msg.is-typing {
 	align-self: flex-start;
-	background: rgba(255, 255, 255, 0.08);
-	border-bottom-left-radius: 4px;
+	background: rgba(255, 255, 255, 0.08) !important;
+	border-bottom-left-radius: 4px !important;
 	min-width: 58px;
-	padding: 12px 16px;
+	padding: 12px 16px !important;
 }
 
-.vmsos-typing-dots {
+#vmsos-widget-root .vmsos-typing-dots {
 	align-items: center;
 	display: inline-flex;
 	gap: 5px;
 	height: 12px;
 }
 
-.vmsos-typing-dots span {
+#vmsos-widget-root .vmsos-typing-dots span {
 	animation: vmsosTypingBounce 1.4s infinite ease-in-out both;
-	background: var(--vmsos-accent);
-	border-radius: 50%;
+	background: var(--vmsos-accent) !important;
+	border-radius: 50% !important;
 	display: inline-block;
 	height: 7px;
 	opacity: 0.35;
 	width: 7px;
 }
 
-.vmsos-typing-dots span:nth-child(1) { animation-delay: -0.32s; }
-.vmsos-typing-dots span:nth-child(2) { animation-delay: -0.16s; }
-.vmsos-typing-dots span:nth-child(3) { animation-delay: 0s; }
+#vmsos-widget-root .vmsos-typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+#vmsos-widget-root .vmsos-typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+#vmsos-widget-root .vmsos-typing-dots span:nth-child(3) { animation-delay: 0s; }
 
 @keyframes vmsosTypingBounce {
 	0%, 80%, 100% {
@@ -540,210 +629,219 @@
 	}
 }
 
-.vmsos-msg.is-agent.is-system {
-	background: rgba(201, 162, 39, 0.12);
-	border: 1px dashed rgba(201, 162, 39, 0.4);
-	color: #f7e7a9;
-	font-size: 13px;
+#vmsos-widget-root .vmsos-msg.is-agent.is-system {
+	background: rgba(201, 162, 39, 0.12) !important;
+	border: 1px dashed rgba(201, 162, 39, 0.4) !important;
+	color: #f7e7a9 !important;
+	font-size: 13px !important;
 }
 
 /* ---------------------------------------------------- Markdown Rich Styling */
-.vmsos-msg-content {
+#vmsos-widget-root .vmsos-msg-content {
 	display: flex;
 	flex-direction: column;
 	gap: 6px;
 }
 
-.vmsos-list {
-	margin: 4px 0;
-	padding-left: 20px;
+#vmsos-widget-root .vmsos-list {
+	list-style: disc inside !important;
+	margin: 4px 0 !important;
+	padding-left: 12px !important;
 }
 
-.vmsos-list li {
-	margin-bottom: 3px;
+#vmsos-widget-root .vmsos-list li {
+	margin-bottom: 3px !important;
 }
 
-.vmsos-code-inline {
-	background: rgba(0, 0, 0, 0.3);
-	border-radius: 4px;
-	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-	font-size: 12px;
-	padding: 2px 5px;
+#vmsos-widget-root .vmsos-code-inline {
+	background: rgba(0, 0, 0, 0.3) !important;
+	border-radius: 4px !important;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+	font-size: 12px !important;
+	padding: 2px 5px !important;
 }
 
-.vmsos-code-block {
-	background: rgba(0, 0, 0, 0.45);
-	border: 1px solid rgba(255, 255, 255, 0.1);
-	border-radius: 8px;
-	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-	font-size: 12px;
-	margin: 6px 0;
+#vmsos-widget-root .vmsos-code-block {
+	background: rgba(0, 0, 0, 0.45) !important;
+	border: 1px solid rgba(255, 255, 255, 0.1) !important;
+	border-radius: 8px !important;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+	font-size: 12px !important;
+	margin: 6px 0 !important;
 	overflow-x: auto;
-	padding: 10px;
+	padding: 10px !important;
 }
 
-.vmsos-blockquote {
-	border-left: 3px solid var(--vmsos-accent);
-	color: var(--vmsos-text-muted);
-	font-style: italic;
-	margin: 4px 0;
-	padding-left: 10px;
+#vmsos-widget-root .vmsos-blockquote {
+	border-left: 3px solid var(--vmsos-accent) !important;
+	color: var(--vmsos-text-muted) !important;
+	font-style: italic !important;
+	margin: 4px 0 !important;
+	padding-left: 10px !important;
 }
 
 /* -------------------------------------------------- Action Cards (WhatsApp / Phone) */
-.vmsos-action-card {
+#vmsos-widget-root .vmsos-action-card {
 	animation: vmsosMsgIn 0.25s ease-out forwards;
-	background: rgba(255, 255, 255, 0.05);
-	border: 1px solid rgba(255, 255, 255, 0.12);
-	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.05) !important;
+	border: 1px solid rgba(255, 255, 255, 0.12) !important;
+	border-radius: 12px !important;
 	display: flex;
 	flex-direction: column;
 	gap: 10px;
-	margin: 4px 0;
-	padding: 12px 14px;
+	margin: 4px 0 !important;
+	padding: 12px 14px !important;
 }
 
-.vmsos-action-wa {
-	background: linear-gradient(135deg, rgba(37, 211, 102, 0.12), rgba(0, 0, 0, 0.2));
-	border-color: rgba(37, 211, 102, 0.35);
+#vmsos-widget-root .vmsos-action-wa {
+	background: linear-gradient(135deg, rgba(37, 211, 102, 0.14), rgba(0, 0, 0, 0.25)) !important;
+	border-color: rgba(37, 211, 102, 0.35) !important;
 }
 
-.vmsos-action-phone {
-	background: linear-gradient(135deg, rgba(201, 162, 39, 0.12), rgba(0, 0, 0, 0.2));
-	border-color: rgba(201, 162, 39, 0.35);
+#vmsos-widget-root .vmsos-action-phone {
+	background: linear-gradient(135deg, rgba(201, 162, 39, 0.14), rgba(0, 0, 0, 0.25)) !important;
+	border-color: rgba(201, 162, 39, 0.35) !important;
 }
 
-.vmsos-action-card__inner {
+#vmsos-widget-root .vmsos-action-card__inner {
 	align-items: center;
 	display: flex;
 	gap: 10px;
 }
 
-.vmsos-action-card__icon {
+#vmsos-widget-root .vmsos-action-card__icon {
 	align-items: center;
-	color: #25d366;
+	color: #25d366 !important;
 	display: flex;
 	font-size: 20px;
 }
 
-.vmsos-action-phone .vmsos-action-card__icon {
-	color: var(--vmsos-accent);
+#vmsos-widget-root .vmsos-action-phone .vmsos-action-card__icon {
+	color: var(--vmsos-accent) !important;
 }
 
-.vmsos-action-card__body {
+#vmsos-widget-root .vmsos-action-card__body {
 	display: flex;
 	flex-direction: column;
 	flex: 1;
 }
 
-.vmsos-action-card__title {
-	color: var(--vmsos-text);
-	font-size: 13.5px;
-	font-weight: 700;
+#vmsos-widget-root .vmsos-action-card__title {
+	color: var(--vmsos-text) !important;
+	font-size: 13.5px !important;
+	font-weight: 700 !important;
 }
 
-.vmsos-action-card__desc {
-	color: var(--vmsos-text-muted);
-	font-size: 11.8px;
-	line-height: 1.35;
+#vmsos-widget-root .vmsos-action-card__desc {
+	color: var(--vmsos-text-muted) !important;
+	font-size: 11.8px !important;
+	line-height: 1.35 !important;
 }
 
-.vmsos-action-card__btns {
+#vmsos-widget-root .vmsos-action-card__btns {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
 }
 
-.vmsos-action-card__btn {
-	align-items: center;
-	background: #25d366;
-	border: none;
-	border-radius: 8px;
-	color: #fff;
-	cursor: pointer;
-	display: inline-flex;
-	font-size: 12.5px;
-	font-weight: 600;
-	justify-content: center;
-	padding: 7px 12px;
-	text-decoration: none;
-	transition: opacity 0.15s, transform 0.1s;
+#vmsos-widget-root .vmsos-action-card__btn,
+#vmsos-widget-root a.vmsos-action-card__btn,
+#vmsos-widget-root button.vmsos-action-card__btn {
+	all: unset !important;
+	align-items: center !important;
+	background: #25d366 !important;
+	border: none !important;
+	border-radius: 8px !important;
+	box-shadow: none !important;
+	box-sizing: border-box !important;
+	color: #ffffff !important;
+	cursor: pointer !important;
+	display: inline-flex !important;
+	font-family: inherit !important;
+	font-size: 12.5px !important;
+	font-weight: 600 !important;
+	justify-content: center !important;
+	letter-spacing: normal !important;
+	padding: 7px 12px !important;
+	text-decoration: none !important;
+	text-transform: none !important;
+	transition: opacity 0.15s, transform 0.1s !important;
 }
 
-.vmsos-action-card__btn:hover {
-	opacity: 0.92;
-	text-decoration: none;
-	transform: translateY(-1px);
+#vmsos-widget-root .vmsos-action-card__btn:hover {
+	opacity: 0.92 !important;
+	transform: translateY(-1px) !important;
 }
 
-.vmsos-action-card__btn.is-secondary {
-	background: rgba(255, 255, 255, 0.1);
-	border: 1px solid rgba(255, 255, 255, 0.15);
-	color: var(--vmsos-text);
+#vmsos-widget-root .vmsos-action-card__btn.is-secondary {
+	background: rgba(255, 255, 255, 0.1) !important;
+	border: 1px solid rgba(255, 255, 255, 0.15) !important;
+	color: var(--vmsos-text) !important;
 }
 
-.vmsos-action-card__btn.is-wa {
-	background: #25d366;
-	color: #fff;
-}
-
-/* Starter Chips in Chat Log */
-.vmsos-chips-container {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
-	margin-top: 4px;
+#vmsos-widget-root .vmsos-action-card__btn.is-wa {
+	background: #25d366 !important;
+	color: #ffffff !important;
 }
 
 /* ----------------------------------------------------------- Input & Mic Bar */
-.vmsos-chat-form {
+#vmsos-widget-root .vmsos-chat-form {
 	align-items: center;
-	background: var(--vmsos-surface-light);
-	border-top: 1px solid var(--vmsos-surface-border);
+	background: var(--vmsos-surface-light) !important;
+	border-top: 1px solid var(--vmsos-surface-border) !important;
 	display: flex;
 	gap: 8px;
-	padding: 12px 14px;
+	padding: 12px 14px !important;
 }
 
-.vmsos-input {
-	background: rgba(0, 0, 0, 0.35);
-	border: 1px solid var(--vmsos-surface-border);
-	border-radius: 10px;
-	color: var(--vmsos-text);
-	flex: 1;
-	font-size: 16px; /* Prevents mobile iOS zoom */
-	padding: 10px 12px;
+#vmsos-widget-root .vmsos-input,
+#vmsos-widget-root input.vmsos-input {
+	all: unset !important;
+	background: rgba(0, 0, 0, 0.35) !important;
+	border: 1px solid var(--vmsos-surface-border) !important;
+	border-radius: 10px !important;
+	box-sizing: border-box !important;
+	color: var(--vmsos-text) !important;
+	flex: 1 !important;
+	font-family: inherit !important;
+	font-size: 15px !important;
+	padding: 10px 12px !important;
+	text-transform: none !important;
 }
 
-.vmsos-input:focus {
-	border-color: var(--vmsos-accent);
-	outline: none;
+#vmsos-widget-root .vmsos-input:focus,
+#vmsos-widget-root input.vmsos-input:focus {
+	border-color: var(--vmsos-accent) !important;
+	outline: none !important;
 }
 
-.vmsos-mic {
-	align-items: center;
-	background: rgba(255, 255, 255, 0.07);
-	border: 1px solid var(--vmsos-surface-border);
-	border-radius: 10px;
-	color: var(--vmsos-text-muted);
-	cursor: pointer;
-	display: flex;
-	height: 40px;
-	justify-content: center;
-	width: 40px;
-	transition: background 0.15s, color 0.15s;
+#vmsos-widget-root .vmsos-mic,
+#vmsos-widget-root button.vmsos-mic {
+	all: unset !important;
+	align-items: center !important;
+	background: rgba(255, 255, 255, 0.08) !important;
+	border: 1px solid var(--vmsos-surface-border) !important;
+	border-radius: 10px !important;
+	box-sizing: border-box !important;
+	color: var(--vmsos-text-muted) !important;
+	cursor: pointer !important;
+	display: inline-flex !important;
+	height: 40px !important;
+	justify-content: center !important;
+	width: 40px !important;
+	transition: background 0.15s, color 0.15s !important;
 }
 
-.vmsos-mic:hover {
-	background: rgba(255, 255, 255, 0.14);
-	color: var(--vmsos-text);
+#vmsos-widget-root .vmsos-mic:hover {
+	background: rgba(255, 255, 255, 0.15) !important;
+	color: var(--vmsos-text) !important;
 }
 
-.vmsos-mic.is-listening {
-	animation: vmsosPulseRed 1.2s infinite;
-	background: #dc2626;
-	border-color: #ef4444;
-	color: #fff;
+#vmsos-widget-root .vmsos-mic.is-listening {
+	animation: vmsosPulseRed 1.2s infinite !important;
+	background: #dc2626 !important;
+	border-color: #ef4444 !important;
+	color: #ffffff !important;
 }
 
 @keyframes vmsosPulseRed {
@@ -752,121 +850,147 @@
 	100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
 }
 
-.vmsos-send {
-	background: var(--vmsos-accent);
-	border: none;
-	border-radius: 10px;
-	color: #111827;
-	cursor: pointer;
-	font-size: 14px;
-	font-weight: 700;
-	height: 40px;
-	padding: 0 16px;
-	transition: opacity 0.15s;
+#vmsos-widget-root .vmsos-send,
+#vmsos-widget-root button.vmsos-send {
+	all: unset !important;
+	align-items: center !important;
+	background: var(--vmsos-accent) !important;
+	border: none !important;
+	border-radius: 10px !important;
+	box-shadow: none !important;
+	box-sizing: border-box !important;
+	color: #111827 !important;
+	cursor: pointer !important;
+	display: inline-flex !important;
+	font-family: inherit !important;
+	font-size: 14px !important;
+	font-weight: 700 !important;
+	height: 40px !important;
+	justify-content: center !important;
+	letter-spacing: normal !important;
+	padding: 0 16px !important;
+	text-transform: none !important;
+	transition: opacity 0.15s !important;
 }
 
-.vmsos-send:hover {
-	opacity: 0.92;
+#vmsos-widget-root .vmsos-send:hover {
+	opacity: 0.92 !important;
 }
 
-.vmsos-hp {
+#vmsos-widget-root .vmsos-hp {
 	display: none !important;
-	opacity: 0;
-	pointer-events: none;
+	opacity: 0 !important;
+	pointer-events: none !important;
 }
 
 /* ---------------------------------------------------- Fast Inquiry Form Tab */
-.is-form-tab {
+#vmsos-widget-root .is-form-tab {
 	overflow-y: auto;
-	padding: 18px 20px;
+	padding: 18px 20px !important;
 }
 
-.vmsos-inquiry-form {
+#vmsos-widget-root .vmsos-inquiry-form {
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
 }
 
-.vmsos-q-heading h4 {
-	font-size: 16px;
-	font-weight: 700;
-	margin: 0 0 4px 0;
+#vmsos-widget-root .vmsos-q-heading h4 {
+	color: var(--vmsos-text) !important;
+	font-size: 16px !important;
+	font-weight: 700 !important;
+	letter-spacing: normal !important;
+	margin: 0 0 4px 0 !important;
+	text-transform: none !important;
 }
 
-.vmsos-q-heading p {
-	color: var(--vmsos-text-muted);
-	font-size: 12.5px;
-	margin: 0 0 8px 0;
+#vmsos-widget-root .vmsos-q-heading p {
+	color: var(--vmsos-text-muted) !important;
+	font-size: 12.5px !important;
+	margin: 0 0 8px 0 !important;
 }
 
-.vmsos-q-field {
+#vmsos-widget-root .vmsos-q-field {
 	display: flex;
 	flex-direction: column;
 	gap: 5px;
 }
 
-.vmsos-q-field label {
-	color: #c5d0e6;
-	font-size: 12px;
-	font-weight: 600;
+#vmsos-widget-root .vmsos-q-field label {
+	color: #c5d0e6 !important;
+	font-size: 12px !important;
+	font-weight: 600 !important;
+	letter-spacing: normal !important;
+	text-transform: none !important;
 }
 
-.vmsos-q-field input,
-.vmsos-q-field textarea {
-	background: rgba(0, 0, 0, 0.3);
-	border: 1px solid var(--vmsos-surface-border);
-	border-radius: 8px;
-	color: var(--vmsos-text);
-	font-family: inherit;
-	font-size: 16px;
-	padding: 9px 12px;
+#vmsos-widget-root .vmsos-q-field input,
+#vmsos-widget-root .vmsos-q-field textarea {
+	all: unset !important;
+	background: rgba(0, 0, 0, 0.35) !important;
+	border: 1px solid var(--vmsos-surface-border) !important;
+	border-radius: 8px !important;
+	box-sizing: border-box !important;
+	color: var(--vmsos-text) !important;
+	font-family: inherit !important;
+	font-size: 15px !important;
+	padding: 9px 12px !important;
+	text-transform: none !important;
+	width: 100% !important;
 }
 
-.vmsos-q-field input:focus,
-.vmsos-q-field textarea:focus {
-	border-color: var(--vmsos-accent);
-	outline: none;
+#vmsos-widget-root .vmsos-q-field input:focus,
+#vmsos-widget-root .vmsos-q-field textarea:focus {
+	border-color: var(--vmsos-accent) !important;
+	outline: none !important;
 }
 
-.vmsos-q-submit {
-	background: var(--vmsos-accent);
-	border: none;
-	border-radius: 10px;
-	color: #111827;
-	cursor: pointer;
-	font-size: 14px;
-	font-weight: 700;
-	margin-top: 4px;
-	padding: 12px;
-	transition: opacity 0.15s;
+#vmsos-widget-root .vmsos-q-submit,
+#vmsos-widget-root button.vmsos-q-submit {
+	all: unset !important;
+	align-items: center !important;
+	background: var(--vmsos-accent) !important;
+	border: none !important;
+	border-radius: 10px !important;
+	box-shadow: none !important;
+	box-sizing: border-box !important;
+	color: #111827 !important;
+	cursor: pointer !important;
+	display: inline-flex !important;
+	font-family: inherit !important;
+	font-size: 14px !important;
+	font-weight: 700 !important;
+	justify-content: center !important;
+	letter-spacing: normal !important;
+	margin-top: 4px !important;
+	padding: 12px !important;
+	text-align: center !important;
+	text-transform: none !important;
+	width: 100% !important;
+	transition: opacity 0.15s !important;
 }
 
-.vmsos-q-submit:hover {
-	opacity: 0.92;
+#vmsos-widget-root .vmsos-q-submit:hover {
+	opacity: 0.92 !important;
 }
 
-.vmsos-q-submit:disabled {
-	cursor: not-allowed;
-	opacity: 0.6;
+#vmsos-widget-root .vmsos-q-status {
+	border-radius: 8px !important;
+	font-size: 13px !important;
+	padding: 10px !important;
+	text-align: center !important;
 }
 
-.vmsos-q-status {
-	border-radius: 8px;
-	font-size: 13px;
-	padding: 10px;
-	text-align: center;
+#vmsos-widget-root .vmsos-q-status.is-ok {
+	background: rgba(16, 185, 129, 0.15) !important;
+	border: 1px solid #10b981 !important;
+	color: #6ee7b7 !important;
 }
 
-.vmsos-q-status.is-ok {
-	background: rgba(16, 185, 129, 0.15);
-	border: 1px solid #10b981;
-	color: #6ee7b7;
-}
-
-.vmsos-q-status.is-error {
-	background: rgba(239, 68, 68, 0.15);
-	border: 1px solid #ef4444;
-	color: #fca5a5;
+#vmsos-widget-root .vmsos-q-status.is-error {
+	background: rgba(239, 68, 68, 0.15) !important;
+	border: 1px solid #ef4444 !important;
+	color: #fca5a5 !important;
 }
 
 /* --------------------------------------------------------- Mobile Responsive */
@@ -878,12 +1002,12 @@
 	#vmsos-widget-root[data-position="left"] {
 		left: 16px;
 	}
-	.vmsos-panel {
+	#vmsos-widget-root .vmsos-panel {
 		bottom: 68px;
 		height: min(84vh, 84dvh);
 		width: calc(100vw - 32px);
 	}
-	.vmsos-teaser {
+	#vmsos-widget-root .vmsos-teaser {
 		bottom: 68px;
 		max-width: calc(100vw - 32px);
 	}
