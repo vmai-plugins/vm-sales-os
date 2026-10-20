@@ -513,6 +513,40 @@ final class AdminArea {
 					</tr>
 				</table>
 
+				<h2><?php esc_html_e( 'Google Maps Lead Finder & FluentCRM Prospecting', 'vm-sales-os' ); ?></h2>
+				<p class="description">
+					<?php esc_html_e( 'Configure Google Places API credentials to discover targeted business leads by category and city, crawl business websites for verified emails, and sync automatically to FluentCRM marketing campaigns.', 'vm-sales-os' ); ?>
+				</p>
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row"><label for="vmsos_google_places_api_key"><?php esc_html_e( 'Google Places API Key', 'vm-sales-os' ); ?></label></th>
+						<td>
+							<input
+								type="password"
+								name="vmsos_google_places_api_key"
+								id="vmsos_google_places_api_key"
+								class="regular-text"
+								value=""
+								autocomplete="new-password"
+								placeholder="<?php echo esc_attr( $this->vault->hint( 'google_places_api_key' ) ?: 'AIzaSy...' ); ?>"
+							/>
+							<p class="description">
+								<?php esc_html_e( 'Requires "Places API (New)" enabled in Google Cloud Console. Used by Sales OS → Lead Finder.', 'vm-sales-os' ); ?>
+							</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Phone-Only Lead Sync', 'vm-sales-os' ); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" name="vmsos_leadgen_shadow_email_sync" value="1" <?php checked( (bool) get_option( 'vmsos_leadgen_shadow_email_sync', false ) ); ?> />
+								<?php esc_html_e( 'Sync phone-only leads into FluentCRM using local shadow email (lead+phone@site.com)', 'vm-sales-os' ); ?>
+							</label>
+							<p class="description"><?php esc_html_e( 'If unchecked, phone-only businesses are saved in Sales OS CRM for WhatsApp and live calls, and only leads with verified emails enter FluentCRM email lists.', 'vm-sales-os' ); ?></p>
+						</td>
+					</tr>
+				</table>
+
 				<h2><?php esc_html_e( 'GitHub Updates & Two-Way Code Sync', 'vm-sales-os' ); ?></h2>
 				<p class="description">
 					<?php esc_html_e( 'Direct GitHub deployment and WordPress in-place auto-updater connecting to the official repository.', 'vm-sales-os' ); ?>
@@ -843,12 +877,14 @@ final class AdminArea {
 
 		// Secrets are only written when a new value is typed, so the saved
 		// credential survives a save from a form showing only a hint.
-		foreach ( [ 'whatsapp_token', 'whatsapp_verify_token', 'whatsapp_app_secret', 'voice_api_key' ] as $secret ) {
+		foreach ( [ 'whatsapp_token', 'whatsapp_verify_token', 'whatsapp_app_secret', 'voice_api_key', 'google_places_api_key' ] as $secret ) {
 			$value = isset( $_POST[ 'vmsos_' . $secret ] ) ? trim( (string) wp_unslash( $_POST[ 'vmsos_' . $secret ] ) ) : '';
 			if ( '' !== $value ) {
 				$this->vault->put( $secret, $value );
 			}
 		}
+
+		update_option( 'vmsos_leadgen_shadow_email_sync', ! empty( $_POST['vmsos_leadgen_shadow_email_sync'] ), false );
 
 		// GitHub Repository & Update Settings.
 		update_option( 'vmsos_github_repo', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_github_repo'] ?? 'vmai-plugins/vm-sales-os' ) ), false );

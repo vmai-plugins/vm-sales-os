@@ -13,6 +13,7 @@ use VMStudio\SalesOS\Modules\Channels\ChatwootModule;
 use VMStudio\SalesOS\Modules\Chat\ChatModule;
 use VMStudio\SalesOS\Modules\Compat\CompatModule;
 use VMStudio\SalesOS\Modules\CRM\CrmModule;
+use VMStudio\SalesOS\Modules\LeadGen\LeadGenModule;
 use VMStudio\SalesOS\Modules\Inbox\InboxModule;
 use VMStudio\SalesOS\Modules\Knowledge\KnowledgeModule;
 use VMStudio\SalesOS\Modules\Memory\MemoryModule;
@@ -65,6 +66,7 @@ final class Plugin {
 		$registry->discover(
 			[
 				CrmModule::class,
+				LeadGenModule::class,
 				ChatModule::class,
 				InboxModule::class,
 				KnowledgeModule::class,
