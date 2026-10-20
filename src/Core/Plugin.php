@@ -19,6 +19,7 @@ use VMStudio\SalesOS\Modules\Memory\MemoryModule;
 use VMStudio\SalesOS\Modules\Sequences\SequencesModule;
 use VMStudio\SalesOS\Queue\QueueManager;
 use VMStudio\SalesOS\REST\RestRouter;
+use VMStudio\SalesOS\Support\GitHubUpdater;
 
 /**
  * Composition root. Owns the container and the boot sequence.
@@ -83,6 +84,7 @@ final class Plugin {
 		$this->container->get( Migrator::class )->maybeMigrate();
 		$this->container->get( QueueManager::class )->boot();
 		$this->container->get( RestRouter::class )->boot();
+		$this->container->get( GitHubUpdater::class )->boot();
 
 		if ( is_admin() ) {
 			$this->container->get( AdminArea::class )->boot();

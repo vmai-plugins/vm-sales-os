@@ -468,6 +468,116 @@ final class AdminArea {
 					</tr>
 				</table>
 
+				<h2><?php esc_html_e( 'GitHub Updates & Two-Way Code Sync', 'vm-sales-os' ); ?></h2>
+				<p class="description">
+					<?php esc_html_e( 'Direct GitHub deployment and WordPress in-place auto-updater connecting to the official repository.', 'vm-sales-os' ); ?>
+				</p>
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row"><label for="vmsos_github_repo"><?php esc_html_e( 'GitHub Repository', 'vm-sales-os' ); ?></label></th>
+						<td>
+							<input name="vmsos_github_repo" id="vmsos_github_repo" class="regular-text" value="<?php echo esc_attr( (string) get_option( 'vmsos_github_repo', 'vmai-plugins/vm-sales-os' ) ); ?>" placeholder="vmai-plugins/vm-sales-os" />
+							<p class="description"><?php esc_html_e( 'Default: vmai-plugins/vm-sales-os', 'vm-sales-os' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="vmsos_github_branch"><?php esc_html_e( 'Git Branch', 'vm-sales-os' ); ?></label></th>
+						<td>
+							<input name="vmsos_github_branch" id="vmsos_github_branch" class="small-text" value="<?php echo esc_attr( (string) get_option( 'vmsos_github_branch', 'main' ) ); ?>" />
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="vmsos_github_token"><?php esc_html_e( 'GitHub Token (PAT)', 'vm-sales-os' ); ?></label></th>
+						<td>
+							<input type="password" name="vmsos_github_token" id="vmsos_github_token" class="regular-text" value="" autocomplete="new-password" placeholder="<?php echo esc_attr( $this->vault->hint( 'github_token' ) ?: 'ghp_... or gho_...' ); ?>" />
+							<p class="description"><?php esc_html_e( 'Required for private repo access and high rate limits.', 'vm-sales-os' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Update Action', 'vm-sales-os' ); ?></th>
+						<td>
+							<p>
+								<strong><?php esc_html_e( 'Installed Version:', 'vm-sales-os' ); ?></strong>
+								<code>v<?php echo esc_html( VMSOS_VERSION ); ?></code>
+							</p>
+							<button type="button" class="button" id="vmsos-btn-check-gh-update"><?php esc_html_e( 'Check for GitHub Updates', 'vm-sales-os' ); ?></button>
+							<button type="button" class="button button-primary" id="vmsos-btn-perform-gh-update" style="display:none;"><?php esc_html_e( 'Update Plugin Now', 'vm-sales-os' ); ?></button>
+							<span id="vmsos-gh-update-status" style="margin-left: 10px; font-weight: 500;"></span>
+						</td>
+					</tr>
+				</table>
+
+				<script>
+				document.addEventListener('DOMContentLoaded', function() {
+					var checkBtn = document.getElementById('vmsos-btn-check-gh-update');
+					var updateBtn = document.getElementById('vmsos-btn-perform-gh-update');
+					var statusEl = document.getElementById('vmsos-gh-update-status');
+					if (!checkBtn) return;
+
+					checkBtn.addEventListener('click', function() {
+						checkBtn.disabled = true;
+						statusEl.textContent = 'Checking GitHub...';
+						statusEl.style.color = '';
+
+						var data = new FormData();
+						data.append('action', 'vmsos_check_github_update');
+						data.append('_wpnonce', '<?php echo esc_js( wp_create_nonce( 'vmsos_settings' ) ); ?>');
+
+						fetch(ajaxurl, { method: 'POST', body: data })
+							.then(function(r) { return r.json(); })
+							.then(function(res) {
+								checkBtn.disabled = false;
+								if (res.success) {
+									statusEl.textContent = res.data.message;
+									if (res.data.has_update) {
+										statusEl.style.color = '#10b981';
+										updateBtn.style.display = 'inline-block';
+									} else {
+										statusEl.style.color = '#64748b';
+									}
+								} else {
+									statusEl.textContent = (res.data && res.data.message) || 'Check failed';
+									statusEl.style.color = '#ef4444';
+								}
+							})
+							.catch(function(err) {
+								checkBtn.disabled = false;
+								statusEl.textContent = 'Could not reach server';
+								statusEl.style.color = '#ef4444';
+							});
+					});
+
+					updateBtn.addEventListener('click', function() {
+						if (!confirm('Update VM Sales OS from GitHub now?')) return;
+						updateBtn.disabled = true;
+						statusEl.textContent = 'Downloading and applying GitHub update...';
+						statusEl.style.color = '#10b981';
+
+						var data = new FormData();
+						data.append('action', 'vmsos_perform_github_update');
+						data.append('_wpnonce', '<?php echo esc_js( wp_create_nonce( 'vmsos_settings' ) ); ?>');
+
+						fetch(ajaxurl, { method: 'POST', body: data })
+							.then(function(r) { return r.json(); })
+							.then(function(res) {
+								if (res.success) {
+									statusEl.textContent = res.data.message || 'Updated!';
+									setTimeout(function() { window.location.reload(); }, 1500);
+								} else {
+									updateBtn.disabled = false;
+									statusEl.textContent = (res.data && res.data.message) || 'Update failed';
+									statusEl.style.color = '#ef4444';
+								}
+							})
+							.catch(function(err) {
+								updateBtn.disabled = false;
+								statusEl.textContent = 'Update request failed';
+								statusEl.style.color = '#ef4444';
+							});
+					});
+				});
+				</script>
+
 				<?php submit_button( __( 'Save changes', 'vm-sales-os' ) ); ?>
 			</form>
 		</div>
@@ -565,6 +675,14 @@ final class AdminArea {
 			if ( '' !== $value ) {
 				$this->vault->put( $secret, $value );
 			}
+		}
+
+		// GitHub Repository & Update Settings.
+		update_option( 'vmsos_github_repo', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_github_repo'] ?? 'vmai-plugins/vm-sales-os' ) ), false );
+		update_option( 'vmsos_github_branch', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_github_branch'] ?? 'main' ) ), false );
+		$ghToken = isset( $_POST['vmsos_github_token'] ) ? trim( (string) wp_unslash( $_POST['vmsos_github_token'] ) ) : '';
+		if ( '' !== $ghToken ) {
+			$this->vault->put( 'github_token', $ghToken );
 		}
 
 		wp_safe_redirect( add_query_arg( 'vmsos_saved', '1', admin_url( 'admin.php?page=' . self::SLUG . '-settings' ) ) );
