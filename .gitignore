@@ -1,0 +1,25 @@
+# Composer
+/vendor/
+composer.phar
+
+# NPM / Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment and secrets
+.env
+.env.backup
+.env.*
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Build artifacts & logs
+*.log

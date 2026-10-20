@@ -1,0 +1,238 @@
+/* VM Sales OS chat widget */
+#vmsos-widget-root {
+	--vmsos-accent: #c9a227;
+	--vmsos-surface: #0b1327;
+	--vmsos-text: #eef1f8;
+	bottom: 20px;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	position: fixed;
+	right: 20px;
+	z-index: 99998;
+}
+
+#vmsos-widget-root[data-position="left"] { left: 20px; right: auto; }
+
+.vmsos-launcher {
+	background: var(--vmsos-surface);
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	border-radius: 999px;
+	box-shadow: 0 10px 30px rgba(4, 8, 20, 0.35);
+	color: var(--vmsos-text);
+	cursor: pointer;
+	font-size: 14px;
+	letter-spacing: 0.02em;
+	padding: 13px 22px;
+}
+
+.vmsos-launcher::before {
+	background: var(--vmsos-accent);
+	border-radius: 50%;
+	content: "";
+	display: inline-block;
+	height: 7px;
+	margin-right: 9px;
+	width: 7px;
+}
+
+.vmsos-launcher:focus-visible { outline: 2px solid var(--vmsos-accent); outline-offset: 3px; }
+
+.vmsos-panel {
+	background: var(--vmsos-surface);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 16px;
+	bottom: 64px;
+	box-shadow: 0 22px 60px rgba(4, 8, 20, 0.45);
+	color: var(--vmsos-text);
+	display: flex;
+	flex-direction: column;
+	height: min(70vh, 520px);
+	overflow: hidden;
+	position: absolute;
+	right: 0;
+	width: min(92vw, 370px);
+}
+
+#vmsos-widget-root[data-position="left"] .vmsos-panel { left: 0; right: auto; }
+
+.vmsos-head {
+	align-items: center;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+	display: flex;
+	justify-content: space-between;
+	padding: 14px 16px;
+}
+
+.vmsos-head__name { font-family: Georgia, serif; font-size: 15px; }
+
+.vmsos-head__close {
+	background: none;
+	border: 0;
+	color: var(--vmsos-text);
+	cursor: pointer;
+	font-size: 22px;
+	line-height: 1;
+	opacity: 0.6;
+	padding: 0 4px;
+}
+
+.vmsos-head__close:hover { opacity: 1; }
+
+.vmsos-log {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	gap: 8px;
+	overflow-y: auto;
+	padding: 16px;
+}
+
+.vmsos-msg {
+	border-radius: 14px;
+	font-size: 14px;
+	line-height: 1.45;
+	max-width: 85%;
+	padding: 10px 13px;
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.vmsos-msg.is-agent { background: rgba(255, 255, 255, 0.07); align-self: flex-start; }
+.vmsos-msg.is-visitor { background: var(--vmsos-accent); color: #1a1405; align-self: flex-end; }
+.vmsos-msg.is-pending { opacity: 0.5; }
+
+.vmsos-form {
+	border-top: 1px solid rgba(255, 255, 255, 0.08);
+	display: flex;
+	gap: 8px;
+	padding: 12px;
+}
+
+.vmsos-form .vmsos-input {
+	background: rgba(0, 0, 0, 0.3);
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	border-radius: 10px;
+	color: var(--vmsos-text);
+	flex: 1;
+	font-size: 16px; /* 16px stops iOS zooming on focus */
+	padding: 10px 12px;
+}
+
+.vmsos-form .vmsos-input:focus { border-color: var(--vmsos-accent); outline: none; }
+
+.vmsos-send {
+	background: var(--vmsos-accent);
+	border: 0;
+	border-radius: 10px;
+	color: #1a1405;
+	cursor: pointer;
+	font-weight: 600;
+	padding: 10px 16px;
+}
+
+.vmsos-hp { height: 0; opacity: 0; pointer-events: none; position: absolute; width: 0; }
+
+@media (max-width: 480px) {
+	.vmsos-panel { height: min(78dvh, 78vh); width: calc(100vw - 32px); }
+}
+
+/* -------------------------------------------------------------- Lead form */
+
+.vmsos-form {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	max-width: 520px;
+	padding: 22px;
+	border-radius: 14px;
+	background: #0b1327;
+	color: #eef1f7;
+	font-family: inherit;
+}
+
+.vmsos-form__title {
+	margin: 0;
+	font-family: Georgia, "Times New Roman", serif;
+	font-size: 22px;
+	font-weight: 400;
+	color: #f3e6bf;
+}
+
+.vmsos-form__field {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	font-size: 13px;
+	color: #cbd3e4;
+}
+
+.vmsos-form__field input,
+.vmsos-form__field textarea {
+	/* 16px keeps iOS from zooming the viewport on focus. */
+	font-size: 16px;
+	padding: 10px 12px;
+	border-radius: 8px;
+	border: 1px solid rgba(255, 255, 255, 0.14);
+	background: rgba(255, 255, 255, 0.04);
+	color: #eef1f7;
+	font-family: inherit;
+}
+
+.vmsos-form__field input:focus-visible,
+.vmsos-form__field textarea:focus-visible {
+	outline: 2px solid #c9a227;
+	outline-offset: 1px;
+}
+
+.vmsos-form__consent {
+	display: flex;
+	gap: 9px;
+	align-items: flex-start;
+	font-size: 12px;
+	line-height: 1.5;
+	color: #a9b3c7;
+}
+
+.vmsos-form__trap {
+	position: absolute;
+	left: -9999px;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+}
+
+.vmsos-form__submit {
+	align-self: flex-start;
+	background: #c9a227;
+	color: #0b1327;
+	border: 0;
+	border-radius: 999px;
+	padding: 11px 26px;
+	font-size: 15px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.vmsos-form__submit:disabled {
+	opacity: 0.6;
+	cursor: progress;
+}
+
+.vmsos-form__status {
+	margin: 0;
+	font-size: 13px;
+	min-height: 18px;
+}
+
+.vmsos-form__status.is-ok {
+	color: #7fd6a2;
+}
+
+.vmsos-form__status.is-error {
+	color: #f0a4a4;
+}
+
+.vmsos-msg.is-agent.is-system {
+	background: rgba(201, 162, 39, 0.12);
+	font-style: italic;
+	opacity: 0.9;
+}
