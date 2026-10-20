@@ -27,6 +27,7 @@ final class AdminArea {
 		add_action( 'admin_enqueue_scripts', [ $this, 'assets' ] );
 		add_action( 'admin_init', [ $this, 'ensureCapabilities' ] );
 		add_action( 'admin_post_vmsos_save_settings', [ $this, 'saveSettings' ] );
+		add_action( 'wp_ajax_vmsos_sync_models', [ $this, 'ajaxSyncModels' ] );
 		add_filter( 'plugin_action_links_' . VMSOS_BASENAME, [ $this, 'actionLinks' ] );
 	}
 
@@ -142,31 +143,75 @@ final class AdminArea {
 							<p class="description"><?php esc_html_e( 'Comma separated: aipuffer, openai, anthropic, gemini', 'vm-sales-os' ); ?></p>
 						</td>
 					</tr>
-					<?php foreach ( $this->providers->all() as $id => $provider ) : ?>
-						<tr>
-							<th scope="row"><?php echo esc_html( $provider->label() ); ?></th>
+					<?php foreach ( $this->providers->all() as $id => $provider ) :
+						$cachedModels = (array) get_option( 'vmsos_ai_' . $id . '_models_cache', [] );
+						$currentModel = (string) get_option( 'vmsos_ai_' . $id . '_model', '' );
+					?>
+						<tr class="vmsos-provider-row" data-provider="<?php echo esc_attr( $id ); ?>">
+							<th scope="row">
+								<label><?php echo esc_html( $provider->label() ); ?></label>
+								<div class="vmsos-model-cached-badge" id="vmsos_badge_<?php echo esc_attr( $id ); ?>" style="font-size: 11px; color: #10b981; font-weight: 500; margin-top: 4px; <?php echo empty( $cachedModels ) ? 'display:none;' : ''; ?>">
+									✓ <span class="vmsos-count-val"><?php echo count( $cachedModels ); ?></span> models synced
+								</div>
+							</th>
 							<td>
-								<input
-									type="password"
-									name="vmsos_key_<?php echo esc_attr( $id ); ?>"
-									class="regular-text"
-									autocomplete="new-password"
-									placeholder="<?php echo esc_attr( $this->vault->hint( 'ai.' . $id . '.key' ) ?: __( 'API key', 'vm-sales-os' ) ); ?>"
-								/>
-								<input
-									type="url"
-									name="vmsos_base_<?php echo esc_attr( $id ); ?>"
-									class="regular-text"
-									value="<?php echo esc_attr( (string) get_option( 'vmsos_ai_' . $id . '_base_url', '' ) ); ?>"
-									placeholder="<?php esc_attr_e( 'Base URL (optional)', 'vm-sales-os' ); ?>"
-								/>
-								<input
-									type="text"
-									name="vmsos_model_<?php echo esc_attr( $id ); ?>"
-									class="regular-text"
-									value="<?php echo esc_attr( (string) get_option( 'vmsos_ai_' . $id . '_model', '' ) ); ?>"
-									placeholder="<?php esc_attr_e( 'Default model (optional)', 'vm-sales-os' ); ?>"
-								/>
+								<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+									<input
+										type="password"
+										name="vmsos_key_<?php echo esc_attr( $id ); ?>"
+										id="vmsos_key_<?php echo esc_attr( $id ); ?>"
+										class="regular-text vmsos-field-key"
+										autocomplete="new-password"
+										placeholder="<?php echo esc_attr( $this->vault->hint( 'ai.' . $id . '.key' ) ?: __( 'API key', 'vm-sales-os' ) ); ?>"
+										style="max-width: 190px;"
+									/>
+									<input
+										type="url"
+										name="vmsos_base_<?php echo esc_attr( $id ); ?>"
+										id="vmsos_base_<?php echo esc_attr( $id ); ?>"
+										class="regular-text vmsos-field-base"
+										value="<?php echo esc_attr( (string) get_option( 'vmsos_ai_' . $id . '_base_url', '' ) ); ?>"
+										placeholder="<?php esc_attr_e( 'Base URL (optional)', 'vm-sales-os' ); ?>"
+										style="max-width: 250px;"
+									/>
+									<input
+										type="text"
+										name="vmsos_model_<?php echo esc_attr( $id ); ?>"
+										id="vmsos_model_<?php echo esc_attr( $id ); ?>"
+										class="regular-text vmsos-field-model"
+										list="vmsos_list_<?php echo esc_attr( $id ); ?>"
+										value="<?php echo esc_attr( $currentModel ); ?>"
+										placeholder="<?php esc_attr_e( 'Default model (optional)', 'vm-sales-os' ); ?>"
+										style="max-width: 230px;"
+									/>
+									<datalist id="vmsos_list_<?php echo esc_attr( $id ); ?>">
+										<?php foreach ( $cachedModels as $m ) : ?>
+											<option value="<?php echo esc_attr( $m ); ?>">
+										<?php endforeach; ?>
+									</datalist>
+
+									<select class="vmsos-select-model" id="vmsos_select_<?php echo esc_attr( $id ); ?>" data-target="vmsos_model_<?php echo esc_attr( $id ); ?>" style="max-width: 180px; <?php echo empty( $cachedModels ) ? 'display:none;' : ''; ?>">
+										<option value="">-- Choose Model --</option>
+										<?php foreach ( $cachedModels as $m ) : ?>
+											<option value="<?php echo esc_attr( $m ); ?>" <?php selected( $currentModel, $m ); ?>>
+												<?php echo esc_html( $m ); ?>
+											</option>
+										<?php endforeach; ?>
+									</select>
+
+									<button
+										type="button"
+										class="button vmsos-btn-sync-model"
+										data-provider="<?php echo esc_attr( $id ); ?>"
+										title="<?php esc_attr_e( 'Fetch live available models from this endpoint', 'vm-sales-os' ); ?>"
+										style="display: inline-flex; align-items: center; gap: 4px;"
+									>
+										<span class="dashicons dashicons-update" style="font-size: 15px; width: 15px; height: 15px; line-height: 15px;"></span>
+										<?php esc_html_e( 'Sync Models', 'vm-sales-os' ); ?>
+									</button>
+
+									<span class="vmsos-sync-feedback" id="vmsos_feedback_<?php echo esc_attr( $id ); ?>" style="font-size: 12px; margin-left: 4px;"></span>
+								</div>
 							</td>
 						</tr>
 					<?php endforeach; ?>
@@ -575,13 +620,141 @@ final class AdminArea {
 								statusEl.style.color = '#ef4444';
 							});
 					});
+
+					// Live Model Sync Handler
+					document.querySelectorAll('.vmsos-btn-sync-model').forEach(function(btn) {
+						btn.addEventListener('click', function() {
+							var providerId = btn.getAttribute('data-provider');
+							var row = btn.closest('.vmsos-provider-row');
+							var keyInput = row.querySelector('.vmsos-field-key');
+							var baseInput = row.querySelector('.vmsos-field-base');
+							var modelInput = row.querySelector('.vmsos-field-model');
+							var datalist = row.querySelector('datalist');
+							var select = row.querySelector('.vmsos-select-model');
+							var badge = document.getElementById('vmsos_badge_' + providerId);
+							var feedback = document.getElementById('vmsos_feedback_' + providerId);
+
+							btn.disabled = true;
+							var icon = btn.querySelector('.dashicons');
+							if (icon) icon.style.animation = 'vmsosRotate 1s linear infinite';
+							feedback.textContent = 'Syncing models…';
+							feedback.style.color = '#64748b';
+
+							var formData = new FormData();
+							formData.append('action', 'vmsos_sync_models');
+							formData.append('provider', providerId);
+							if (keyInput && keyInput.value.trim()) {
+								formData.append('api_key', keyInput.value.trim());
+							}
+							if (baseInput && baseInput.value.trim()) {
+								formData.append('base_url', baseInput.value.trim());
+							}
+							formData.append('_wpnonce', '<?php echo esc_js( wp_create_nonce( 'vmsos_settings' ) ); ?>');
+
+							fetch(ajaxurl, { method: 'POST', body: formData })
+								.then(function(res) { return res.json(); })
+								.then(function(res) {
+									btn.disabled = false;
+									if (icon) icon.style.animation = '';
+									if (res.success && res.data && res.data.models) {
+										var models = res.data.models;
+										feedback.textContent = '✓ ' + res.data.message;
+										feedback.style.color = '#10b981';
+
+										// Update datalist
+										datalist.innerHTML = '';
+										select.innerHTML = '<option value="">-- Choose Model --</option>';
+
+										models.forEach(function(m) {
+											var optList = document.createElement('option');
+											optList.value = m;
+											datalist.appendChild(optList);
+
+											var optSelect = document.createElement('option');
+											optSelect.value = m;
+											optSelect.textContent = m;
+											if (modelInput.value === m) {
+												optSelect.selected = true;
+											}
+											select.appendChild(optSelect);
+										});
+
+										select.style.display = 'inline-block';
+
+										if (badge) {
+											var countSpan = badge.querySelector('.vmsos-count-val');
+											if (countSpan) countSpan.textContent = models.length;
+											badge.style.display = 'block';
+										}
+									} else {
+										feedback.textContent = (res.data && res.data.message) || 'Sync failed';
+										feedback.style.color = '#ef4444';
+									}
+								})
+								.catch(function(err) {
+									btn.disabled = false;
+									if (icon) icon.style.animation = '';
+									feedback.textContent = 'Connection error';
+									feedback.style.color = '#ef4444';
+								});
+						});
+					});
+
+					// Auto-fill model text input when select dropdown changes
+					document.querySelectorAll('.vmsos-select-model').forEach(function(sel) {
+						sel.addEventListener('change', function() {
+							var targetId = sel.getAttribute('data-target');
+							var targetInput = document.getElementById(targetId);
+							if (targetInput && sel.value) {
+								targetInput.value = sel.value;
+							}
+						});
+					});
 				});
 				</script>
+				<style>
+				@keyframes vmsosRotate {
+					from { transform: rotate(0deg); }
+					to { transform: rotate(360deg); }
+				}
+				</style>
 
 				<?php submit_button( __( 'Save changes', 'vm-sales-os' ) ); ?>
 			</form>
 		</div>
 		<?php
+	}
+
+	public function ajaxSyncModels(): void {
+		$nonce = isset( $_POST['_wpnonce'] ) ? sanitize_text_field( (string) $_POST['_wpnonce'] ) : '';
+		if ( ! current_user_can( 'vmsos_manage' ) || ! wp_verify_nonce( $nonce, 'vmsos_settings' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Permission denied or expired session.', 'vm-sales-os' ) ], 403 );
+		}
+
+		$providerId = isset( $_POST['provider'] ) ? sanitize_key( (string) $_POST['provider'] ) : '';
+		$provider   = $this->providers->get( $providerId );
+
+		if ( ! $provider ) {
+			wp_send_json_error( [ 'message' => sprintf( __( 'Unknown provider: %s', 'vm-sales-os' ), $providerId ) ], 400 );
+		}
+
+		$keyOverride  = isset( $_POST['api_key'] ) && '' !== trim( (string) $_POST['api_key'] ) ? trim( (string) wp_unslash( $_POST['api_key'] ) ) : null;
+		$baseOverride = isset( $_POST['base_url'] ) && '' !== trim( (string) $_POST['base_url'] ) ? esc_url_raw( (string) wp_unslash( $_POST['base_url'] ) ) : null;
+
+		try {
+			$models = $provider->getModels( true, $keyOverride, $baseOverride );
+			wp_send_json_success( [
+				'provider' => $providerId,
+				'models'   => $models,
+				'count'    => count( $models ),
+				'message'  => sprintf( __( 'Synced %d models live.', 'vm-sales-os' ), count( $models ) ),
+			] );
+		} catch ( \Throwable $e ) {
+			wp_send_json_error( [
+				'provider' => $providerId,
+				'message'  => $e->getMessage(),
+			], 500 );
+		}
 	}
 
 	public function saveSettings(): void {

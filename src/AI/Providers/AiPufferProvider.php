@@ -32,6 +32,74 @@ final class AiPufferProvider extends AbstractProvider {
 		return false;
 	}
 
+	/**
+	 * Live-sync chatbots/models from local or remote AIPKit/AI Power.
+	 *
+	 * @param bool $force Bypass cache.
+	 * @param string|null $keyOverride Optional API key.
+	 * @param string|null $baseOverride Optional base URL.
+	 * @return list<string>
+	 */
+	public function getModels( bool $force = false, ?string $keyOverride = null, ?string $baseOverride = null ): array {
+		$cacheKey = 'vmsos_models_' . $this->id();
+		if ( ! $force && null === $keyOverride && null === $baseOverride ) {
+			$cached = get_transient( $cacheKey );
+			if ( is_array( $cached ) && ! empty( $cached ) ) {
+				return $cached;
+			}
+		}
+
+		$models = [];
+
+		// 1. Check local WordPress database for AIPKit/AI Power chatbots
+		if ( function_exists( 'get_posts' ) ) {
+			$bots = get_posts( [
+				'post_type'      => [ 'wpaicg_bots', 'aipkit_bot' ],
+				'post_status'    => 'publish',
+				'posts_per_page' => 100,
+			] );
+			foreach ( $bots as $bot ) {
+				$models[] = (string) $bot->ID;
+			}
+		}
+
+		// 2. Check remote site if specified
+		$siteUrl = untrailingslashit( ( null !== $baseOverride && '' !== $baseOverride ) ? $baseOverride : $this->siteUrl() );
+		$key = null !== $keyOverride && '' !== $keyOverride ? $keyOverride : $this->apiKey();
+		if ( '' !== $siteUrl && '' !== $key ) {
+			$resp = wp_remote_get(
+				$siteUrl . '/wp-json/aipkit/v1/bots',
+				[
+					'headers'   => [ 'Authorization' => 'Bearer ' . $key ],
+					'timeout'   => 12,
+					'sslverify' => false,
+				]
+			);
+			if ( ! is_wp_error( $resp ) && wp_remote_retrieve_response_code( $resp ) === 200 ) {
+				$data = json_decode( wp_remote_retrieve_body( $resp ), true );
+				if ( is_array( $data ) ) {
+					foreach ( $data as $item ) {
+						if ( ! empty( $item['id'] ) ) {
+							$models[] = (string) $item['id'];
+						}
+					}
+				}
+			}
+		}
+
+		$models = array_values( array_unique( array_filter( $models ) ) );
+		if ( empty( $models ) ) {
+			$models = [ 'default' ];
+		}
+
+		sort( $models, SORT_NATURAL | SORT_FLAG_CASE );
+
+		set_transient( $cacheKey, $models, 12 * HOUR_IN_SECONDS );
+		update_option( 'vmsos_ai_' . $this->id() . '_models_cache', $models, false );
+
+		return $models;
+	}
+
 	private function siteUrl(): string {
 		return untrailingslashit( $this->setting( 'site_url', home_url() ) );
 	}

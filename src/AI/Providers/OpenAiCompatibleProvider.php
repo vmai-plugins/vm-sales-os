@@ -43,6 +43,73 @@ class OpenAiCompatibleProvider extends AbstractProvider implements EmbeddingProv
 		return str_contains( $this->baseUrl(), 'ai.vmstudio.digital' ) ? 'groq/qwen/qwen3.8-27b' : 'gpt-4o-mini';
 	}
 
+	/**
+	 * Live-sync models from /models endpoint.
+	 *
+	 * @param bool $force Bypass cache.
+	 * @param string|null $keyOverride Optional API key.
+	 * @param string|null $baseOverride Optional base URL.
+	 * @return list<string>
+	 */
+	public function getModels( bool $force = false, ?string $keyOverride = null, ?string $baseOverride = null ): array {
+		$cacheKey = 'vmsos_models_' . $this->id();
+		if ( ! $force && null === $keyOverride && null === $baseOverride ) {
+			$cached = get_transient( $cacheKey );
+			if ( is_array( $cached ) && ! empty( $cached ) ) {
+				return $cached;
+			}
+		}
+
+		$key = null !== $keyOverride && '' !== $keyOverride ? $keyOverride : $this->apiKey();
+		$base = null !== $baseOverride && '' !== $baseOverride ? $baseOverride : $this->baseUrl();
+		$base = untrailingslashit( $base );
+
+		$url = $base . '/models';
+		$headers = [];
+		if ( '' !== $key ) {
+			$headers['Authorization'] = 'Bearer ' . $key;
+		}
+
+		$response = wp_remote_get(
+			$url,
+			[
+				'headers'   => $headers,
+				'timeout'   => 15,
+				'sslverify' => false,
+			]
+		);
+
+		if ( is_wp_error( $response ) ) {
+			throw new \VMStudio\SalesOS\AI\AiException( 'Could not reach ' . $url . ': ' . $response->get_error_message() );
+		}
+
+		$code = wp_remote_retrieve_response_code( $response );
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		if ( $code < 200 || $code >= 300 ) {
+			$msg = $body['error']['message'] ?? ( 'HTTP ' . $code );
+			throw new \VMStudio\SalesOS\AI\AiException( 'Failed fetching models from ' . $url . ': ' . $msg );
+		}
+
+		$models = [];
+		if ( isset( $body['data'] ) && is_array( $body['data'] ) ) {
+			foreach ( $body['data'] as $item ) {
+				if ( ! empty( $item['id'] ) && is_string( $item['id'] ) ) {
+					$models[] = $item['id'];
+				}
+			}
+		}
+
+		sort( $models, SORT_NATURAL | SORT_FLAG_CASE );
+
+		if ( ! empty( $models ) ) {
+			set_transient( $cacheKey, $models, 12 * HOUR_IN_SECONDS );
+			update_option( 'vmsos_ai_' . $this->id() . '_models_cache', $models, false );
+		}
+
+		return $models;
+	}
+
 	public function chat( ChatRequest $request ): ChatResponse {
 		$start = $this->now();
 

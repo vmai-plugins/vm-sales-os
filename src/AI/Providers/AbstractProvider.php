@@ -15,6 +15,18 @@ abstract class AbstractProvider implements ChatProvider {
 		return true;
 	}
 
+	/**
+	 * Default fallback for model listing. Overridden by drivers.
+	 *
+	 * @param bool $force Bypass cache.
+	 * @param string|null $keyOverride Optional API key override.
+	 * @param string|null $baseOverride Optional base URL override.
+	 * @return list<string>
+	 */
+	public function getModels( bool $force = false, ?string $keyOverride = null, ?string $baseOverride = null ): array {
+		return [];
+	}
+
 	protected function setting( string $key, string $default = '' ): string {
 		$value = get_option( 'vmsos_ai_' . $this->id() . '_' . $key, '' );
 		return '' === $value ? $default : (string) $value;
