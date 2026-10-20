@@ -172,11 +172,17 @@ final class AdminArea {
 					<?php endforeach; ?>
 				</table>
 
-				<h2><?php esc_html_e( 'Assistant', 'vm-sales-os' ); ?></h2>
+				<h2><?php esc_html_e( 'Assistant & Chat Widget', 'vm-sales-os' ); ?></h2>
 				<table class="form-table" role="presentation">
 					<tr>
 						<th scope="row"><label for="vmsos_agent_name"><?php esc_html_e( 'Assistant name', 'vm-sales-os' ); ?></label></th>
 						<td><input name="vmsos_agent_name" id="vmsos_agent_name" class="regular-text" value="<?php echo esc_attr( (string) get_option( 'vmsos_agent_name', 'Ava' ) ); ?>" /></td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="vmsos_agent_title"><?php esc_html_e( 'Assistant Subtitle', 'vm-sales-os' ); ?></label></th>
+						<td>
+							<input name="vmsos_agent_title" id="vmsos_agent_title" class="regular-text" value="<?php echo esc_attr( (string) get_option( 'vmsos_agent_title', 'Online • Live Sales Specialist' ) ); ?>" placeholder="e.g. Online • Live Sales Specialist" />
+						</td>
 					</tr>
 					<tr>
 						<th scope="row"><label for="vmsos_business_context"><?php esc_html_e( 'What the business does', 'vm-sales-os' ); ?></label></th>
@@ -192,6 +198,62 @@ final class AdminArea {
 								<input type="checkbox" name="vmsos_widget_enabled" value="1" <?php checked( (bool) get_option( 'vmsos_widget_enabled', true ) ); ?> />
 								<?php esc_html_e( 'Show the widget on the site', 'vm-sales-os' ); ?>
 							</label>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Proactive Sales Teaser', 'vm-sales-os' ); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" name="vmsos_widget_teaser_enabled" value="1" <?php checked( (bool) get_option( 'vmsos_widget_teaser_enabled', true ) ); ?> />
+								<?php esc_html_e( 'Pop up proactive sales teaser bubble automatically', 'vm-sales-os' ); ?>
+							</label>
+							<p>
+								<input type="number" min="1" max="60" name="vmsos_widget_teaser_delay" class="small-text" value="<?php echo esc_attr( (string) get_option( 'vmsos_widget_teaser_delay', 3 ) ); ?>" />
+								<span class="description"><?php esc_html_e( 'seconds delay before showing teaser.', 'vm-sales-os' ); ?></span>
+							</p>
+							<textarea name="vmsos_widget_teaser_text" id="vmsos_widget_teaser_text" rows="2" class="large-text" placeholder="<?php esc_attr_e( 'Leave blank to use greeting message', 'vm-sales-os' ); ?>"><?php echo esc_textarea( (string) get_option( 'vmsos_widget_teaser_text', '' ) ); ?></textarea>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="vmsos_widget_starter_chips"><?php esc_html_e( 'Quick Starter Action Chips', 'vm-sales-os' ); ?></label></th>
+						<td>
+							<?php
+							$chipsVal = get_option( 'vmsos_widget_starter_chips', '' );
+							if ( empty( $chipsVal ) && is_array( get_option( 'vmsos_interests' ) ) ) {
+								$chipsVal = implode( "\n", (array) get_option( 'vmsos_interests' ) );
+							}
+							?>
+							<textarea name="vmsos_widget_starter_chips" id="vmsos_widget_starter_chips" rows="3" class="large-text" placeholder="One action prompt per line"><?php echo esc_textarea( is_array( $chipsVal ) ? implode( "\n", $chipsVal ) : (string) $chipsVal ); ?></textarea>
+							<p class="description"><?php esc_html_e( 'Interactive one-click inquiry buttons displayed in the teaser bubble and initial chat greeting.', 'vm-sales-os' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="vmsos_widget_whatsapp"><?php esc_html_e( 'Direct WhatsApp Number', 'vm-sales-os' ); ?></label></th>
+						<td>
+							<input name="vmsos_widget_whatsapp" id="vmsos_widget_whatsapp" class="regular-text" value="<?php echo esc_attr( (string) get_option( 'vmsos_widget_whatsapp', '' ) ); ?>" placeholder="e.g. 919876543210 (country code + number, no + or spaces)" />
+							<p class="description"><?php esc_html_e( 'Adds a 1-click WhatsApp handoff button in the chat widget header.', 'vm-sales-os' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="vmsos_widget_phone"><?php esc_html_e( 'Direct Phone Number', 'vm-sales-os' ); ?></label></th>
+						<td>
+							<input name="vmsos_widget_phone" id="vmsos_widget_phone" class="regular-text" value="<?php echo esc_attr( (string) get_option( 'vmsos_widget_phone', '' ) ); ?>" placeholder="e.g. +91 98765 43210" />
+							<p class="description"><?php esc_html_e( 'Adds a 1-click phone call button in the chat widget header.', 'vm-sales-os' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="vmsos_widget_accent"><?php esc_html_e( 'Widget Accent Color', 'vm-sales-os' ); ?></label></th>
+						<td>
+							<input type="text" name="vmsos_widget_accent" id="vmsos_widget_accent" class="regular-text" style="max-width: 140px;" value="<?php echo esc_attr( (string) get_option( 'vmsos_widget_accent', '#c9a227' ) ); ?>" />
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="vmsos_widget_position"><?php esc_html_e( 'Screen Position', 'vm-sales-os' ); ?></label></th>
+						<td>
+							<select name="vmsos_widget_position" id="vmsos_widget_position">
+								<option value="right" <?php selected( get_option( 'vmsos_widget_position', 'right' ), 'right' ); ?>><?php esc_html_e( 'Bottom Right', 'vm-sales-os' ); ?></option>
+								<option value="left" <?php selected( get_option( 'vmsos_widget_position', 'right' ), 'left' ); ?>><?php esc_html_e( 'Bottom Left', 'vm-sales-os' ); ?></option>
+							</select>
 						</td>
 					</tr>
 				</table>
@@ -446,8 +508,17 @@ final class AdminArea {
 		}
 
 		update_option( 'vmsos_agent_name', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_agent_name'] ?? 'Ava' ) ), false );
+		update_option( 'vmsos_agent_title', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_agent_title'] ?? 'Online • Live Sales Specialist' ) ), false );
 		update_option( 'vmsos_business_context', sanitize_textarea_field( (string) wp_unslash( $_POST['vmsos_business_context'] ?? '' ) ), false );
 		update_option( 'vmsos_widget_enabled', ! empty( $_POST['vmsos_widget_enabled'] ), false );
+		update_option( 'vmsos_widget_teaser_enabled', ! empty( $_POST['vmsos_widget_teaser_enabled'] ), false );
+		update_option( 'vmsos_widget_teaser_delay', max( 1, min( 60, (int) ( $_POST['vmsos_widget_teaser_delay'] ?? 3 ) ) ), false );
+		update_option( 'vmsos_widget_teaser_text', sanitize_textarea_field( (string) wp_unslash( $_POST['vmsos_widget_teaser_text'] ?? '' ) ), false );
+		update_option( 'vmsos_widget_starter_chips', sanitize_textarea_field( (string) wp_unslash( $_POST['vmsos_widget_starter_chips'] ?? '' ) ), false );
+		update_option( 'vmsos_widget_whatsapp', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_widget_whatsapp'] ?? '' ) ), false );
+		update_option( 'vmsos_widget_phone', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_widget_phone'] ?? '' ) ), false );
+		update_option( 'vmsos_widget_accent', sanitize_hex_color( (string) wp_unslash( $_POST['vmsos_widget_accent'] ?? '#c9a227' ) ) ?: '#c9a227', false );
+		update_option( 'vmsos_widget_position', in_array( $_POST['vmsos_widget_position'] ?? '', [ 'left', 'right' ], true ) ? (string) $_POST['vmsos_widget_position'] : 'right', false );
 
 		update_option( 'vmsos_sender_name', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_sender_name'] ?? '' ) ), false );
 		update_option( 'vmsos_sender_email', sanitize_email( (string) wp_unslash( $_POST['vmsos_sender_email'] ?? '' ) ), false );

@@ -46,6 +46,9 @@ final class FormController extends AbstractController {
 			return $this->fail( 'vmsos_bad_email', __( 'Enter a valid email address.', 'vm-sales-os' ) );
 		}
 
+		$attribution = $request->get_param( 'attribution' );
+		$meta        = is_array( $attribution ) ? [ 'attribution' => $attribution ] : [];
+
 		$contactId = $this->contacts->upsert(
 			[
 				'first_name'   => $this->param( $request, 'first_name' ),
@@ -55,6 +58,7 @@ final class FormController extends AbstractController {
 				'requirements' => $this->textParam( $request, 'requirements', 2000 ),
 				'source'       => $this->param( $request, 'source', 'form' ),
 				'consent'      => (bool) $request->get_param( 'consent' ),
+				'meta'         => $meta,
 			]
 		);
 

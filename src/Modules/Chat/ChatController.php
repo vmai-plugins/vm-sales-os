@@ -86,14 +86,20 @@ final class ChatController extends AbstractController {
 			return $this->fail( 'vmsos_empty_message', __( 'Type a message first.', 'vm-sales-os' ) );
 		}
 
+		$attribution = $request->get_param( 'attribution' );
+		$context     = [
+			'channel'      => 'web',
+			'visitor_hash' => $this->visitorHash( $request ),
+			'page_url'     => esc_url_raw( (string) $request->get_param( 'page_url' ) ),
+		];
+		if ( is_array( $attribution ) ) {
+			$context['attribution'] = $attribution;
+		}
+
 		$result = $this->chat->reply(
 			$this->param( $request, 'uuid' ),
 			$message,
-			[
-				'channel'      => 'web',
-				'visitor_hash' => $this->visitorHash( $request ),
-				'page_url'     => esc_url_raw( (string) $request->get_param( 'page_url' ) ),
-			]
+			$context
 		);
 
 		return $this->ok( $result );

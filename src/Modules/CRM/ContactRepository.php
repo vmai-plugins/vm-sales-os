@@ -79,10 +79,11 @@ final class ContactRepository extends Repository {
 			'source'       => sanitize_text_field( (string) ( $input['source'] ?? 'web' ) ),
 			'requirements' => mb_substr( wp_strip_all_tags( (string) ( $input['requirements'] ?? '' ) ), 0, 2000 ),
 			'consent'      => ! empty( $input['consent'] ) ? 1 : 0,
+			'meta'         => ! empty( $input['meta'] ) ? ( is_array( $input['meta'] ) ? wp_json_encode( $input['meta'] ) : (string) $input['meta'] ) : null,
 			'updated_at'   => $this->now(),
 		];
 
-		$formats = [ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s' ];
+		$formats = [ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' ];
 
 		if ( $existing ) {
 			// Never blank out a known value with an empty one.
