@@ -322,7 +322,7 @@ final class MobileBridgeController extends AbstractController {
 
 		// Only fields the app actually edits, so a stray key cannot write a
 		// column the caller was never meant to touch.
-		$allowed = [ 'first_name', 'last_name', 'email', 'phone', 'stage', 'score', 'tags', 'owner_id' ];
+		$allowed = [ 'first_name', 'last_name', 'email', 'phone', 'stage', 'stage_id', 'score', 'tags', 'owner_id', 'requirements', 'deal_value' ];
 		$input   = [];
 
 		foreach ( $allowed as $field ) {
@@ -331,6 +331,11 @@ final class MobileBridgeController extends AbstractController {
 				$input[ $field ] = $value;
 			}
 		}
+
+		if ( isset( $input['stage_id'] ) && ! isset( $input['stage'] ) ) {
+			$input['stage'] = $input['stage_id'];
+		}
+		unset( $input['stage_id'] );
 
 		// The app sends a single `name`; vmsos stores it split.
 		$name = (string) $request->get_param( 'name' );
@@ -344,7 +349,50 @@ final class MobileBridgeController extends AbstractController {
 			return $this->error( 'No supported fields to update.', 400 );
 		}
 
-		$this->contacts->edit( $id, $input );
+		$dealValue = null;
+		if ( array_key_exists( 'deal_value', $input ) ) {
+			$dealValue = (float) $input['deal_value'];
+			unset( $input['deal_value'] );
+		}
+
+		if ( ! empty( $input ) ) {
+			$this->contacts->edit( $id, $input );
+		}
+
+		if ( null !== $dealValue ) {
+			global $wpdb;
+			$dealTable = $wpdb->prefix . 'vmsos_deals';
+			$existingDealId = (int) $wpdb->get_var( $wpdb->prepare(
+				"SELECT id FROM `{$dealTable}` WHERE contact_id = %d AND brand_id = %d ORDER BY id DESC LIMIT 1",
+				$id,
+				BrandContext::current()
+			) );
+
+			if ( $existingDealId > 0 ) {
+				$wpdb->update(
+					$dealTable,
+					[ 'value' => $dealValue, 'updated_at' => current_time( 'mysql' ) ],
+					[ 'id' => $existingDealId ],
+					[ '%f', '%s' ],
+					[ '%d' ]
+				);
+			} else {
+				$wpdb->insert(
+					$dealTable,
+					[
+						'brand_id'    => BrandContext::current(),
+						'contact_id'  => $id,
+						'title'       => 'Deal for Contact #' . $id,
+						'stage'       => $input['stage'] ?? $contact['stage'] ?? 'new',
+						'value'       => $dealValue,
+						'currency'    => (string) get_option( 'vmsos_currency', 'INR' ),
+						'created_at'  => current_time( 'mysql' ),
+						'updated_at'  => current_time( 'mysql' ),
+					],
+					[ '%d', '%d', '%s', '%s', '%f', '%s', '%s', '%s' ]
+				);
+			}
+		}
 
 		$fresh = $this->contact( $id );
 
