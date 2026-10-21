@@ -69,15 +69,17 @@ final class MobileBridgeController extends AbstractController {
 		$auth = fn( WP_REST_Request $request ) => $this->guard->check( $request );
 
 		$route = function ( string $path, string $methods, string $handler ) use ( $auth ): void {
-			register_rest_route(
-				self::NS,
-				$path,
-				[
-					'methods'             => $methods,
-					'callback'            => [ $this, $handler ],
-					'permission_callback' => $auth,
-				]
-			);
+			foreach ( [ self::NS, self::NAMESPACE ] as $ns ) {
+				register_rest_route(
+					$ns,
+					$path,
+					[
+						'methods'             => $methods,
+						'callback'            => [ $this, $handler ],
+						'permission_callback' => $auth,
+					]
+				);
+			}
 		};
 
 		$route( '/leads', 'GET', 'getLeads' );
@@ -105,15 +107,17 @@ final class MobileBridgeController extends AbstractController {
 
 		// Everything the app calls that this version cannot serve yet.
 		foreach ( array_keys( self::UNIMPLEMENTED ) as $path ) {
-			register_rest_route(
-				self::NS,
-				$path,
-				[
-					'methods'             => 'GET, POST',
-					'callback'            => [ $this, 'notImplemented' ],
-					'permission_callback' => $auth,
-				]
-			);
+			foreach ( [ self::NS, self::NAMESPACE ] as $ns ) {
+				register_rest_route(
+					$ns,
+					$path,
+					[
+						'methods'             => 'GET, POST',
+						'callback'            => [ $this, 'notImplemented' ],
+						'permission_callback' => $auth,
+					]
+				);
+			}
 		}
 	}
 
@@ -588,7 +592,13 @@ final class MobileBridgeController extends AbstractController {
 		$conversation = $this->latestConversation( $contactId );
 
 		if ( null === $conversation ) {
-			return $this->error( 'That lead has no conversation to reply to.', 404 );
+			$channel  = sanitize_key( (string) ( $request->get_param( 'channel' ) ?: 'app' ) );
+			$convData = $this->conversations->start( $channel, 'lead-' . $contactId );
+			$this->conversations->attachContact( (int) $convData['id'], $contactId );
+			$conversation = [
+				'id'      => (int) $convData['id'],
+				'channel' => $channel,
+			];
 		}
 
 		$sent = $this->inbox->reply(
@@ -787,6 +797,13 @@ final class MobileBridgeController extends AbstractController {
 			$found = $this->contacts->findByPhone( $phone );
 			if ( $found && ! empty( $found['id'] ) ) {
 				$contactId = (int) $found['id'];
+			} else {
+				$customerName = sanitize_text_field( (string) ( $request->get_param( 'customer_name' ) ?: 'Contact ' . $phone ) );
+				$contactId    = $this->contacts->upsert( [
+					'name'   => $customerName,
+					'phone'  => $phone,
+					'source' => 'phone_call',
+				] );
 			}
 		}
 
@@ -918,6 +935,13 @@ final class MobileBridgeController extends AbstractController {
 			$found = $this->contacts->findByPhone( $phone );
 			if ( $found && ! empty( $found['id'] ) ) {
 				$contactId = (int) $found['id'];
+			} else {
+				$customerName = sanitize_text_field( (string) ( $request->get_param( 'customer_name' ) ?: 'Contact ' . $phone ) );
+				$contactId    = $this->contacts->upsert( [
+					'name'   => $customerName,
+					'phone'  => $phone,
+					'source' => 'phone_call',
+				] );
 			}
 		}
 
