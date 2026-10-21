@@ -11,9 +11,9 @@ final class ContactRepository extends Repository {
 		return 'vmsos_contacts';
 	}
 
-	public static function hash( string $value ): string {
+	public static function hash( string $value ): ?string {
 		$value = strtolower( trim( $value ) );
-		return '' === $value ? '' : md5( $value );
+		return '' === $value ? null : md5( $value );
 	}
 
 	/** Normalise a phone number to digits, keeping a leading +. */
@@ -25,7 +25,7 @@ final class ContactRepository extends Repository {
 	/** @return array<string, mixed>|null */
 	public function findByEmail( string $email ): ?array {
 		$hash = self::hash( $email );
-		if ( '' === $hash ) {
+		if ( null === $hash || '' === $hash ) {
 			return null;
 		}
 		$row = $this->db->get_row( // phpcs:ignore WordPress.DB
@@ -38,7 +38,7 @@ final class ContactRepository extends Repository {
 	/** @return array<string, mixed>|null */
 	public function findByPhone( string $phone ): ?array {
 		$hash = self::hash( self::normalisePhone( $phone ) );
-		if ( '' === $hash ) {
+		if ( null === $hash || '' === $hash ) {
 			return null;
 		}
 		$row = $this->db->get_row( // phpcs:ignore WordPress.DB

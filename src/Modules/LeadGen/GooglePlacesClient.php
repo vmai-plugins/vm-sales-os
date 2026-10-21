@@ -115,6 +115,7 @@ final class GooglePlacesClient {
 		$rawPlaces     = (array) ( $body['places'] ?? [] );
 		$nextPageToken = (string) ( $body['nextPageToken'] ?? '' );
 		$processed     = [];
+		$crawledCount  = 0;
 
 		foreach ( $rawPlaces as $p ) {
 			$placeId     = (string) ( $p['id'] ?? '' );
@@ -134,15 +135,16 @@ final class GooglePlacesClient {
 
 			$normPhone = self::normalizePhone( $phone );
 
-			// Crawl website for public business email and social media if requested
+			// Crawl website for public business email (limit to 5 inline to guarantee <5s response)
 			$emailData = [
 				'emails'        => [],
 				'primary_email' => '',
 				'social'        => [],
 			];
 
-			if ( $crawlEmail && '' !== $website ) {
-				$emailData = $this->crawler->crawl( $website, 3 );
+			if ( $crawlEmail && '' !== $website && $crawledCount < 5 ) {
+				$emailData = $this->crawler->crawl( $website, 2 );
+				$crawledCount++;
 			}
 
 			// Clean primary category label

@@ -49,9 +49,16 @@ final class ApiKeyGuard {
 		$presented = (string) $request->get_header( self::HEADER );
 
 		if ( '' === $presented ) {
+			$authHeader = (string) $request->get_header( 'authorization' );
+			if ( str_starts_with( strtolower( $authHeader ), 'bearer ' ) ) {
+				$presented = trim( substr( $authHeader, 7 ) );
+			}
+		}
+
+		if ( '' === $presented ) {
 			return new WP_Error(
 				'vmsos_missing_api_key',
-				__( 'Missing X-VMAI-API-Key header.', 'vm-sales-os' ),
+				__( 'Missing X-VMAI-API-Key or Authorization Bearer header.', 'vm-sales-os' ),
 				[ 'status' => 401 ]
 			);
 		}

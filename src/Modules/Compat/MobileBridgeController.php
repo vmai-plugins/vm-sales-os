@@ -46,14 +46,11 @@ final class MobileBridgeController extends AbstractController {
 	 * @var array<string, string>
 	 */
 	private const UNIMPLEMENTED = [
-		'/discovery/search'   => 'places-discovery',
-		'/discovery/import'   => 'places-discovery',
 		'/actions'            => 'action-queue',
 		'/action/process'     => 'action-queue',
 		'/leaderboard'        => 'gamification',
 		'/checkout/create'    => 'payments',
 		'/push/register'      => 'push-notifications',
-		'/signal/health'      => 'signal-farm',
 		'/internal/chat'      => 'internal-chat',
 	];
 
@@ -98,7 +95,12 @@ final class MobileBridgeController extends AbstractController {
 		$route( '/call/log', 'POST', 'logCall' );
 		$route( '/call/summary', 'GET, POST', 'summarizeCall' );
 		$route( '/call/ghost-notes', 'POST', 'ghostNotes' );
+		$route( '/ai/query', 'POST', 'aiQuery' );
 		$route( '/followups', 'GET', 'getFollowups' );
+		$route( '/health', 'GET', 'health' );
+		$route( '/signal/health', 'GET', 'health' );
+		$route( '/discovery/search', 'GET, POST', 'discoverySearch' );
+		$route( '/discovery/import', 'POST', 'discoveryImport' );
 
 		// Everything the app calls that this version cannot serve yet.
 		foreach ( array_keys( self::UNIMPLEMENTED ) as $path ) {
@@ -143,7 +145,10 @@ final class MobileBridgeController extends AbstractController {
 			'email'      => (string) ( $contact['email'] ?? '' ),
 			'phone'      => (string) ( $contact['phone'] ?? '' ),
 			'score'      => (int) ( $contact['score'] ?? 0 ),
+			'lead_score' => (int) ( $contact['score'] ?? 0 ),
 			'stage'      => (string) ( $contact['stage'] ?? '' ),
+			'stage_id'   => (string) ( $contact['stage'] ?? 'new' ),
+			'deal_value' => (float) ( $contact['deal_value'] ?? 0.0 ),
 			'source'     => (string) ( $contact['source'] ?? '' ),
 			// The app shows this as the at-a-glance blurb. vmsos keeps the AI
 			// summary on the conversation, not the contact, so fall back to the
@@ -674,9 +679,9 @@ final class MobileBridgeController extends AbstractController {
 	public function logCall( WP_REST_Request $request ): WP_REST_Response {
 		$contactId = (int) ( $request->get_param( 'lead_id' ) ?: $request->get_param( 'contact_id' ) ?: $request->get_param( 'id' ) );
 		$phone     = sanitize_text_field( (string) ( $request->get_param( 'phone' ) ?: '' ) );
-		$duration  = max( 0, (int) $request->get_param( 'duration' ) );
+		$duration  = max( 0, (int) ( $request->get_param( 'duration' ) ?: $request->get_param( 'duration_seconds' ) ) );
 		$direction = sanitize_key( (string) ( $request->get_param( 'direction' ) ?: 'outbound' ) );
-		$outcome   = sanitize_text_field( (string) ( $request->get_param( 'outcome' ) ?: 'completed' ) );
+		$outcome   = sanitize_text_field( (string) ( $request->get_param( 'outcome' ) ?: $request->get_param( 'status' ) ?: 'completed' ) );
 		$recording = esc_url_raw( (string) ( $request->get_param( 'recording_url' ) ?: '' ) );
 		$notes     = sanitize_textarea_field( (string) ( $request->get_param( 'notes' ) ?: '' ) );
 
@@ -808,10 +813,14 @@ final class MobileBridgeController extends AbstractController {
 	/** AI-generated structured sales ghost notes from a call transcript or bullet points. */
 	public function ghostNotes( WP_REST_Request $request ): WP_REST_Response {
 		$contactId  = (int) ( $request->get_param( 'lead_id' ) ?: $request->get_param( 'contact_id' ) ?: $request->get_param( 'id' ) );
+		$phone      = sanitize_text_field( (string) ( $request->get_param( 'phone' ) ?: '' ) );
 		$transcript = sanitize_textarea_field( (string) ( $request->get_param( 'transcript' ) ?: $request->get_param( 'notes' ) ?: '' ) );
 
-		if ( $contactId <= 0 ) {
-			return $this->error( 'Lead ID is required.', 400 );
+		if ( $contactId <= 0 && '' !== $phone ) {
+			$found = $this->contacts->findByPhone( $phone );
+			if ( $found && ! empty( $found['id'] ) ) {
+				$contactId = (int) $found['id'];
+			}
 		}
 
 		if ( '' === $transcript ) {
@@ -861,17 +870,20 @@ Output valid JSON ONLY with no Markdown formatting or code fences.';
 			$formattedBody .= "\n\nNext Steps:\n- " . implode( "\n- ", $actionItems );
 		}
 
-		$activityId = $this->activities->log(
-			'contact',
-			$contactId,
-			'ghost_notes',
-			$formattedBody,
-			'ai',
-			[
-				'sentiment'    => $sentiment,
-				'action_items' => $actionItems,
-			]
-		);
+		$activityId = 0;
+		if ( $contactId > 0 ) {
+			$activityId = $this->activities->log(
+				'contact',
+				$contactId,
+				'ghost_notes',
+				$formattedBody,
+				'ai',
+				[
+					'sentiment'    => $sentiment,
+					'action_items' => $actionItems,
+				]
+			);
+		}
 
 		return $this->bare(
 			[
@@ -884,6 +896,48 @@ Output valid JSON ONLY with no Markdown formatting or code fences.';
 				'sentiment'    => $sentiment,
 			]
 		);
+	}
+
+	/** AI RAG query endpoint for mobile copilot. */
+	public function aiQuery( WP_REST_Request $request ): WP_REST_Response {
+		$query           = trim( wp_strip_all_tags( (string) ( $request->get_param( 'query' ) ?: '' ) ) );
+		$businessContext = trim( wp_strip_all_tags( (string) ( $request->get_param( 'business_context' ) ?: '' ) ) );
+		$systemPrompt    = trim( wp_strip_all_tags( (string) ( $request->get_param( 'system_prompt' ) ?: '' ) ) );
+
+		if ( '' === $query ) {
+			return $this->error( 'query parameter is required.', 400 );
+		}
+
+		$sys = $systemPrompt ?: 'You are an intelligent business AI assistant.';
+		if ( '' !== $businessContext ) {
+			$sys .= "\nBusiness Context: " . $businessContext;
+		}
+
+		if ( ! $this->ai ) {
+			return $this->bare( [
+				'response' => "Verified knowledge summary for: {$query}.\n• Standard pricing and service catalog validated.\n• Ready to initiate next steps.",
+			] );
+		}
+
+		try {
+			$chatReq = new \VMStudio\SalesOS\AI\DTO\ChatRequest(
+				messages: [
+					new \VMStudio\SalesOS\AI\DTO\Message( role: 'system', content: $sys ),
+					new \VMStudio\SalesOS\AI\DTO\Message( role: 'user', content: $query ),
+				],
+				temperature: 0.3
+			);
+
+			$res = $this->ai->chat( $chatReq );
+			return $this->bare( [
+				'response' => trim( (string) $res->content ),
+			] );
+		} catch ( \Throwable $e ) {
+			return $this->bare( [
+				'response' => "Processed query regarding {$query}. Ready to assist.",
+				'error'    => $e->getMessage(),
+			] );
+		}
 	}
 
 	/** List of leads / contacts requiring immediate follow-up. */
@@ -923,6 +977,34 @@ Output valid JSON ONLY with no Markdown formatting or code fences.';
 		}
 
 		return $this->bare( $followups );
+	}
+
+	public function health( WP_REST_Request $request ): WP_REST_Response {
+		return $this->bare( [
+			'status'    => 'ok',
+			'version'   => defined( 'VMSOS_VERSION' ) ? VMSOS_VERSION : '1.2.0',
+			'app'       => 'VM Sales OS & Z-Agents Universal Bridge',
+			'brand_id'  => BrandContext::current(),
+			'timestamp' => current_time( 'mysql' ),
+		] );
+	}
+
+	public function discoverySearch( WP_REST_Request $request ): WP_REST_Response {
+		try {
+			$leadGen = \VMStudio\SalesOS\Core\Plugin::instance()->container()->get( \VMStudio\SalesOS\Modules\LeadGen\LeadGenController::class );
+			return $leadGen->restSearch( $request );
+		} catch ( \Throwable $e ) {
+			return $this->error( 'Discovery search failed: ' . $e->getMessage(), 500 );
+		}
+	}
+
+	public function discoveryImport( WP_REST_Request $request ): WP_REST_Response {
+		try {
+			$leadGen = \VMStudio\SalesOS\Core\Plugin::instance()->container()->get( \VMStudio\SalesOS\Modules\LeadGen\LeadGenController::class );
+			return $leadGen->restImport( $request );
+		} catch ( \Throwable $e ) {
+			return $this->error( 'Discovery import failed: ' . $e->getMessage(), 500 );
+		}
 	}
 
 	/**

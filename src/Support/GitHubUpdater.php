@@ -21,6 +21,7 @@ final class GitHubUpdater {
 	public function __construct( private Vault $vault ) {}
 
 	public function boot(): void {
+		add_filter( 'site_transient_update_plugins', [ $this, 'injectUpdate' ] );
 		add_filter( 'pre_set_site_transient_update_plugins', [ $this, 'injectUpdate' ] );
 		add_filter( 'plugins_api', [ $this, 'pluginInfo' ], 20, 3 );
 		add_filter( 'upgrader_pre_download', [ $this, 'flagUpgrade' ], 10, 3 );
@@ -72,7 +73,10 @@ final class GitHubUpdater {
 		}
 
 		$repo = $this->repo();
-		$res  = wp_remote_get(
+		$latestRelease = null;
+
+		// 1. Fetch latest formal GitHub Release
+		$res = wp_remote_get(
 			"https://api.github.com/repos/{$repo}/releases/latest",
 			[
 				'timeout' => 15,
@@ -80,54 +84,60 @@ final class GitHubUpdater {
 			]
 		);
 
-		if ( is_wp_error( $res ) || 200 !== (int) wp_remote_retrieve_response_code( $res ) ) {
-			// Fallback: check tags if no formal release published yet
-			$tagsRes = wp_remote_get(
-				"https://api.github.com/repos/{$repo}/tags",
-				[
-					'timeout' => 15,
-					'headers' => $this->headers(),
-				]
-			);
+		if ( ! is_wp_error( $res ) && 200 === (int) wp_remote_retrieve_response_code( $res ) ) {
+			$data = json_decode( (string) wp_remote_retrieve_body( $res ), true );
+			if ( is_array( $data ) && ! empty( $data['tag_name'] ) ) {
+				$latestRelease = $data;
+			}
+		}
 
-			if ( ! is_wp_error( $tagsRes ) && 200 === (int) wp_remote_retrieve_response_code( $tagsRes ) ) {
-				$tags = json_decode( (string) wp_remote_retrieve_body( $tagsRes ), true );
-				if ( is_array( $tags ) && ! empty( $tags[0]['name'] ) ) {
-					$tag      = $tags[0];
-					$zipUrl   = $tag['zipball_url'] ?? "https://github.com/{$repo}/archive/refs/tags/{$tag['name']}.zip";
-					$fallback = [
-						'tag_name'     => $tag['name'],
-						'name'         => 'Version ' . $tag['name'],
-						'body'         => 'Latest release from GitHub tag ' . $tag['name'],
-						'zipball_url'  => $zipUrl,
+		// 2. Fetch latest Git Tags to see if a newer tag was pushed directly
+		$tagsRes = wp_remote_get(
+			"https://api.github.com/repos/{$repo}/tags",
+			[
+				'timeout' => 15,
+				'headers' => $this->headers(),
+			]
+		);
+
+		if ( ! is_wp_error( $tagsRes ) && 200 === (int) wp_remote_retrieve_response_code( $tagsRes ) ) {
+			$tags = json_decode( (string) wp_remote_retrieve_body( $tagsRes ), true );
+			if ( is_array( $tags ) && ! empty( $tags[0]['name'] ) ) {
+				$latestTag = $tags[0];
+				$tagVer    = self::tagToVersion( (string) $latestTag['name'] );
+				$relVer    = $latestRelease ? self::tagToVersion( (string) $latestRelease['tag_name'] ) : '0.0.0';
+
+				// If tag is newer than formal release (or no formal release exists), prioritize the tag
+				if ( version_compare( $tagVer, $relVer, '>' ) ) {
+					$tagData = [
+						'tag_name'     => $latestTag['name'],
+						'name'         => 'Version ' . $latestTag['name'],
+						'body'         => 'Latest release from GitHub tag ' . $latestTag['name'],
+						'zipball_url'  => $latestTag['zipball_url'] ?? "https://api.github.com/repos/{$repo}/zipball/{$latestTag['name']}",
 						'published_at' => current_time( 'mysql' ),
 					];
-					set_transient( self::CACHE_KEY, $fallback, 3 * HOUR_IN_SECONDS );
-					return $fallback;
+					set_transient( self::CACHE_KEY, $tagData, 2 * HOUR_IN_SECONDS );
+					return $tagData;
 				}
 			}
-
-			// Final fallback: use branch zip
-			$branch = $this->branch();
-			$branchData = [
-				'tag_name'     => 'v' . VMSOS_VERSION,
-				'name'         => 'Branch ' . $branch,
-				'body'         => 'Live branch ' . $branch,
-				'zipball_url'  => "https://github.com/{$repo}/archive/refs/heads/{$branch}.zip",
-				'published_at' => current_time( 'mysql' ),
-			];
-			set_transient( self::CACHE_KEY, $branchData, 15 * MINUTE_IN_SECONDS );
-			return $branchData;
 		}
 
-		$release = json_decode( (string) wp_remote_retrieve_body( $res ), true );
-		if ( ! is_array( $release ) || empty( $release['tag_name'] ) ) {
-			set_transient( self::CACHE_KEY, null, 15 * MINUTE_IN_SECONDS );
-			return null;
+		if ( $latestRelease ) {
+			set_transient( self::CACHE_KEY, $latestRelease, 6 * HOUR_IN_SECONDS );
+			return $latestRelease;
 		}
 
-		set_transient( self::CACHE_KEY, $release, 6 * HOUR_IN_SECONDS );
-		return $release;
+		// 3. Final fallback: use branch zip
+		$branch = $this->branch();
+		$branchData = [
+			'tag_name'     => 'v' . VMSOS_VERSION,
+			'name'         => 'Branch ' . $branch,
+			'body'         => 'Live branch ' . $branch,
+			'zipball_url'  => "https://github.com/{$repo}/archive/refs/heads/{$branch}.zip",
+			'published_at' => current_time( 'mysql' ),
+		];
+		set_transient( self::CACHE_KEY, $branchData, 15 * MINUTE_IN_SECONDS );
+		return $branchData;
 	}
 
 	public static function tagToVersion( string $tag ): string {
@@ -211,14 +221,17 @@ final class GitHubUpdater {
 	}
 
 	public function flagUpgrade( $reply, string $package, $upgrader ) {
-		if ( str_contains( $package, 'github.com/' . $this->repo() ) || str_contains( $package, 'api.github.com/repos/' . $this->repo() ) ) {
+		if ( str_contains( $package, $this->repo() ) || str_contains( $package, 'vm-sales-os' ) ) {
 			self::$isUpgrading = true;
 		}
 		return $reply;
 	}
 
 	public function fixSourceDir( string $source, string $remoteSource, $upgrader ): string {
-		if ( ! self::$isUpgrading ) {
+		$sourceBasename = basename( untrailingslashit( $source ) );
+		$isTarget       = self::$isUpgrading || str_contains( $sourceBasename, 'vm-sales-os' );
+
+		if ( ! $isTarget ) {
 			return $source;
 		}
 
@@ -252,10 +265,13 @@ final class GitHubUpdater {
 	}
 
 	public function ajaxCheckUpdate(): void {
-		check_ajax_referer( 'vmsos_settings', 'nonce' );
+		$nonce = isset( $_REQUEST['_wpnonce'] ) ? (string) $_REQUEST['_wpnonce'] : (string) ( $_REQUEST['nonce'] ?? '' );
+		if ( ! wp_verify_nonce( $nonce, 'vmsos_settings' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Security token expired. Please refresh the page.', 'vm-sales-os' ) ], 403 );
+		}
 
 		if ( ! current_user_can( 'update_plugins' ) ) {
-			wp_send_json_error( [ 'message' => __( 'Permission denied.', 'vm-sales-os' ) ] );
+			wp_send_json_error( [ 'message' => __( 'Permission denied.', 'vm-sales-os' ) ], 403 );
 		}
 
 		$release   = $this->getRelease( true );
@@ -275,10 +291,20 @@ final class GitHubUpdater {
 	}
 
 	public function ajaxPerformUpdate(): void {
-		check_ajax_referer( 'vmsos_settings', 'nonce' );
+		$nonce = isset( $_REQUEST['_wpnonce'] ) ? (string) $_REQUEST['_wpnonce'] : (string) ( $_REQUEST['nonce'] ?? '' );
+		if ( ! wp_verify_nonce( $nonce, 'vmsos_settings' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Security token expired. Please refresh the page.', 'vm-sales-os' ) ], 403 );
+		}
 
 		if ( ! current_user_can( 'update_plugins' ) ) {
-			wp_send_json_error( [ 'message' => __( 'Permission denied.', 'vm-sales-os' ) ] );
+			wp_send_json_error( [ 'message' => __( 'Permission denied.', 'vm-sales-os' ) ], 403 );
+		}
+
+		$release = $this->getRelease( true );
+		$package = $this->zipUrl( $release );
+
+		if ( empty( $package ) ) {
+			wp_send_json_error( [ 'message' => __( 'No download package found on GitHub.', 'vm-sales-os' ) ], 400 );
 		}
 
 		require_once ABSPATH . 'wp-admin/includes/file.php';
@@ -296,19 +322,14 @@ final class GitHubUpdater {
 		self::$isUpgrading = true;
 		add_filter( 'upgrader_source_selection', [ $this, 'fixSourceDir' ], 10, 3 );
 
-		// Force transient update
-		$transient = get_site_transient( 'update_plugins' );
-		if ( ! is_object( $transient ) ) {
-			$transient = new stdClass();
-		}
-		$transient = $this->injectUpdate( $transient );
-		set_site_transient( 'update_plugins', $transient );
-
-		$result = $upgrader->upgrade( $plugin );
+		// Use install with overwrite_package = true to guarantee flawless in-place upgrade from GitHub
+		$result = $upgrader->install( $package, [ 'overwrite_package' => true ] );
 		$this->clearCache();
 
-		if ( is_wp_error( $result ) ) {
-			wp_send_json_error( [ 'message' => $result->get_error_message() ] );
+		if ( is_wp_error( $result ) || false === $result ) {
+			$errors = $skin->get_errors();
+			$errMsg = ! empty( $errors ) && is_wp_error( $errors ) ? $errors->get_error_message() : __( 'Failed to apply update package from GitHub.', 'vm-sales-os' );
+			wp_send_json_error( [ 'message' => $errMsg ] );
 		}
 
 		if ( ! is_plugin_active( $plugin ) ) {

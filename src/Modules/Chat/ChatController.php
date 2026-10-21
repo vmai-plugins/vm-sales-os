@@ -248,7 +248,7 @@ final class ChatController extends AbstractController {
 	}
 
 	private function visitorHash( WP_REST_Request $request ): string {
-		$ip    = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+		$ip    = $this->clientIp();
 		$agent = $request->get_header( 'user_agent' ) ?? '';
 		return substr( hash_hmac( 'sha256', $ip . '|' . $agent, wp_salt( 'auth' ) ), 0, 48 );
 	}

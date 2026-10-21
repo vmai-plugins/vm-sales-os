@@ -85,7 +85,7 @@ final class LeadGenController extends AbstractController {
 	public function restSearch( WP_REST_Request $request ): WP_REST_Response {
 		$query      = sanitize_text_field( (string) $request->get_param( 'query' ) );
 		$max        = max( 1, min( 60, (int) ( $request->get_param( 'max' ) ?: 20 ) ) );
-		$crawlEmail = (bool) ( $request->get_param( 'crawl_email' ) ?? true );
+		$crawlEmail = ! empty( $request->get_param( 'crawl_email' ) );
 		$pageToken  = sanitize_text_field( (string) $request->get_param( 'page_token' ) );
 
 		$res = $this->placesClient->search( $query, $max, $crawlEmail, $pageToken );

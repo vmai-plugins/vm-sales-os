@@ -3,7 +3,7 @@
  * Plugin Name:       VM Sales OS
  * Plugin URI:        https://vmstudio.digital/vm-sales-os
  * Description:       Universal Turn-key AI Sales OS & Multi-Agent CRM for WordPress. Includes Google Maps B2B lead generation, website email crawler, FluentCRM marketing sync, multi-industry blueprints, omnichannel WhatsApp & Voice discovery telephony, and hybrid knowledge retrieval.
- * Version:           1.2.0
+ * Version:           1.2.1
  * Requires at least: 6.4
  * Requires PHP:      8.1
  * Author:            VM Studio Creatives
@@ -19,7 +19,7 @@ declare(strict_types=1);
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'VMSOS_VERSION', '1.2.0' );
+define( 'VMSOS_VERSION', '1.2.1' );
 define( 'VMSOS_FILE', __FILE__ );
 define( 'VMSOS_DIR', plugin_dir_path( __FILE__ ) );
 define( 'VMSOS_URL', plugin_dir_url( __FILE__ ) );

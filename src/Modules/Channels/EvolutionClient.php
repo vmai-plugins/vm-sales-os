@@ -48,6 +48,9 @@ final class EvolutionClient {
 		if ( '' === $to ) {
 			return false;
 		}
+		if ( 10 === strlen( $to ) ) {
+			$to = '91' . $to;
+		}
 
 		$endpoint  = sprintf( '%s/message/sendText/%s', $this->apiUrl(), rawurlencode( $this->instance() ) );
 		$startedAt = microtime( true );

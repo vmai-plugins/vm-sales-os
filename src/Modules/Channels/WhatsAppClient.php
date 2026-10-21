@@ -64,6 +64,10 @@ final class WhatsAppClient {
 			return false;
 		}
 
+		if ( 10 === strlen( $to ) ) {
+			$to = '91' . $to;
+		}
+
 		$startedAt = microtime( true );
 
 		$response = wp_remote_post(
