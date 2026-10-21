@@ -81,6 +81,7 @@ final class MobileBridgeController extends AbstractController {
 		};
 
 		$route( '/leads', 'GET', 'getLeads' );
+		$route( '/leads', 'POST', 'createLead' );
 		$route( '/dashboard', 'GET', 'getDashboard' );
 		$route( '/lead/(?P<id>\d+)', 'GET', 'getLead' );
 		$route( '/lead/(?P<id>\d+)', 'PATCH, PUT', 'updateLead' );
@@ -257,6 +258,55 @@ final class MobileBridgeController extends AbstractController {
 				'total' => $this->countLeads( $filters ),
 			]
 		);
+	}
+
+	public function createLead( WP_REST_Request $request ): WP_REST_Response {
+		$name  = sanitize_text_field( (string) $request->get_param( 'name' ) );
+		$phone = sanitize_text_field( (string) $request->get_param( 'phone' ) );
+		$email = sanitize_email( (string) $request->get_param( 'email' ) );
+
+		if ( empty( $name ) && empty( $phone ) && empty( $email ) ) {
+			return $this->error( 'At least a name, phone, or email is required.', 400 );
+		}
+
+		$stage = sanitize_key( (string) ( $request->get_param( 'stage' ) ?: $request->get_param( 'stage_id' ) ?: 'new' ) );
+
+		$input = [
+			'name'         => $name,
+			'phone'        => $phone,
+			'email'        => $email,
+			'source'       => sanitize_text_field( (string) ( $request->get_param( 'source' ) ?: 'mobile_app' ) ),
+			'requirements' => sanitize_textarea_field( (string) ( $request->get_param( 'notes' ) ?: $request->get_param( 'requirements' ) ?: '' ) ),
+		];
+
+		$id = $this->contacts->upsert( $input );
+
+		if ( $id > 0 && '' !== $stage && 'new' !== $stage ) {
+			$this->contacts->edit( $id, [ 'stage' => $stage ] );
+		}
+
+		$dealValue = (float) ( $request->get_param( 'deal_value' ) ?: 0.0 );
+		if ( $id > 0 && $dealValue > 0 ) {
+			global $wpdb;
+			$dealTable = $wpdb->prefix . 'vmsos_deals';
+			$wpdb->insert(
+				$dealTable,
+				[
+					'brand_id'   => BrandContext::current(),
+					'contact_id' => $id,
+					'title'      => 'Deal for ' . ( ! empty( $name ) ? $name : 'Contact #' . $id ),
+					'stage'      => $stage,
+					'value'      => $dealValue,
+					'currency'   => (string) get_option( 'vmsos_currency', 'INR' ),
+					'created_at' => current_time( 'mysql' ),
+					'updated_at' => current_time( 'mysql' ),
+				],
+				[ '%d', '%d', '%s', '%s', '%f', '%s', '%s', '%s' ]
+			);
+		}
+
+		$fresh = $this->contact( $id );
+		return $this->bare( [ 'success' => true, 'id' => $id, 'lead' => null !== $fresh ? $this->asLead( $fresh ) : null ], 201 );
 	}
 
 	/**
