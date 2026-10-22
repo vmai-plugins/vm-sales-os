@@ -138,6 +138,10 @@ final class MobileBridgeController extends AbstractController {
 		// Live Catalog Offerings
 		$route( '/catalog', 'GET', 'getCatalog' );
 
+		// Business Profile & Operating Configuration
+		$route( '/business-profile', 'GET', 'getBusinessProfile' );
+		$route( '/business-profile', 'POST', 'updateBusinessProfile' );
+
 		// Everything the app calls that this version cannot serve yet.
 		foreach ( array_keys( self::UNIMPLEMENTED ) as $path ) {
 			foreach ( [ self::NS, self::NAMESPACE ] as $ns ) {
@@ -711,6 +715,105 @@ final class MobileBridgeController extends AbstractController {
 			'items'    => $items,
 			'currency' => (string) get_option( 'vmsos_currency', 'INR' ),
 		] );
+	}
+
+	public function getBusinessProfile( WP_REST_Request $request ): WP_REST_Response {
+		$brandName = (string) get_option( 'vmsos_sender_name', get_option( 'blogname', 'VM Studio' ) );
+		$tagline   = (string) get_option( 'blogdescription', 'A Multimedia Creative Agency' );
+		$desc      = (string) get_option(
+			'vmsos_business_description',
+			'Visual creative & AI automation agency specializing in high-performance websites, elite branding, SEO sniper campaigns, AI conversational agents, and CRM business workflows.'
+		);
+		$phone     = (string) get_option( 'vmsos_widget_phone', '918368316403' );
+		$whatsapp  = (string) get_option( 'vmsos_widget_whatsapp', '918368316403' );
+		$email     = (string) get_option( 'vmsos_notify_email', get_option( 'admin_email', 'visualsstudiomarketing@gmail.com' ) );
+		$currency  = (string) get_option( 'vmsos_currency', 'INR' );
+		$agentName = (string) get_option( 'vmsos_agent_name', 'Leo (Growth Strategist)' );
+		$agentTitle= (string) get_option( 'vmsos_agent_title', 'Online • Live Sales Specialist' );
+
+		return $this->bare( [
+			'id'              => 'agency_default',
+			'name'            => $brandName,
+			'industry_type'   => 'agency',
+			'tagline'         => $tagline,
+			'description'     => $desc,
+			'settings'        => [
+				'primary_phone'       => $phone,
+				'primary_whatsapp'    => $whatsapp,
+				'currency_symbol'     => '₹',
+				'currency_code'       => $currency,
+				'default_tax_percent' => 18.0,
+				'default_email'       => $email,
+				'website_url'         => home_url(),
+			],
+			'pipeline_stages' => [
+				[ 'id' => 'new', 'label' => 'New Lead', 'color' => 0xFFF59E0B, 'icon' => 'sparkles' ],
+				[ 'id' => 'qualified', 'label' => 'Qualified Lead', 'color' => 0xFF3B82F6, 'icon' => 'call' ],
+				[ 'id' => 'proposal', 'label' => 'Proposal Sent', 'color' => 0xFF8B5CF6, 'icon' => 'document' ],
+				[ 'id' => 'negotiation', 'label' => 'Negotiation', 'color' => 0xFFEC4899, 'icon' => 'handshake' ],
+				[ 'id' => 'won', 'label' => 'Contract Won', 'color' => 0xFF10B981, 'icon' => 'trophy', 'is_won' => true ],
+				[ 'id' => 'lost', 'label' => 'Lost / Dropped', 'color' => 0xFFEF4444, 'icon' => 'close', 'is_lost' => true ],
+			],
+			'team_members'    => [
+				[
+					'id'          => 'tm_ai_strat',
+					'name'        => $agentName,
+					'initials'    => 'LG',
+					'role'        => $agentTitle,
+					'email'       => 'leo@vmstudio.digital',
+					'phone'       => $phone,
+					'is_ai_agent' => true,
+				],
+				[
+					'id'          => 'tm_human_lead',
+					'name'        => 'Lead Director',
+					'initials'    => 'LD',
+					'role'        => 'Creative Director & Project Manager',
+					'email'       => $email,
+					'phone'       => $phone,
+					'is_ai_agent' => false,
+				],
+			],
+			'agent_persona'   => [
+				'name'          => $agentName,
+				'title'         => $agentTitle,
+				'prompt'        => (string) get_option( 'vmsos_assistant_persona', '' ),
+				'selling_goal'  => (string) get_option( 'vmsos_selling_goal', '' ),
+				'starter_chips' => (array) get_option( 'vmsos_interests', [] ),
+			],
+		] );
+	}
+
+	public function updateBusinessProfile( WP_REST_Request $request ): WP_REST_Response {
+		$params = $request->get_json_params();
+		if ( empty( $params ) ) {
+			$params = $request->get_params();
+		}
+
+		if ( ! empty( $params['name'] ) ) {
+			update_option( 'vmsos_sender_name', sanitize_text_field( $params['name'] ) );
+		}
+		if ( ! empty( $params['tagline'] ) ) {
+			update_option( 'blogdescription', sanitize_text_field( $params['tagline'] ) );
+		}
+		if ( ! empty( $params['description'] ) ) {
+			update_option( 'vmsos_business_description', sanitize_textarea_field( $params['description'] ) );
+		}
+		if ( ! empty( $params['phone'] ) || ! empty( $params['primary_phone'] ) ) {
+			$p = sanitize_text_field( $params['phone'] ?? $params['primary_phone'] );
+			update_option( 'vmsos_widget_phone', $p );
+		}
+		if ( ! empty( $params['whatsapp'] ) || ! empty( $params['primary_whatsapp'] ) ) {
+			$w = sanitize_text_field( $params['whatsapp'] ?? $params['primary_whatsapp'] );
+			update_option( 'vmsos_widget_whatsapp', $w );
+		}
+		if ( ! empty( $params['email'] ) || ! empty( $params['default_email'] ) ) {
+			$e = sanitize_email( $params['email'] ?? $params['default_email'] );
+			update_option( 'vmsos_notify_email', $e );
+			update_option( 'vmsos_sender_email', $e );
+		}
+
+		return $this->getBusinessProfile( $request );
 	}
 
 	public function sendReply( WP_REST_Request $request ): WP_REST_Response {
