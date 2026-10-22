@@ -25,6 +25,12 @@ final class CrmModule extends Module {
 		$container->singleton( DealRepository::class, static fn() => new DealRepository() );
 		$container->singleton( PipelineRepository::class, static fn() => new PipelineRepository() );
 		$container->singleton( LeadForm::class, static fn() => new LeadForm() );
+		$container->singleton( FluentFormSync::class, static fn( Container $c ) => new FluentFormSync(
+			$c->get( ContactRepository::class ),
+			$c->get( \VMStudio\SalesOS\Modules\Chat\ConversationRepository::class ),
+			$c->get( ActivityRepository::class ),
+			$c->get( \VMStudio\SalesOS\Support\IntegrationLog::class )
+		) );
 		$container->singleton( LeadScoreEngine::class, static fn( Container $c ) => new LeadScoreEngine(
 			$c->get( \VMStudio\SalesOS\AI\ProviderManager::class ),
 			$c->get( \VMStudio\SalesOS\Modules\Chat\ConversationRepository::class ),
@@ -42,6 +48,7 @@ final class CrmModule extends Module {
 		$router->add( FormController::class );
 
 		$container->get( LeadForm::class )->boot();
+		$container->get( FluentFormSync::class )->boot();
 		$this->registerTools( $container );
 
 		$events = $container->get( EventBus::class );

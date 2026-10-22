@@ -7,6 +7,7 @@ use VMStudio\SalesOS\Modules\Analytics\MetricsService;
 use VMStudio\SalesOS\Modules\Chat\ConversationRepository;
 use VMStudio\SalesOS\Modules\CRM\ActivityRepository;
 use VMStudio\SalesOS\Modules\CRM\ContactRepository;
+use VMStudio\SalesOS\Modules\CRM\FluentFormSync;
 use VMStudio\SalesOS\Modules\Inbox\InboxService;
 use VMStudio\SalesOS\Modules\Sequences\EnrollmentRepository;
 use VMStudio\SalesOS\REST\AbstractController;
@@ -129,6 +130,13 @@ final class MobileBridgeController extends AbstractController {
 
 		// Master AI Commander Copilot
 		$route( '/master/chat', 'POST', 'masterChat' );
+
+		// Fluent Forms CRM Ingestion & Status
+		$route( '/crm/fluent-forms-status', 'GET', 'getFluentFormsStatus' );
+		$route( '/crm/sync-fluent-forms', 'POST', 'syncFluentForms' );
+
+		// Live Catalog Offerings
+		$route( '/catalog', 'GET', 'getCatalog' );
 
 		// Everything the app calls that this version cannot serve yet.
 		foreach ( array_keys( self::UNIMPLEMENTED ) as $path ) {
@@ -530,16 +538,16 @@ final class MobileBridgeController extends AbstractController {
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT c.id AS conversation_id, c.channel, c.contact_id,
-				        ct.first_name, ct.last_name, ct.email,
+				        ct.first_name, ct.last_name, ct.email, ct.phone,
 				        m.role, m.content, m.created_at
 				 FROM {$wpdb->prefix}vmsos_conversations c
-				 INNER JOIN {$wpdb->prefix}vmsos_contacts ct ON ct.id = c.contact_id
+				 LEFT JOIN {$wpdb->prefix}vmsos_contacts ct ON ct.id = c.contact_id
 				 LEFT JOIN {$wpdb->prefix}vmsos_messages m ON m.id = (
 				     SELECT id FROM {$wpdb->prefix}vmsos_messages
 				     WHERE conversation_id = c.id
 				     ORDER BY created_at DESC, id DESC LIMIT 1
 				 )
-				 WHERE c.brand_id = %d AND c.contact_id > 0
+				 WHERE c.brand_id = %d AND (c.contact_id > 0 OR m.content IS NOT NULL)
 				 ORDER BY COALESCE( c.last_message_at, c.created_at ) DESC
 				 LIMIT %d",
 				BrandContext::current(),
@@ -552,16 +560,20 @@ final class MobileBridgeController extends AbstractController {
 
 		foreach ( (array) $rows as $row ) {
 			$name = trim( ( $row['first_name'] ?? '' ) . ' ' . ( $row['last_name'] ?? '' ) );
+			if ( '' === $name ) {
+				$name = ! empty( $row['email'] ) ? $row['email'] : ( 'Web Visitor #' . $row['conversation_id'] );
+			}
 
 			$out[] = [
 				'id'         => (int) $row['conversation_id'],
 				'lead_id'    => (int) $row['contact_id'],
-				'lead_name'  => '' !== $name ? $name : null,
+				'lead_name'  => $name,
 				'email'      => $row['email'] ?: null,
-				'channel'    => $row['channel'],
-				'role'       => $row['role'],
-				'message'    => (string) $row['content'],
-				'created_at' => $row['created_at'],
+				'phone'      => $row['phone'] ?: null,
+				'channel'    => (string) ( $row['channel'] ?: 'web' ),
+				'role'       => $row['role'] ?: 'user',
+				'message'    => (string) ( $row['content'] ?: 'Conversation active' ),
+				'created_at' => (string) ( $row['created_at'] ?: current_time( 'mysql' ) ),
 			];
 		}
 
@@ -569,17 +581,30 @@ final class MobileBridgeController extends AbstractController {
 	}
 
 	/**
-	 * Full transcript for a lead. The app routes by lead id, so this resolves
-	 * the lead's most recent conversation and returns its messages.
+	 * Full transcript for a lead or conversation. Resolves either by contact ID
+	 * or directly by conversation ID.
 	 */
 	public function getThread( WP_REST_Request $request ): WP_REST_Response {
-		$contactId = (int) $request->get_param( 'id' );
-
-		if ( null === $this->contact( $contactId ) ) {
-			return $this->error( 'Lead not found.', 404 );
+		$targetId = (int) $request->get_param( 'id' );
+		if ( $targetId <= 0 ) {
+			return $this->error( 'Invalid thread ID.', 400 );
 		}
 
-		$conversation = $this->latestConversation( $contactId );
+		$conversation = null;
+		$contact = $this->contact( $targetId );
+
+		if ( $contact ) {
+			$conversation = $this->latestConversation( $targetId );
+		} else {
+			global $wpdb;
+			$convRow = $wpdb->get_row(
+				$wpdb->prepare( "SELECT * FROM {$wpdb->prefix}vmsos_conversations WHERE id = %d", $targetId ),
+				ARRAY_A
+			);
+			if ( $convRow ) {
+				$conversation = $convRow;
+			}
+		}
 
 		if ( null === $conversation ) {
 			return $this->bare( [] );
@@ -600,6 +625,92 @@ final class MobileBridgeController extends AbstractController {
 		}
 
 		return $this->bare( $out );
+	}
+
+	public function getFluentFormsStatus( WP_REST_Request $request ): WP_REST_Response {
+		global $wpdb;
+		$subTable = $wpdb->prefix . 'fluentform_submissions';
+		$conTable = $wpdb->prefix . 'vmsos_contacts';
+
+		$totalSub = 0;
+		if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $subTable ) ) === $subTable ) {
+			$totalSub = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$subTable}" );
+		}
+		$syncedSub     = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$conTable} WHERE source = %s", 'fluentform' ) );
+		$totalContacts = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$conTable}" );
+
+		return $this->bare( [
+			'fluent_submissions_total' => $totalSub,
+			'fluent_contacts_synced'   => $syncedSub,
+			'salesos_contacts_total'   => $totalContacts,
+			'sync_status'              => $totalSub > 0 && $syncedSub >= $totalSub ? 'synced' : 'pending',
+		] );
+	}
+
+	public function syncFluentForms( WP_REST_Request $request ): WP_REST_Response {
+		$sync = new FluentFormSync(
+			$this->contacts,
+			$this->conversations,
+			$this->activities
+		);
+		$limit = min( 1000, max( 1, (int) ( $request->get_param( 'limit' ) ?: 500 ) ) );
+		$res   = $sync->syncHistorical( $limit );
+
+		return $this->bare( [
+			'success' => true,
+			'message' => sprintf( 'Fluent Forms sync complete: %d synced, %d errors.', $res['synced'], $res['errors'] ),
+			'details' => $res,
+		] );
+	}
+
+	public function getCatalog( WP_REST_Request $request ): WP_REST_Response {
+		$items = [
+			[
+				'id'           => 'pkg_ai_agent_suite',
+				'title'        => 'Autonomous AI Sales & Support Agent Suite',
+				'category'     => 'AI Software',
+				'base_price'   => 49999.0,
+				'pricing_unit' => 'fixed',
+				'badge'        => 'Most Popular',
+				'description'  => 'Custom dual-engine AI conversational agent with RAG knowledge base and telephony integration.',
+				'features'     => [ 'Custom RAG', 'Voice Telephony', 'CRM Sync', 'WhatsApp Bot' ],
+			],
+			[
+				'id'           => 'pkg_web_replatform',
+				'title'        => 'High-Converting Corporate Website Architecture',
+				'category'     => 'Web Development',
+				'base_price'   => 75000.0,
+				'pricing_unit' => 'fixed',
+				'badge'        => 'Enterprise',
+				'description'  => 'Next-gen responsive web platform with sub-second page speed and SEO silo architecture.',
+				'features'     => [ 'PageSpeed 95+', 'Elementor Pro / React', 'Rank Math SEO' ],
+			],
+			[
+				'id'           => 'pkg_monthly_growth_retainer',
+				'title'        => 'Full-Stack Digital Growth & Technical SEO Retainer',
+				'category'     => 'Retainer',
+				'base_price'   => 25000.0,
+				'pricing_unit' => 'per_month',
+				'badge'        => 'Recurring',
+				'description'  => 'Continuous technical SEO optimization, keyword rank monitoring, and content publishing.',
+				'features'     => [ 'Weekly Sprints', 'Backlink Velocity', 'Dedicated Lead' ],
+			],
+			[
+				'id'           => 'pkg_speed_security_audit',
+				'title'        => 'Full Web Performance & Security Hardening Sprint',
+				'category'     => 'Audit & Security',
+				'base_price'   => 15000.0,
+				'pricing_unit' => 'fixed',
+				'badge'        => 'Quick Turnaround',
+				'description'  => 'Comprehensive Core Web Vitals optimization, Cloudflare WAF tuning, and security patching.',
+				'features'     => [ '90+ Mobile CWV', 'WAF Hardening', 'Database Indexing' ],
+			],
+		];
+
+		return $this->bare( [
+			'items'    => $items,
+			'currency' => (string) get_option( 'vmsos_currency', 'INR' ),
+		] );
 	}
 
 	public function sendReply( WP_REST_Request $request ): WP_REST_Response {
