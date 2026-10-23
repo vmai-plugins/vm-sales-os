@@ -1417,8 +1417,8 @@ Output valid JSON ONLY with no Markdown formatting or code fences.';
 
 		// 4. CRM & Deals
 		$totalLeads  = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}vmsos_contacts" );
-		$activeDeals = (float) ( $wpdb->get_var( "SELECT SUM(value) FROM {$wpdb->prefix}vmsos_deals WHERE status NOT IN ('won', 'lost')" ) ?: 0 );
-		$wonDeals    = (float) ( $wpdb->get_var( "SELECT SUM(value) FROM {$wpdb->prefix}vmsos_deals WHERE status = 'won'" ) ?: 0 );
+		$activeDeals = (float) ( $wpdb->get_var( "SELECT SUM(value) FROM {$wpdb->prefix}vmsos_deals WHERE stage NOT IN ('won', 'lost')" ) ?: 0 );
+		$wonDeals    = (float) ( $wpdb->get_var( "SELECT SUM(value) FROM {$wpdb->prefix}vmsos_deals WHERE stage = 'won'" ) ?: 0 );
 
 		// 5. Radar
 		$activeConversations = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}vmsos_conversations WHERE status = 'open'" );
@@ -1753,7 +1753,7 @@ Output valid JSON ONLY with no Markdown formatting or code fences.';
 		);
 
 		$agents = $wpdb->get_results(
-			"SELECT id, name, role, tone, image_style, status FROM {$wpdb->prefix}vmsai_agents",
+			"SELECT id, name, brief as role, tone, image_style, status FROM {$wpdb->prefix}vmsai_agents",
 			ARRAY_A
 		);
 
