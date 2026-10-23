@@ -176,6 +176,48 @@ final class FluentFormSync {
 			);
 		}
 
+		// Sync pipeline deal into vmsos_deals if no deal exists for this contact
+		$dealTable = $wpdb->prefix . 'vmsos_deals';
+		$existingDealId = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT id FROM `{$dealTable}` WHERE contact_id = %d LIMIT 1",
+				$contactId
+			)
+		);
+		if ( $existingDealId <= 0 ) {
+			$dealValue = 0.0;
+			foreach ( [ 'budget', 'estimated_budget', 'project_budget', 'price', 'amount', 'deal_value' ] as $bKey ) {
+				if ( ! empty( $data[ $bKey ] ) ) {
+					$numStr = preg_replace( '/[^0-9.]/', '', (string) $data[ $bKey ] );
+					if ( is_numeric( $numStr ) ) {
+						$dealValue = (float) $numStr;
+						break;
+					}
+				}
+			}
+			$dealTitle = ! empty( $company )
+				? ( 'Inquiry: ' . $company )
+				: ( 'Inquiry: ' . trim( $firstName . ' ' . $lastName ) );
+			if ( empty( trim( $dealTitle, ': ' ) ) ) {
+				$dealTitle = 'Inquiry from ' . $formTitle;
+			}
+			$wpdb->insert(
+				$dealTable,
+				[
+					'brand_id'    => 1,
+					'contact_id'  => $contactId,
+					'company_id'  => $companyId ?? 0,
+					'title'       => $dealTitle,
+					'stage'       => 'new',
+					'value'       => $dealValue,
+					'currency'    => (string) get_option( 'vmsos_currency', 'INR' ),
+					'created_at'  => $createdAt,
+					'updated_at'  => $createdAt,
+				],
+				[ '%d', '%d', '%d', '%s', '%s', '%f', '%s', '%s', '%s' ]
+			);
+		}
+
 		// Create/link Conversation in Sales OS Omnichannel Inbox
 		$existingConv = $wpdb->get_row(
 			$wpdb->prepare(

@@ -178,26 +178,57 @@ final class MobileBridgeController extends AbstractController {
 	 * @return array<string, mixed>
 	 */
 	private function asLead( array $contact ): array {
+		global $wpdb;
 		$name = trim( ( $contact['first_name'] ?? '' ) . ' ' . ( $contact['last_name'] ?? '' ) );
 
+		$dealValue = 0.0;
+		if ( isset( $contact['deal_value'] ) ) {
+			$dealValue = (float) $contact['deal_value'];
+		} else {
+			$dealTable = $wpdb->prefix . 'vmsos_deals';
+			$val = $wpdb->get_var( $wpdb->prepare(
+				"SELECT value FROM `{$dealTable}` WHERE contact_id = %d AND brand_id = %d ORDER BY id DESC LIMIT 1",
+				(int) ( $contact['id'] ?? 0 ),
+				BrandContext::current()
+			) );
+			if ( null !== $val ) {
+				$dealValue = (float) $val;
+			}
+		}
+
+		$meta = [];
+		if ( ! empty( $contact['meta'] ) ) {
+			if ( is_array( $contact['meta'] ) ) {
+				$meta = $contact['meta'];
+			} elseif ( is_string( $contact['meta'] ) ) {
+				$decoded = json_decode( $contact['meta'], true );
+				$meta = is_array( $decoded ) ? $decoded : maybe_unserialize( $contact['meta'] );
+				if ( ! is_array( $meta ) ) {
+					$meta = [];
+				}
+			}
+		}
+
 		return [
-			'id'         => (int) ( $contact['id'] ?? 0 ),
-			'name'       => '' !== $name ? $name : ( $contact['email'] ?? '' ),
-			'company'    => $this->companyName( (int) ( $contact['company_id'] ?? 0 ) ),
-			'email'      => (string) ( $contact['email'] ?? '' ),
-			'phone'      => (string) ( $contact['phone'] ?? '' ),
-			'score'      => (int) ( $contact['score'] ?? 0 ),
-			'lead_score' => (int) ( $contact['score'] ?? 0 ),
-			'stage'      => (string) ( $contact['stage'] ?? '' ),
-			'stage_id'   => (string) ( $contact['stage'] ?? 'new' ),
-			'deal_value' => (float) ( $contact['deal_value'] ?? 0.0 ),
-			'source'     => (string) ( $contact['source'] ?? '' ),
+			'id'            => (int) ( $contact['id'] ?? 0 ),
+			'name'          => '' !== $name ? $name : ( $contact['email'] ?? '' ),
+			'company'       => $this->companyName( (int) ( $contact['company_id'] ?? 0 ) ),
+			'email'         => (string) ( $contact['email'] ?? '' ),
+			'phone'         => (string) ( $contact['phone'] ?? '' ),
+			'score'         => (int) ( $contact['score'] ?? 0 ),
+			'lead_score'    => (int) ( $contact['score'] ?? 0 ),
+			'stage'         => (string) ( $contact['stage'] ?? '' ),
+			'stage_id'      => (string) ( $contact['stage'] ?? 'new' ),
+			'deal_value'    => $dealValue,
+			'source'        => (string) ( $contact['source'] ?? '' ),
+			'notes'         => (string) ( $contact['requirements'] ?? '' ),
+			'custom_fields' => $meta,
 			// The app shows this as the at-a-glance blurb. vmsos keeps the AI
 			// summary on the conversation, not the contact, so fall back to the
 			// scoring rationale when there is no conversation summary.
-			'ai_summary' => $this->leadSummary( (int) ( $contact['id'] ?? 0 ) )
+			'ai_summary'    => $this->leadSummary( (int) ( $contact['id'] ?? 0 ) )
 				?: (string) ( $contact['score_reason'] ?? '' ),
-			'created_at' => (string) ( $contact['created_at'] ?? '' ),
+			'created_at'    => (string) ( $contact['created_at'] ?? '' ),
 		];
 	}
 
@@ -398,7 +429,20 @@ final class MobileBridgeController extends AbstractController {
 		}
 
 		$lead             = $this->asLead( $contact );
-		$lead['timeline'] = $this->activities->timeline( 'contact', (int) $contact['id'], 50 );
+		$timelineRows     = $this->activities->timeline( 'contact', (int) $contact['id'], 50 );
+		$activitiesFormatted = array_map( function( array $a ): array {
+			return [
+				'id'          => (string) ( $a['id'] ?? '' ),
+				'type'        => (string) ( $a['type'] ?? 'note' ),
+				'title'       => ucfirst( str_replace( '_', ' ', (string) ( $a['type'] ?? 'Activity' ) ) ),
+				'description' => (string) ( $a['body'] ?? '' ),
+				'author'      => (string) ( $a['actor'] ?? 'System' ),
+				'timestamp'   => (string) ( $a['created_at'] ?? '' ),
+			];
+		}, $timelineRows );
+
+		$lead['timeline']   = $timelineRows;
+		$lead['activities'] = $activitiesFormatted;
 
 		return $this->bare( $lead );
 	}
@@ -450,39 +494,43 @@ final class MobileBridgeController extends AbstractController {
 			$this->contacts->edit( $id, $input );
 		}
 
-		if ( null !== $dealValue ) {
-			global $wpdb;
-			$dealTable = $wpdb->prefix . 'vmsos_deals';
-			$existingDealId = (int) $wpdb->get_var( $wpdb->prepare(
-				"SELECT id FROM `{$dealTable}` WHERE contact_id = %d AND brand_id = %d ORDER BY id DESC LIMIT 1",
-				$id,
-				BrandContext::current()
-			) );
+		global $wpdb;
+		$dealTable = $wpdb->prefix . 'vmsos_deals';
+		$existingDealId = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT id FROM `{$dealTable}` WHERE contact_id = %d AND brand_id = %d ORDER BY id DESC LIMIT 1",
+			$id,
+			BrandContext::current()
+		) );
 
-			if ( $existingDealId > 0 ) {
-				$wpdb->update(
-					$dealTable,
-					[ 'value' => $dealValue, 'updated_at' => current_time( 'mysql' ) ],
-					[ 'id' => $existingDealId ],
-					[ '%f', '%s' ],
-					[ '%d' ]
-				);
-			} else {
-				$wpdb->insert(
-					$dealTable,
-					[
-						'brand_id'    => BrandContext::current(),
-						'contact_id'  => $id,
-						'title'       => 'Deal for Contact #' . $id,
-						'stage'       => $input['stage'] ?? $contact['stage'] ?? 'new',
-						'value'       => $dealValue,
-						'currency'    => (string) get_option( 'vmsos_currency', 'INR' ),
-						'created_at'  => current_time( 'mysql' ),
-						'updated_at'  => current_time( 'mysql' ),
-					],
-					[ '%d', '%d', '%s', '%s', '%f', '%s', '%s', '%s' ]
-				);
+		if ( $existingDealId > 0 ) {
+			$dealUpdates = [ 'updated_at' => current_time( 'mysql' ) ];
+			$dealFormats = [ '%s' ];
+			if ( null !== $dealValue ) {
+				$dealUpdates['value'] = $dealValue;
+				$dealFormats[] = '%f';
 			}
+			if ( ! empty( $input['stage'] ) ) {
+				$dealUpdates['stage'] = $input['stage'];
+				$dealFormats[] = '%s';
+			}
+			if ( count( $dealUpdates ) > 1 ) {
+				$wpdb->update( $dealTable, $dealUpdates, [ 'id' => $existingDealId ], $dealFormats, [ '%d' ] );
+			}
+		} elseif ( null !== $dealValue || ! empty( $input['stage'] ) ) {
+			$wpdb->insert(
+				$dealTable,
+				[
+					'brand_id'    => BrandContext::current(),
+					'contact_id'  => $id,
+					'title'       => 'Deal for ' . ( ! empty( $name ) ? $name : 'Contact #' . $id ),
+					'stage'       => $input['stage'] ?? $contact['stage'] ?? 'new',
+					'value'       => $dealValue ?? 0.0,
+					'currency'    => (string) get_option( 'vmsos_currency', 'INR' ),
+					'created_at'  => current_time( 'mysql' ),
+					'updated_at'  => current_time( 'mysql' ),
+				],
+				[ '%d', '%d', '%s', '%s', '%f', '%s', '%s', '%s' ]
+			);
 		}
 
 		$fresh = $this->contact( $id );
@@ -817,27 +865,46 @@ final class MobileBridgeController extends AbstractController {
 	}
 
 	public function sendReply( WP_REST_Request $request ): WP_REST_Response {
-		$contactId = (int) $request->get_param( 'lead_id' );
-		$message   = trim( wp_strip_all_tags( (string) $request->get_param( 'message' ) ) );
+		global $wpdb;
+		$conversationId = (int) ( $request->get_param( 'conversation_id' ) ?: $request->get_param( 'thread_id' ) );
+		$contactId      = (int) $request->get_param( 'lead_id' );
+		$message        = trim( wp_strip_all_tags( (string) $request->get_param( 'message' ) ) );
 
-		if ( $contactId <= 0 || '' === $message ) {
-			return $this->error( 'lead_id and message are both required.', 400 );
+		if ( '' === $message || ( $contactId <= 0 && $conversationId <= 0 ) ) {
+			return $this->error( 'lead_id or conversation_id, and message are required.', 400 );
 		}
 
-		if ( null === $this->contact( $contactId ) ) {
-			return $this->error( 'Lead not found.', 404 );
+		$conversation = null;
+
+		if ( $conversationId > 0 ) {
+			$convRow = $wpdb->get_row(
+				$wpdb->prepare( "SELECT id, channel FROM {$wpdb->prefix}vmsos_conversations WHERE id = %d", $conversationId ),
+				ARRAY_A
+			);
+			if ( $convRow ) {
+				$conversation = $convRow;
+			}
 		}
 
-		$conversation = $this->latestConversation( $contactId );
+		if ( null === $conversation && $contactId > 0 ) {
+			if ( null === $this->contact( $contactId ) ) {
+				return $this->error( 'Lead not found.', 404 );
+			}
+			$conversation = $this->latestConversation( $contactId );
+
+			if ( null === $conversation ) {
+				$channel  = sanitize_key( (string) ( $request->get_param( 'channel' ) ?: 'app' ) );
+				$convData = $this->conversations->start( $channel, 'lead-' . $contactId );
+				$this->conversations->attachContact( (int) $convData['id'], $contactId );
+				$conversation = [
+					'id'      => (int) $convData['id'],
+					'channel' => $channel,
+				];
+			}
+		}
 
 		if ( null === $conversation ) {
-			$channel  = sanitize_key( (string) ( $request->get_param( 'channel' ) ?: 'app' ) );
-			$convData = $this->conversations->start( $channel, 'lead-' . $contactId );
-			$this->conversations->attachContact( (int) $convData['id'], $contactId );
-			$conversation = [
-				'id'      => (int) $convData['id'],
-				'channel' => $channel,
-			];
+			return $this->error( 'Conversation not found.', 404 );
 		}
 
 		$sent = $this->inbox->reply(
