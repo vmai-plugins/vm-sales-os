@@ -32,34 +32,10 @@ abstract class AbstractController {
 	}
 
 	/**
-	 * Resolves real client IP behind Cloudflare, Nginx, or reverse proxies.
-	 */
-	protected function clientIp(): string {
-		$headers = [
-			'HTTP_CF_CONNECTING_IP',
-			'HTTP_X_FORWARDED_FOR',
-			'HTTP_X_REAL_IP',
-			'REMOTE_ADDR',
-		];
-
-		foreach ( $headers as $h ) {
-			if ( ! empty( $_SERVER[ $h ] ) ) {
-				$raw = (string) wp_unslash( $_SERVER[ $h ] );
-				$first = trim( explode( ',', $raw )[0] );
-				if ( filter_var( $first, FILTER_VALIDATE_IP ) ) {
-					return $first;
-				}
-			}
-		}
-
-		return isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '127.0.0.1';
-	}
-
-	/**
 	 * Throttle a public endpoint by hashed IP.
 	 */
 	protected function throttle( string $bucket, int $max, int $window ): bool|WP_Error {
-		$ip      = $this->clientIp();
+		$ip      = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
 		$key     = $bucket . ':' . substr( hash_hmac( 'sha256', $ip, wp_salt( 'auth' ) ), 0, 24 );
 		$limiter = new RateLimiter();
 

@@ -60,8 +60,7 @@ final class CompatModule extends Module {
 				$c->get( InboxService::class ),
 				$c->get( MetricsService::class ),
 				$c->get( ActivityRepository::class ),
-				$c->get( EnrollmentRepository::class ),
-				$c->has( \VMStudio\SalesOS\AI\ProviderManager::class ) ? $c->get( \VMStudio\SalesOS\AI\ProviderManager::class ) : null
+				$c->get( EnrollmentRepository::class )
 			)
 		);
 	}

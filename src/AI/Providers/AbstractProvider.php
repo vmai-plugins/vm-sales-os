@@ -15,33 +15,6 @@ abstract class AbstractProvider implements ChatProvider {
 		return true;
 	}
 
-	/**
-	 * Default fallback for model listing. Overridden by drivers.
-	 *
-	 * @param bool $force Bypass cache.
-	 * @param string|null $keyOverride Optional API key override.
-	 * @param string|null $baseOverride Optional base URL override.
-	 * @return list<string>
-	 */
-	public function getModels( bool $force = false, ?string $keyOverride = null, ?string $baseOverride = null ): array {
-		return [];
-	}
-
-	/**
-	 * Default fallback for streaming: calls chat() and invokes callback once with the full content.
-	 *
-	 * @param \VMStudio\SalesOS\AI\DTO\ChatRequest $request
-	 * @param callable(string): void $onToken
-	 * @return \VMStudio\SalesOS\AI\DTO\ChatResponse
-	 */
-	public function streamChat( \VMStudio\SalesOS\AI\DTO\ChatRequest $request, callable $onToken ): \VMStudio\SalesOS\AI\DTO\ChatResponse {
-		$response = $this->chat( $request );
-		if ( '' !== $response->content ) {
-			$onToken( $response->content );
-		}
-		return $response;
-	}
-
 	protected function setting( string $key, string $default = '' ): string {
 		$value = get_option( 'vmsos_ai_' . $this->id() . '_' . $key, '' );
 		return '' === $value ? $default : (string) $value;

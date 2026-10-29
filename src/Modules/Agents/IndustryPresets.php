@@ -120,11 +120,11 @@ final class IndustryPresets {
 				'brand_id'      => $brandId,
 				'slug'          => 'sales-closer',
 				'name'          => sprintf( '%s AI Sales Specialist', $b['label'] ),
-				'role'          => 'sales',
+				'role'          => $b['persona'],
 				'capabilities'  => wp_json_encode( [ 'public', 'internal' ] ),
 				'tools'         => wp_json_encode( [ 'capture_lead', 'search_knowledge', 'book_calendar', 'query_catalog', 'calculate_quote', 'request_human' ] ),
 				'system_prompt' => $b['persona'] . "\n\nPRIMARY GOAL: " . $b['selling_goal'],
-				'status'        => 'active',
+				'is_active'     => 1,
 				'updated_at'    => function_exists( 'current_time' ) ? current_time( 'mysql', true ) : gmdate( 'Y-m-d H:i:s' ),
 			];
 

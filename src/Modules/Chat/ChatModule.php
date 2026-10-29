@@ -26,7 +26,7 @@ final class ChatModule extends Module {
 	public function boot( Container $container ): void {
 		$container->get( RestRouter::class )->add( ChatController::class );
 
-		add_action( 'wp_enqueue_scripts', [ $this, 'enqueueWidget' ], 999 );
+		add_action( 'wp_enqueue_scripts', [ $this, 'enqueueWidget' ] );
 		add_action( 'wp_footer', [ $this, 'renderWidgetRoot' ] );
 		add_shortcode( 'vmsos_chat', [ $this, 'shortcode' ] );
 
@@ -67,33 +67,6 @@ final class ChatModule extends Module {
 			return;
 		}
 
-		$chips = get_option( 'vmsos_widget_starter_chips' );
-		if ( empty( $chips ) ) {
-			$chips = get_option( 'vmsos_interests', [
-				'Explore Services & Pricing',
-				'Book a Discovery Consultation',
-				'Speak with our Specialist Team',
-			] );
-		}
-		if ( is_string( $chips ) ) {
-			$chips = array_filter( array_map( 'trim', explode( "\n", $chips ) ) );
-		}
-
-		$greeting = (string) ( get_option( 'vmsos_greeting' ) ?: get_option( 'vmsos_widget_greeting', __( 'Hi — what are you looking for today?', 'vm-sales-os' ) ) );
-
-		$teaserText = (string) get_option( 'vmsos_widget_teaser_text', '' );
-		if ( '' === $teaserText ) {
-			$teaserText = $greeting;
-		}
-
-		$wa = (string) get_option( 'vmsos_widget_whatsapp', '' );
-		if ( '' === $wa ) {
-			$wa = (string) get_option( 'vmsos_whatsapp_phone_id', '' );
-		}
-		$wa = preg_replace( '/[^0-9]/', '', $wa ) ?? '';
-
-		$phone = (string) get_option( 'vmsos_widget_phone', '' );
-
 		wp_enqueue_style( 'vmsos-widget', VMSOS_URL . 'assets/css/widget.css', [], VMSOS_VERSION );
 		wp_enqueue_script( 'vmsos-widget', VMSOS_URL . 'assets/js/widget.js', [], VMSOS_VERSION, true );
 
@@ -101,36 +74,19 @@ final class ChatModule extends Module {
 			'vmsos-widget',
 			'vmsosWidget',
 			[
-				'endpoint'       => esc_url_raw( rest_url( 'vmsos/v1/chat/message' ) ),
-				'streamEndpoint' => esc_url_raw( rest_url( 'vmsos/v1/chat/stream' ) ),
-				'poll'           => esc_url_raw( rest_url( 'vmsos/v1/chat/poll' ) ),
-				'formSubmit'    => esc_url_raw( rest_url( 'vmsos/v1/forms/submit' ) ),
-				'agent'         => (string) get_option( 'vmsos_agent_name', 'Ava' ),
-				'agentTitle'    => (string) get_option( 'vmsos_agent_title', __( 'Online • Live Sales Specialist', 'vm-sales-os' ) ),
-				'greeting'      => $greeting,
-				'accent'        => (string) get_option( 'vmsos_widget_accent', '#c9a227' ),
-				'position'      => (string) get_option( 'vmsos_widget_position', 'right' ),
-				'teaserEnabled' => (bool) get_option( 'vmsos_widget_teaser_enabled', true ),
-				'teaserText'    => $teaserText,
-				'teaserDelay'   => max( 1, (int) get_option( 'vmsos_widget_teaser_delay', 3 ) ),
-				'chips'         => array_values( (array) $chips ),
-				'whatsapp'      => $wa,
-				'phone'         => $phone,
-				'siteName'      => get_bloginfo( 'name' ),
-				'strings'       => [
-					'placeholder' => __( 'Type your message or tap mic…', 'vm-sales-os' ),
+				'endpoint' => esc_url_raw( rest_url( 'vmsos/v1/chat/message' ) ),
+				'poll'     => esc_url_raw( rest_url( 'vmsos/v1/chat/poll' ) ),
+				'agent'    => (string) get_option( 'vmsos_agent_name', 'Ava' ),
+				'greeting' => (string) get_option( 'vmsos_widget_greeting', __( 'Hi â€” what are you looking for today?', 'vm-sales-os' ) ),
+				'accent'   => (string) get_option( 'vmsos_widget_accent', '#c9a227' ),
+				'position' => (string) get_option( 'vmsos_widget_position', 'right' ),
+				'strings'  => [
+					'placeholder' => __( 'Type your message', 'vm-sales-os' ),
 					'send'        => __( 'Send', 'vm-sales-os' ),
 					'open'        => __( 'Chat with us', 'vm-sales-os' ),
 					'close'       => __( 'Close chat', 'vm-sales-os' ),
 					'error'       => __( 'That did not go through. Try again.', 'vm-sales-os' ),
-					'waiting'     => __( 'A colleague is picking this up — stay on the page and their reply will appear here.', 'vm-sales-os' ),
-					'quoteTab'    => __( '📋 Fast Inquiry', 'vm-sales-os' ),
-					'chatTab'     => __( '💬 Live Chat', 'vm-sales-os' ),
-					'restart'     => __( 'New conversation', 'vm-sales-os' ),
-					'whatsapp'    => __( 'Chat on WhatsApp', 'vm-sales-os' ),
-					'call'        => __( 'Call our team', 'vm-sales-os' ),
-					'micTitle'    => __( 'Voice input (Speech to Text)', 'vm-sales-os' ),
-					'formSuccess' => __( '✓ Inquiry received! Our team will contact you shortly.', 'vm-sales-os' ),
+					'waiting'     => __( 'A colleague is picking this up â€” stay on the page and their reply will appear here.', 'vm-sales-os' ),
 				],
 			]
 		);

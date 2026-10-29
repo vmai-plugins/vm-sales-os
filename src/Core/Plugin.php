@@ -9,18 +9,16 @@ use VMStudio\SalesOS\Modules\Agents\AgentsModule;
 use VMStudio\SalesOS\Modules\Analytics\AnalyticsModule;
 use VMStudio\SalesOS\Modules\Automation\AutomationModule;
 use VMStudio\SalesOS\Modules\Channels\ChannelsModule;
-use VMStudio\SalesOS\Modules\Channels\ChatwootModule;
 use VMStudio\SalesOS\Modules\Chat\ChatModule;
 use VMStudio\SalesOS\Modules\Compat\CompatModule;
 use VMStudio\SalesOS\Modules\CRM\CrmModule;
-use VMStudio\SalesOS\Modules\LeadGen\LeadGenModule;
 use VMStudio\SalesOS\Modules\Inbox\InboxModule;
 use VMStudio\SalesOS\Modules\Knowledge\KnowledgeModule;
+use VMStudio\SalesOS\Modules\LinkedInRadar\LinkedInRadarModule;
 use VMStudio\SalesOS\Modules\Memory\MemoryModule;
 use VMStudio\SalesOS\Modules\Sequences\SequencesModule;
 use VMStudio\SalesOS\Queue\QueueManager;
 use VMStudio\SalesOS\REST\RestRouter;
-use VMStudio\SalesOS\Support\GitHubUpdater;
 
 /**
  * Composition root. Owns the container and the boot sequence.
@@ -66,7 +64,6 @@ final class Plugin {
 		$registry->discover(
 			[
 				CrmModule::class,
-				LeadGenModule::class,
 				ChatModule::class,
 				InboxModule::class,
 				KnowledgeModule::class,
@@ -74,7 +71,7 @@ final class Plugin {
 				AgentsModule::class,
 				SequencesModule::class,
 				ChannelsModule::class,
-				ChatwootModule::class,
+				LinkedInRadarModule::class,
 				AutomationModule::class,
 				AnalyticsModule::class,
 				// Last: it only re-exposes what the modules above provide.
@@ -86,7 +83,6 @@ final class Plugin {
 		$this->container->get( Migrator::class )->maybeMigrate();
 		$this->container->get( QueueManager::class )->boot();
 		$this->container->get( RestRouter::class )->boot();
-		$this->container->get( GitHubUpdater::class )->boot();
 
 		if ( is_admin() ) {
 			$this->container->get( AdminArea::class )->boot();

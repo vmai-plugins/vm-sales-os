@@ -110,48 +110,6 @@ final class ProviderManager {
 	}
 
 	/**
-	 * Run a streaming chat completion against the first healthy provider that can serve it.
-	 *
-	 * @param ChatRequest $request
-	 * @param callable(string): void $onToken Invoked for each token chunk.
-	 * @return ChatResponse
-	 * @throws AiException When every candidate fails.
-	 */
-	public function streamChat( ChatRequest $request, callable $onToken ): ChatResponse {
-		$attempts   = [];
-		$candidates = $this->candidates( $request );
-
-		if ( ! $candidates ) {
-			throw new AiException( 'No AI provider is configured. Add a key under VM Sales OS → Settings.' );
-		}
-
-		foreach ( $candidates as $id ) {
-			$provider = $this->providers[ $id ];
-
-			if ( $this->breakerOpen( $id ) ) {
-				$attempts[ $id ] = 'circuit open';
-				continue;
-			}
-
-			try {
-				$response = $provider->streamChat( $this->prepare( $request, $provider ), $onToken );
-				$this->meter->record( $response, $request->operation );
-				$this->resetBreaker( $id );
-				$this->events->dispatch( 'ai.completed', [ 'provider' => $id, 'operation' => $request->operation ] );
-				return $response;
-			} catch ( \Throwable $e ) {
-				$attempts[ $id ] = $e->getMessage();
-				$this->tripBreaker( $id );
-				$this->meter->recordFailure( $id, $request->operation, substr( $e->getMessage(), 0, 60 ) );
-				$this->logger->error( 'ai', 'Streaming failed on provider, trying next', [ 'provider' => $id, 'error' => $e->getMessage() ] );
-				$this->events->dispatch( 'ai.provider_failed', [ 'provider' => $id, 'error' => $e->getMessage() ] );
-			}
-		}
-
-		throw ( new AiException( 'All AI providers failed.' ) )->withAttempts( $attempts );
-	}
-
-	/**
 	 * Providers eligible for this request, in priority order.
 	 *
 	 * @return array<int, string>

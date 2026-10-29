@@ -45,18 +45,15 @@ final class UniversalTools {
 					return [ 'error' => 'At least a name, email, or phone number is required to save a contact.' ];
 				}
 
-				$requirements = sanitize_textarea_field( (string) ( $args['requirements'] ?? '' ) );
-
 				/** @var ContactRepository $contacts */
 				$contacts  = $container->get( ContactRepository::class );
 				$contactId = $contacts->upsert(
 					[
-						'name'         => $name,
-						'email'        => $email,
-						'phone'        => $phone,
-						'company'      => sanitize_text_field( (string) ( $args['company'] ?? '' ) ),
-						'requirements' => $requirements,
-						'source'       => (string) ( $context['channel'] ?? 'web' ),
+						'name'    => $name,
+						'email'   => $email,
+						'phone'   => $phone,
+						'company' => sanitize_text_field( (string) ( $args['company'] ?? '' ) ),
+						'source'  => (string) ( $context['channel'] ?? 'web' ),
 					]
 				);
 
@@ -75,12 +72,11 @@ final class UniversalTools {
 					$dealTitle = '' !== $name ? sprintf( 'Deal: %s', $name ) : 'New Sales Inquiry';
 					$deals->create(
 						[
-							'pipeline_id' => (int) get_option( 'vmsos_default_pipeline_id', 1 ),
-							'contact_id'  => $contactId,
-							'title'       => $dealTitle,
-							'stage'       => 'new',
-							'value'       => 0.0,
-							'notes'       => $requirements,
+							'contact_id' => $contactId,
+							'title'      => $dealTitle,
+							'stage'      => 'lead',
+							'value'      => 0.0,
+							'notes'      => $requirements,
 						]
 					);
 				}

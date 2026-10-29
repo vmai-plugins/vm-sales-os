@@ -18,16 +18,10 @@ final class WhatsAppClient {
 	public function __construct(
 		private Vault $vault,
 		private IntegrationLog $integrations,
-		private Logger $logger,
-		private ?EvolutionClient $evolution = null
+		private Logger $logger
 	) {}
 
 	public function configured(): bool {
-		$provider = (string) get_option( 'vmsos_whatsapp_provider', 'meta' );
-		if ( 'evolution' === $provider && $this->evolution ) {
-			return $this->evolution->configured();
-		}
-
 		return '' !== $this->phoneNumberId() && '' !== $this->token();
 	}
 
@@ -48,11 +42,6 @@ final class WhatsAppClient {
 	}
 
 	public function send( string $to, string $message ): bool {
-		$provider = (string) get_option( 'vmsos_whatsapp_provider', 'meta' );
-		if ( 'evolution' === $provider && $this->evolution && $this->evolution->configured() ) {
-			return $this->evolution->send( $to, $message );
-		}
-
 		if ( ! $this->configured() ) {
 			$this->logger->error( 'whatsapp', 'Send skipped: channel not configured' );
 			return false;
@@ -62,10 +51,6 @@ final class WhatsAppClient {
 
 		if ( '' === $to ) {
 			return false;
-		}
-
-		if ( 10 === strlen( $to ) ) {
-			$to = '91' . $to;
 		}
 
 		$startedAt = microtime( true );

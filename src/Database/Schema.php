@@ -108,7 +108,7 @@ final class Schema {
 				first_name VARCHAR(120) NOT NULL DEFAULT '',
 				last_name VARCHAR(120) NOT NULL DEFAULT '',
 				email VARCHAR(191) NOT NULL DEFAULT '',
-				email_hash CHAR(32) NULL DEFAULT NULL,
+				email_hash CHAR(32) NOT NULL DEFAULT '',
 				phone VARCHAR(40) NOT NULL DEFAULT '',
 				phone_hash CHAR(32) NOT NULL DEFAULT '',
 				source VARCHAR(60) NOT NULL DEFAULT '',

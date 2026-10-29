@@ -32,21 +32,11 @@ final class ChannelsModule extends Module {
 
 	public function register( Container $container ): void {
 		$container->singleton(
-			EvolutionClient::class,
-			static fn( Container $c ) => new EvolutionClient(
-				$c->get( Vault::class ),
-				$c->get( IntegrationLog::class ),
-				$c->get( Logger::class )
-			)
-		);
-
-		$container->singleton(
 			WhatsAppClient::class,
 			static fn( Container $c ) => new WhatsAppClient(
 				$c->get( Vault::class ),
 				$c->get( IntegrationLog::class ),
-				$c->get( Logger::class ),
-				$c->get( EvolutionClient::class )
+				$c->get( Logger::class )
 			)
 		);
 
@@ -62,7 +52,6 @@ final class ChannelsModule extends Module {
 
 	public function boot( Container $container ): void {
 		$container->get( RestRouter::class )->add( WhatsAppWebhookController::class );
-		$container->get( RestRouter::class )->add( EvolutionWebhookController::class );
 		$container->get( RestRouter::class )->add( VoiceWebhookController::class );
 
 		// Deliver human replies from the inbox back to WhatsApp.

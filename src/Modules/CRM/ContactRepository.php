@@ -11,9 +11,9 @@ final class ContactRepository extends Repository {
 		return 'vmsos_contacts';
 	}
 
-	public static function hash( string $value ): ?string {
+	public static function hash( string $value ): string {
 		$value = strtolower( trim( $value ) );
-		return '' === $value ? null : md5( $value );
+		return '' === $value ? '' : md5( $value );
 	}
 
 	/** Normalise a phone number to digits, keeping a leading +. */
@@ -25,7 +25,7 @@ final class ContactRepository extends Repository {
 	/** @return array<string, mixed>|null */
 	public function findByEmail( string $email ): ?array {
 		$hash = self::hash( $email );
-		if ( null === $hash || '' === $hash ) {
+		if ( '' === $hash ) {
 			return null;
 		}
 		$row = $this->db->get_row( // phpcs:ignore WordPress.DB
@@ -38,7 +38,7 @@ final class ContactRepository extends Repository {
 	/** @return array<string, mixed>|null */
 	public function findByPhone( string $phone ): ?array {
 		$hash = self::hash( self::normalisePhone( $phone ) );
-		if ( null === $hash || '' === $hash ) {
+		if ( '' === $hash ) {
 			return null;
 		}
 		$row = $this->db->get_row( // phpcs:ignore WordPress.DB
@@ -60,30 +60,20 @@ final class ContactRepository extends Repository {
 		$existing = ( '' !== $email ? $this->findByEmail( $email ) : null )
 			?? ( '' !== $phone ? $this->findByPhone( $phone ) : null );
 
-		$firstName = sanitize_text_field( (string) ( $input['first_name'] ?? '' ) );
-		$lastName  = sanitize_text_field( (string) ( $input['last_name'] ?? '' ) );
-
-		if ( '' === $firstName && '' === $lastName && ! empty( $input['name'] ) ) {
-			$parts     = preg_split( '/\s+/', trim( (string) $input['name'] ), 2 ) ?: [ '' ];
-			$firstName = $parts[0];
-			$lastName  = $parts[1] ?? '';
-		}
-
 		$fields = [
-			'first_name'   => $firstName,
-			'last_name'    => $lastName,
+			'first_name'   => sanitize_text_field( (string) ( $input['first_name'] ?? '' ) ),
+			'last_name'    => sanitize_text_field( (string) ( $input['last_name'] ?? '' ) ),
 			'email'        => $email,
-			'email_hash'   => self::hash( $email ) ?? '',
+			'email_hash'   => self::hash( $email ),
 			'phone'        => $phone,
-			'phone_hash'   => self::hash( $phone ) ?? '',
+			'phone_hash'   => self::hash( $phone ),
 			'source'       => sanitize_text_field( (string) ( $input['source'] ?? 'web' ) ),
 			'requirements' => mb_substr( wp_strip_all_tags( (string) ( $input['requirements'] ?? '' ) ), 0, 2000 ),
 			'consent'      => ! empty( $input['consent'] ) ? 1 : 0,
-			'meta'         => ! empty( $input['meta'] ) ? ( is_array( $input['meta'] ) ? wp_json_encode( $input['meta'] ) : (string) $input['meta'] ) : null,
 			'updated_at'   => $this->now(),
 		];
 
-		$formats = [ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' ];
+		$formats = [ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s' ];
 
 		if ( $existing ) {
 			// Never blank out a known value with an empty one.

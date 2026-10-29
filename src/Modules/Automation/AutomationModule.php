@@ -30,16 +30,10 @@ final class AutomationModule extends Module {
 	}
 
 	public function boot( Container $container ): void {
-		$container->get( \VMStudio\SalesOS\REST\RestRouter::class )->add( AutomationController::class );
-
 		$events = $container->get( EventBus::class );
 		$queue  = $container->get( QueueManager::class );
 
 		foreach ( $this->rules() as $rule ) {
-			if ( isset( $rule['enabled'] ) && ! $rule['enabled'] ) {
-				continue;
-			}
-
 			$events->listen(
 				(string) $rule['on'],
 				static function ( array $payload ) use ( $rule, $queue ): void {
