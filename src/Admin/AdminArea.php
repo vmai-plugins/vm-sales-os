@@ -100,6 +100,456 @@ final class AdminArea {
 		$placesKeyHint   = $this->vault->hint( 'google_places_api_key' );
 		$primaryProvider = $this->providers->chain()[0] ?? 'aipuffer';
 		?>
+				<style id="vmsos-modern-settings-inline-css">
+			/* Dark theme canvas override for settings screen */
+			body.sales-os_page_vm-sales-os-settings,
+			body[class*="sales-os-settings"] {
+				background: #070d1e !important;
+			}
+			body.sales-os_page_vm-sales-os-settings #wpbody-content,
+			body[class*="sales-os-settings"] #wpbody-content {
+				background: #070d1e !important;
+				color: #e2e8f0;
+				padding-bottom: 60px;
+			}
+			.vmsos-settings-modern {
+				--vmsos-ink: #0b1327;
+				--vmsos-ink-2: #131c36;
+				--vmsos-ink-3: #1c274c;
+				--vmsos-line: rgba(255, 255, 255, 0.09);
+				--vmsos-gold: #c9a227;
+				--vmsos-cyan: #06b6d4;
+				--vmsos-emerald: #10b981;
+				--vmsos-purple: #8b5cf6;
+				--vmsos-rose: #f43f5e;
+				--vmsos-text: #f1f5f9;
+				--vmsos-muted: #94a3b8;
+				margin-top: 15px;
+				margin-right: 20px;
+				font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+				color: #e2e8f0;
+			}
+			.vmsos-settings-hero {
+				background: linear-gradient(135deg, #0b1327 0%, #152244 100%);
+				border: 1px solid var(--vmsos-line);
+				border-radius: 14px;
+				padding: 24px 28px;
+				margin-bottom: 24px;
+				display: flex;
+				flex-wrap: wrap;
+				justify-content: space-between;
+				align-items: center;
+				gap: 16px;
+				box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+			}
+			.vmsos-hero-title h1 {
+				margin: 0 0 6px 0;
+				font-size: 24px;
+				font-weight: 700;
+				color: #fff;
+				display: flex;
+				align-items: center;
+				gap: 10px;
+			}
+			.vmsos-hero-title h1 span {
+				font-weight: 400;
+				color: var(--vmsos-gold);
+				font-size: 16px;
+				border-left: 1px solid rgba(255, 255, 255, 0.2);
+				padding-left: 10px;
+			}
+			.vmsos-hero-title p {
+				margin: 0;
+				font-size: 13px;
+				color: var(--vmsos-muted);
+			}
+			.vmsos-hero-status-pills {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 8px;
+			}
+			.vmsos-pill {
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				padding: 6px 12px;
+				border-radius: 20px;
+				font-size: 11px;
+				font-weight: 600;
+				letter-spacing: 0.03em;
+				background: rgba(255, 255, 255, 0.06);
+				border: 1px solid rgba(255, 255, 255, 0.1);
+				color: var(--vmsos-text);
+			}
+			.vmsos-pill-dot {
+				width: 7px;
+				height: 7px;
+				border-radius: 50%;
+				background: #94a3b8;
+			}
+			.vmsos-pill--emerald { background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.35); color: #34d399; }
+			.vmsos-pill--emerald .vmsos-pill-dot { background: #34d399; box-shadow: 0 0 8px #34d399; }
+			.vmsos-pill--cyan { background: rgba(6, 182, 212, 0.12); border-color: rgba(6, 182, 212, 0.35); color: #22d3ee; }
+			.vmsos-pill--cyan .vmsos-pill-dot { background: #22d3ee; box-shadow: 0 0 8px #22d3ee; }
+			.vmsos-pill--gold { background: rgba(201, 162, 39, 0.12); border-color: rgba(201, 162, 39, 0.35); color: #fbbf24; }
+			.vmsos-pill--gold .vmsos-pill-dot { background: #fbbf24; box-shadow: 0 0 8px #fbbf24; }
+			.vmsos-tabs-nav {
+				display: flex;
+				gap: 6px;
+				border-bottom: 2px solid var(--vmsos-line);
+				margin-bottom: 24px;
+				overflow-x: auto;
+			}
+			.vmsos-tab-btn {
+				background: none;
+				border: none;
+				border-bottom: 2px solid transparent;
+				margin-bottom: -2px;
+				padding: 12px 18px;
+				font-size: 13px;
+				font-weight: 600;
+				color: var(--vmsos-muted);
+				cursor: pointer;
+				display: inline-flex;
+				align-items: center;
+				gap: 8px;
+				transition: all 0.2s ease;
+			}
+			.vmsos-tab-btn:hover {
+				color: var(--vmsos-text);
+				background: rgba(255, 255, 255, 0.03);
+			}
+			.vmsos-tab-btn.is-active {
+				color: var(--vmsos-gold);
+				border-bottom-color: var(--vmsos-gold);
+			}
+			.vmsos-tab-content {
+				display: none;
+			}
+			.vmsos-tab-content.is-active {
+				display: block;
+				animation: vmsosFadeIn 0.25s ease;
+			}
+			@keyframes vmsosFadeIn {
+				from { opacity: 0; transform: translateY(4px); }
+				to { opacity: 1; transform: translateY(0); }
+			}
+			.vmsos-pipeline-visual {
+				background: var(--vmsos-ink);
+				border: 1px solid var(--vmsos-line);
+				border-radius: 12px;
+				padding: 20px 24px;
+				margin-bottom: 20px;
+			}
+			.vmsos-pipeline-stages {
+				display: flex !important;
+				align-items: center !important;
+				justify-content: space-between !important;
+				gap: 12px !important;
+				flex-wrap: wrap !important;
+				margin-top: 14px !important;
+			}
+			.vmsos-stage-box {
+				flex: 1 1 200px;
+				min-width: 170px;
+				background: var(--vmsos-ink-2);
+				border: 1px solid var(--vmsos-line);
+				border-radius: 10px;
+				padding: 14px 16px;
+				position: relative;
+				transition: transform 0.2s ease;
+			}
+			.vmsos-stage-box.is-primary {
+				border-color: rgba(6, 182, 212, 0.5);
+				background: linear-gradient(180deg, rgba(6, 182, 212, 0.08) 0%, var(--vmsos-ink-2) 100%);
+			}
+			.vmsos-stage-box.is-fallback {
+				border-color: rgba(201, 162, 39, 0.4);
+				background: linear-gradient(180deg, rgba(201, 162, 39, 0.06) 0%, var(--vmsos-ink-2) 100%);
+			}
+			.vmsos-stage-tag {
+				font-size: 9px;
+				font-weight: 700;
+				letter-spacing: 0.06em;
+				text-transform: uppercase;
+				padding: 3px 6px;
+				border-radius: 4px;
+				display: inline-block;
+				margin-bottom: 6px;
+			}
+			.vmsos-stage-tag.tag-primary { background: rgba(6, 182, 212, 0.2); color: #22d3ee; }
+			.vmsos-stage-tag.tag-fallback { background: rgba(201, 162, 39, 0.2); color: #fbbf24; }
+			.vmsos-stage-tag.tag-sovereign { background: rgba(139, 92, 246, 0.2); color: #c084fc; }
+			.vmsos-stage-tag.tag-anthropic { background: rgba(244, 63, 94, 0.2); color: #fb7185; }
+			.vmsos-stage-title {
+				font-size: 13px;
+				font-weight: 700;
+				color: #fff;
+				margin-bottom: 3px;
+			}
+			.vmsos-stage-sub {
+				font-size: 11px;
+				color: var(--vmsos-muted);
+			}
+			.vmsos-stage-arrow {
+				color: var(--vmsos-gold);
+				font-size: 18px;
+				font-weight: bold;
+				user-select: none;
+			}
+			.vmsos-presets-row {
+				display: flex;
+				gap: 8px;
+				margin-top: 14px;
+				align-items: center;
+				flex-wrap: wrap;
+			}
+			.vmsos-preset-btn {
+				background: rgba(255, 255, 255, 0.05);
+				border: 1px solid var(--vmsos-line);
+				color: var(--vmsos-text);
+				padding: 5px 12px;
+				border-radius: 6px;
+				font-size: 11px;
+				font-weight: 600;
+				cursor: pointer;
+				transition: all 0.15s ease;
+			}
+			.vmsos-preset-btn:hover {
+				background: rgba(201, 162, 39, 0.15);
+				border-color: var(--vmsos-gold);
+				color: var(--vmsos-gold);
+			}
+			.vmsos-ai-test-console {
+				background: #060a14;
+				border: 1px solid rgba(6, 182, 212, 0.25);
+				border-radius: 10px;
+				padding: 16px 20px;
+				margin-top: 18px;
+				margin-bottom: 24px;
+			}
+			.vmsos-ai-test-header {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				margin-bottom: 12px;
+			}
+			.vmsos-ai-test-header h4 {
+				margin: 0;
+				font-size: 13px;
+				font-weight: 600;
+				color: var(--vmsos-cyan);
+				display: flex;
+				align-items: center;
+				gap: 6px;
+			}
+			.vmsos-ai-test-input-row {
+				display: flex;
+				gap: 10px;
+				align-items: center;
+			}
+			.vmsos-ai-test-input {
+				flex: 1;
+				background: #0e172a !important;
+				border: 1px solid #1e293b !important;
+				color: #e2e8f0 !important;
+				padding: 8px 12px !important;
+				border-radius: 6px !important;
+				font-size: 13px !important;
+			}
+			.vmsos-ai-test-btn {
+				background: linear-gradient(135deg, #06b6d4 0%, #0284c7 100%) !important;
+				color: #fff !important;
+				border: none !important;
+				padding: 8px 18px !important;
+				border-radius: 6px !important;
+				font-weight: 600 !important;
+				font-size: 12px !important;
+				cursor: pointer !important;
+				display: inline-flex !important;
+				align-items: center !important;
+				gap: 6px !important;
+				white-space: nowrap !important;
+			}
+			.vmsos-ai-test-result {
+				margin-top: 12px;
+				padding: 12px 14px;
+				background: rgba(255, 255, 255, 0.03);
+				border: 1px solid rgba(255, 255, 255, 0.08);
+				border-radius: 6px;
+				font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+				font-size: 12px;
+				color: #cbd5e1;
+				line-height: 1.5;
+				display: none;
+			}
+			.vmsos-providers-grid {
+				display: grid !important;
+				grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)) !important;
+				gap: 16px !important;
+				margin-bottom: 24px !important;
+			}
+			.vmsos-provider-card {
+				background: var(--vmsos-ink);
+				border: 1px solid var(--vmsos-line);
+				border-radius: 12px;
+				padding: 20px;
+				position: relative;
+				display: flex;
+				flex-direction: column;
+				gap: 14px;
+				box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+			}
+			.vmsos-provider-card-header {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				border-bottom: 1px solid var(--vmsos-line);
+				padding-bottom: 12px;
+			}
+			.vmsos-provider-info {
+				display: flex;
+				align-items: center;
+				gap: 10px;
+			}
+			.vmsos-provider-info h3 {
+				margin: 0;
+				font-size: 15px;
+				font-weight: 700;
+				color: #fff;
+			}
+			.vmsos-form-group {
+				display: flex;
+				flex-direction: column;
+				gap: 5px;
+			}
+			.vmsos-form-group label {
+				font-size: 12px;
+				font-weight: 600;
+				color: var(--vmsos-muted);
+			}
+			.vmsos-form-row {
+				display: flex;
+				gap: 8px;
+				align-items: center;
+				flex-wrap: wrap;
+			}
+			.vmsos-input-modern {
+				background: var(--vmsos-ink-2) !important;
+				border: 1px solid var(--vmsos-line) !important;
+				color: var(--vmsos-text) !important;
+				padding: 8px 12px !important;
+				border-radius: 6px !important;
+				font-size: 13px !important;
+				width: 100%;
+				box-sizing: border-box;
+				transition: border-color 0.2s ease;
+			}
+			.vmsos-input-modern:focus {
+				border-color: var(--vmsos-gold) !important;
+				box-shadow: 0 0 0 1px var(--vmsos-gold) !important;
+				outline: none !important;
+			}
+			.vmsos-select-modern {
+				background: var(--vmsos-ink-2) !important;
+				border: 1px solid var(--vmsos-line) !important;
+				color: var(--vmsos-text) !important;
+				padding: 8px 12px !important;
+				border-radius: 6px !important;
+				font-size: 13px !important;
+				cursor: pointer;
+			}
+			.vmsos-card {
+				background: var(--vmsos-ink);
+				border: 1px solid var(--vmsos-line);
+				border-radius: 12px;
+				padding: 22px 26px;
+				margin-bottom: 20px;
+				box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+			}
+			.vmsos-card-header {
+				margin-bottom: 18px;
+				border-bottom: 1px solid var(--vmsos-line);
+				padding-bottom: 14px;
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+			}
+			.vmsos-card-header h2 {
+				margin: 0 0 4px 0;
+				font-size: 18px;
+				font-weight: 700;
+				color: #fff;
+			}
+			.vmsos-card-header p {
+				margin: 0;
+				font-size: 12px;
+				color: var(--vmsos-muted);
+			}
+			.vmsos-leadgen-cron-banner {
+				background: linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(6, 182, 212, 0.08) 100%);
+				border: 1px solid rgba(16, 185, 129, 0.3);
+				border-radius: 10px;
+				padding: 16px 20px;
+				margin-bottom: 18px;
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				flex-wrap: wrap;
+				gap: 12px;
+			}
+			.vmsos-btn-action {
+				background: rgba(255, 255, 255, 0.08);
+				border: 1px solid var(--vmsos-line);
+				color: #fff;
+				padding: 7px 14px;
+				border-radius: 6px;
+				font-size: 12px;
+				font-weight: 600;
+				cursor: pointer;
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+				transition: all 0.2s ease;
+			}
+			.vmsos-btn-action:hover {
+				background: rgba(255, 255, 255, 0.15);
+				border-color: rgba(255, 255, 255, 0.3);
+			}
+			.vmsos-sticky-save-bar {
+				position: sticky;
+				bottom: 20px;
+				background: linear-gradient(135deg, #0b1327 0%, #17244a 100%);
+				border: 1px solid var(--vmsos-gold);
+				border-radius: 12px;
+				padding: 14px 24px;
+				display: flex;
+				justify-content: space-between;
+				align-items: center;
+				margin-top: 30px;
+				box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+				z-index: 50;
+			}
+			.vmsos-save-btn-modern {
+				background: linear-gradient(135deg, #c9a227 0%, #dfb738 100%) !important;
+				color: #0b1327 !important;
+				border: none !important;
+				font-weight: 700 !important;
+				font-size: 14px !important;
+				padding: 10px 28px !important;
+				border-radius: 8px !important;
+				cursor: pointer !important;
+				box-shadow: 0 4px 14px rgba(201, 162, 39, 0.3) !important;
+				transition: transform 0.15s ease !important;
+			}
+			.vmsos-save-btn-modern:hover {
+				transform: translateY(-1px);
+			}
+			@keyframes vmsosRotate {
+				from { transform: rotate(0deg); }
+				to { transform: rotate(360deg); }
+			}
+		</style>
 		<div class="wrap vmsos-wrap vmsos-settings-modern">
 			<!-- Header Hero Banner -->
 			<div class="vmsos-settings-hero">
@@ -663,8 +1113,27 @@ final class AdminArea {
 		</div>
 
 		<script>
-		document.addEventListener('DOMContentLoaded', function() {
-			// Tab Navigation Logic
+		(function() {
+			function initVmsosSettings() {
+				// Tab Navigation Logic
+				var tabBtns = document.querySelectorAll('#vmsos-settings-tabs .vmsos-tab-btn');
+				var tabPanes = document.querySelectorAll('.vmsos-tab-content');
+
+				tabBtns.forEach(function(btn) {
+					btn.addEventListener('click', function(e) {
+						e.preventDefault();
+						tabBtns.forEach(function(b) { b.classList.remove('is-active'); });
+						tabPanes.forEach(function(p) { p.classList.remove('is-active'); p.style.display = 'none'; });
+
+						btn.classList.add('is-active');
+						var targetId = btn.getAttribute('data-tab');
+						var targetPane = document.getElementById(targetId);
+						if (targetPane) {
+							targetPane.classList.add('is-active');
+							targetPane.style.display = 'block';
+						}
+					});
+				});
 			var tabBtns = document.querySelectorAll('#vmsos-settings-tabs .vmsos-tab-btn');
 			var tabPanes = document.querySelectorAll('.vmsos-tab-content');
 
@@ -921,7 +1390,14 @@ final class AdminArea {
 					}
 				});
 			});
-		});
+			}
+
+			if (document.readyState === 'loading') {
+				document.addEventListener('DOMContentLoaded', initVmsosSettings);
+			} else {
+				initVmsosSettings();
+			}
+		})();
 		</script>
 		<?php
 	}

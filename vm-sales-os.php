@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
 define( 'VMSOS_VERSION', '1.0.0' );
 define( 'VMSOS_FILE', __FILE__ );
 define( 'VMSOS_DIR', plugin_dir_path( __FILE__ ) );
-define( 'VMSOS_URL', plugin_dir_url( __FILE__ ) );
+define( 'VMSOS_URL', set_url_scheme( plugin_dir_url( __FILE__ ), is_ssl() || ( isset( $_SERVER['HTTP_X_FORWARDED_PROTO'] ) && 'https' === $_SERVER['HTTP_X_FORWARDED_PROTO'] ) ? 'https' : 'admin' ) );
 define( 'VMSOS_BASENAME', plugin_basename( __FILE__ ) );
 define( 'VMSOS_MIN_PHP', '8.1' );
 
