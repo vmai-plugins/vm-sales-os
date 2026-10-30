@@ -95,7 +95,7 @@ final class AdminArea {
 		$chain           = implode( ', ', $this->providers->chain() );
 		$activeBlueprint = (string) get_option( 'vmsos_active_blueprint', 'creative_agency' );
 		$blueprints      = IndustryPresets::all();
-		$cronNext        = wp_next_scheduled( \VM\SalesOS\Modules\LeadGen\LeadGenModule::DAILY_TICK );
+		$cronNext        = wp_next_scheduled( \VMStudio\SalesOS\Modules\LeadGen\LeadGenModule::DAILY_TICK );
 		$cronNextHuman   = $cronNext ? human_time_diff( time(), $cronNext ) : 'Not scheduled';
 		$placesKeyHint   = $this->vault->hint( 'google_places_api_key' );
 		$primaryProvider = $this->providers->chain()[0] ?? 'aipuffer';
@@ -998,7 +998,7 @@ final class AdminArea {
 
 		try {
 			ob_start();
-			do_action( \VM\SalesOS\Modules\LeadGen\LeadGenModule::DAILY_TICK );
+			do_action( \VMStudio\SalesOS\Modules\LeadGen\LeadGenModule::DAILY_TICK );
 			$output = ob_get_clean();
 
 			wp_send_json_success( [
