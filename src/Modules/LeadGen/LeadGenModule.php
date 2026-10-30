@@ -55,12 +55,20 @@ final class LeadGenModule extends Module {
 		);
 	}
 
+	public const DAILY_TICK = 'vmsos_leadgen_daily_tick';
+
 	public function boot( Container $container ): void {
 		$router = $container->get( RestRouter::class );
 		$router->add( LeadGenController::class );
 
 		// Register WordPress Admin AJAX handlers
 		$container->get( LeadGenController::class )->bootAjax();
+
+		// Schedule daily automated B2B lead generation via Google Places
+		if ( ! wp_next_scheduled( self::DAILY_TICK ) ) {
+			wp_schedule_event( time() + 300, 'daily', self::DAILY_TICK );
+		}
+		add_action( self::DAILY_TICK, fn() => $container->get( LeadGenController::class )->runScheduledDailyImport() );
 
 		if ( is_admin() ) {
 			add_action( 'admin_menu', [ $this, 'registerAdminMenu' ] );

@@ -430,6 +430,54 @@ final class LeadGenController extends AbstractController {
 		return $places;
 	}
 
+	/**
+	 * Automated daily scheduled B2B lead generation runner.
+	 * Cycles through target cities and discovers new B2B partners via Google Places & Website Crawler.
+	 */
+	public function runScheduledDailyImport(): array {
+		if ( ! $this->placesClient->isConfigured() ) {
+			return [ 'status' => 'skipped', 'reason' => 'Places API key missing' ];
+		}
+
+		$cities = (string) get_option( 'vmsos_b2b_import_cities', '' );
+		if ( '' === $cities ) {
+			$cities = (string) get_option( 'tc_agents_b2b_import_cities', 'Varanasi, Delhi, Mumbai, Jaipur, Kolkata, Chennai, Bengaluru, Hyderabad, Ahmedabad, Lucknow' );
+		}
+		$cityList = array_values( array_filter( array_map( 'trim', explode( ',', $cities ) ) ) );
+		if ( empty( $cityList ) ) {
+			$cityList = [ 'Varanasi', 'Delhi', 'Mumbai', 'Jaipur', 'Bengaluru' ];
+		}
+
+		$index = (int) get_option( 'vmsos_b2b_city_index', get_option( 'tc_agents_b2b_city_index', 0 ) );
+		if ( $index >= count( $cityList ) ) {
+			$index = 0;
+		}
+		$currentCity = $cityList[ $index ];
+
+		$query = 'travel agency in ' . $currentCity;
+		$res   = $this->placesClient->search( $query, 20, true );
+
+		if ( isset( $res['error'] ) || empty( $res['places'] ) ) {
+			update_option( 'vmsos_b2b_city_index', ( $index + 1 ) % count( $cityList ), false );
+			return [ 'status' => 'error', 'city' => $currentCity, 'error' => $res['error'] ?? 'No places returned' ];
+		}
+
+		// Import discovered places directly into contacts & FluentCRM
+		$tags   = [ 'b2b-lead', 'city-' . sanitize_title( $currentCity ) ];
+		$import = $this->processImport( (array) $res['places'], [], $tags, 0, 'subscribed' );
+
+		// Advance city index and stamp last run
+		update_option( 'vmsos_b2b_city_index', ( $index + 1 ) % count( $cityList ), false );
+		update_option( 'vmsos_b2b_last_import', current_time( 'mysql' ), false );
+
+		return [
+			'status'  => 'success',
+			'city'    => $currentCity,
+			'found'   => count( $res['places'] ),
+			'results' => $import,
+		];
+	}
+
 	private function verifyAdminAjax(): void {
 		$nonce = isset( $_POST['_wpnonce'] ) ? sanitize_text_field( (string) $_POST['_wpnonce'] ) : '';
 		if ( ! current_user_can( 'vmsos_operate' ) || ! wp_verify_nonce( $nonce, 'vmsos_leadgen_nonce' ) ) {
