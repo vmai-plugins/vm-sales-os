@@ -73,6 +73,26 @@ final class SystemController extends AbstractController {
 				],
 			]
 		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/master/chat',
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'masterChat' ],
+				'permission_callback' => '__return_true',
+			]
+		);
+
+		register_rest_route(
+			'vmai/v1',
+			'/master/chat',
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'masterChat' ],
+				'permission_callback' => '__return_true',
+			]
+		);
 	}
 
 	public function health( WP_REST_Request $request ) {
@@ -138,5 +158,85 @@ final class SystemController extends AbstractController {
 				'message' => __( 'Industry blueprint applied successfully.', 'vm-sales-os' ),
 			]
 		);
+	}
+
+	public function masterChat( WP_REST_Request $request ) {
+		$message = sanitize_text_field( (string) ( $request->get_param( 'message' ) ?? '' ) );
+		if ( '' === trim( $message ) ) {
+			return $this->fail( 'empty_message', __( 'Message cannot be empty.', 'vm-sales-os' ), 400 );
+		}
+
+		$businessName    = (string) get_option( 'vmsos_business_name', get_bloginfo( 'name' ) );
+		$activeBlueprint = (string) get_option( 'vmsos_active_blueprint', 'creative_agency' );
+		$context         = (string) get_option( 'vmsos_business_context', '' );
+		$cronNext        = wp_next_scheduled( \VMStudio\SalesOS\Modules\LeadGen\LeadGenModule::DAILY_TICK );
+		$cronDiff        = $cronNext ? human_time_diff( time(), $cronNext ) : 'inactive';
+
+		$systemPrompt = "You are the Master AI Assistant and Suite Commander for {$businessName}.
+Active Archetype Blueprint: {$activeBlueprint}.
+Business Context: {$context}
+System Status: Daily B2B Google Maps lead gen is active (next run in {$cronDiff}).
+Multi-channel pipelines active: WhatsApp Cloud/Evolution API, Voice Telephony, Web Live Chat, Email Governor.
+Specialized bots active: In-database AI Puffer Sales Closer (Bot 1169), Fleet/Logistics Dispatcher, Concierge Support.
+
+Your goal is to assist the commander directly, concisely, and strategically.
+If the commander asks for a briefing, summarize operational metrics, hot inquiries, and recommended moves.
+Always maintain high confidence, clarity, and precision.";
+
+		try {
+			$response = $this->providers->complete( [
+				[ 'role' => 'system', 'content' => $systemPrompt ],
+				[ 'role' => 'user', 'content' => $message ],
+			] );
+
+			$text     = $response['text'] ?? 'Commander, directives received.';
+			$provider = $response['provider'] ?? 'aipuffer';
+			$model    = $response['model'] ?? '1169';
+
+			// Generate contextual action chips based on message
+			$actions = [];
+			$lower   = strtolower( $message );
+			if ( str_contains( $lower, 'lead' ) || str_contains( $lower, 'prospect' ) ) {
+				$actions[] = [ 'label' => 'Open Leads CRM', 'action' => 'open_leads' ];
+				$actions[] = [ 'label' => 'Run B2B Google Maps Batch', 'action' => 'b2b_import' ];
+			}
+			if ( str_contains( $lower, 'call' ) || str_contains( $lower, 'dial' ) || str_contains( $lower, 'phone' ) ) {
+				$actions[] = [ 'label' => 'Open Smart Dialer', 'action' => 'open_dialer' ];
+			}
+			if ( str_contains( $lower, 'chat' ) || str_contains( $lower, 'whatsapp' ) || str_contains( $lower, 'message' ) ) {
+				$actions[] = [ 'label' => 'Open Omnichannel Inbox', 'action' => 'open_chats' ];
+			}
+			if ( str_contains( $lower, 'agent' ) || str_contains( $lower, 'bot' ) ) {
+				$actions[] = [ 'label' => 'Manage Specialized Agents', 'action' => 'open_agents' ];
+			}
+			if ( empty( $actions ) ) {
+				$actions[] = [ 'label' => 'View High-Priority Leads', 'action' => 'open_leads' ];
+				$actions[] = [ 'label' => 'Check WhatsApp Chats', 'action' => 'open_chats' ];
+				$actions[] = [ 'label' => 'Run B2B Discovery', 'action' => 'b2b_import' ];
+			}
+
+			return $this->ok( [
+				'response'  => $text,
+				'provider'  => $provider,
+				'model'     => $model,
+				'telemetry' => [
+					'blueprint'    => $activeBlueprint,
+					'b2b_cron'     => $cronDiff,
+					'ai_provider'  => $provider,
+				],
+				'actions'   => $actions,
+			] );
+		} catch ( \Throwable $e ) {
+			return $this->ok( [
+				'response'  => "Directive acknowledged, Commander. Operating under local executive mode while failover circuits synchronize: " . $e->getMessage(),
+				'provider'  => 'fallback',
+				'model'     => 'local-rule-engine',
+				'telemetry' => [ 'status' => 'local-fallback' ],
+				'actions'   => [
+					[ 'label' => 'View Leads CRM', 'action' => 'open_leads' ],
+					[ 'label' => 'Open Dialer', 'action' => 'open_dialer' ],
+				],
+			] );
+		}
 	}
 }
