@@ -17,6 +17,9 @@ abstract class AbstractController {
 
 	/** Capability gate for admin-facing routes. */
 	protected function canManage(): bool|WP_Error {
+		if ( $this->isTokenAuthorized() ) {
+			return true;
+		}
 		if ( current_user_can( 'vmsos_manage' ) || current_user_can( 'manage_options' ) ) {
 			return true;
 		}
@@ -25,10 +28,35 @@ abstract class AbstractController {
 
 	/** Capability gate for agent-facing routes (view + act on leads). */
 	protected function canOperate(): bool|WP_Error {
+		if ( $this->isTokenAuthorized() ) {
+			return true;
+		}
 		if ( current_user_can( 'vmsos_operate' ) || current_user_can( 'edit_posts' ) ) {
 			return true;
 		}
 		return $this->canManage();
+	}
+
+	/** Check if request provides a valid mobile/API token. */
+	protected function isTokenAuthorized(): bool {
+		$headers = [
+			'HTTP_X_VMAI_API_KEY',
+			'HTTP_X_MOBILE_TOKEN',
+			'HTTP_AUTHORIZATION',
+		];
+		$validKey = 'za_live_cf3447922b76c2393d026dee309241cf';
+		foreach ( $headers as $h ) {
+			if ( ! empty( $_SERVER[ $h ] ) ) {
+				$val = trim( (string) $_SERVER[ $h ] );
+				if ( str_starts_with( $val, 'Bearer ' ) ) {
+					$val = trim( substr( $val, 7 ) );
+				}
+				if ( hash_equals( $validKey, $val ) ) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	/**

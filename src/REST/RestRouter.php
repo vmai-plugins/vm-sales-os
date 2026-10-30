@@ -21,6 +21,17 @@ final class RestRouter {
 	}
 
 	public function boot(): void {
+		add_filter(
+			'rest_allowed_cors_headers',
+			static function ( array $headers ): array {
+				$headers[] = 'X-VMAI-API-Key';
+				$headers[] = 'x-vmai-api-key';
+				$headers[] = 'X-Mobile-Token';
+				$headers[] = 'x-mobile-token';
+				return array_unique( $headers );
+			}
+		);
+
 		add_action(
 			'rest_api_init',
 			function (): void {
