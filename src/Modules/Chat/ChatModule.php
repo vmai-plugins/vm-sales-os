@@ -62,31 +62,88 @@ final class ChatModule extends Module {
 		);
 	}
 
-	public function enqueueWidget(): void {
+		public function enqueueWidget(): void {
 		if ( ! get_option( 'vmsos_widget_enabled', true ) || is_admin() ) {
 			return;
 		}
 
-		wp_enqueue_style( 'vmsos-widget', VMSOS_URL . 'assets/css/widget.css', [], VMSOS_VERSION );
-		wp_enqueue_script( 'vmsos-widget', VMSOS_URL . 'assets/js/widget.js', [], VMSOS_VERSION, true );
+		$isHttps = is_ssl() || ( isset( $_SERVER['HTTP_X_FORWARDED_PROTO'] ) && 'https' === $_SERVER['HTTP_X_FORWARDED_PROTO'] ) || ( isset( $_SERVER['HTTPS'] ) && 'on' === $_SERVER['HTTPS'] );
+		$scheme  = $isHttps ? 'https' : 'admin';
+		$cssUrl  = set_url_scheme( VMSOS_URL . 'assets/css/widget.css', $scheme );
+		$jsUrl   = set_url_scheme( VMSOS_URL . 'assets/js/widget.js', $scheme );
+		$ver     = defined( 'VMSOS_DIR' ) && file_exists( VMSOS_DIR . 'assets/js/widget.js' ) ? (string) filemtime( VMSOS_DIR . 'assets/js/widget.js' ) : (string) time();
+
+		wp_enqueue_style( 'vmsos-widget', $cssUrl, [], $ver );
+		wp_enqueue_script( 'vmsos-widget', $jsUrl, [], $ver, true );
+
+		$agentName  = (string) get_option( 'vmsos_agent_name', 'Ava' );
+		$agentTitle = (string) get_option( 'vmsos_agent_title', __( 'Online • Live Specialist', 'vm-sales-os' ) );
+
+		$greetingRaw = (string) get_option( 'vmsos_widget_greeting', '' );
+		if ( '' === trim( $greetingRaw ) || str_contains( $greetingRaw, 'â' ) ) {
+			$greeting = sprintf( __( 'Hello! I am %s, your AI Growth Strategist at VM Studio. How can we help scale your business today?', 'vm-sales-os' ), $agentName );
+		} else {
+			$greeting = $greetingRaw;
+		}
+
+		$chipsRaw = (string) get_option( 'vmsos_widget_starter_chips', '' );
+		if ( '' !== trim( $chipsRaw ) ) {
+			$configuredChips = array_values( array_filter( array_map( 'trim', explode( "\n", $chipsRaw ) ) ) );
+		} else {
+			$configuredChips = [];
+		}
+
+		$defaultChips = [
+			__( '⚡ Get Instant Estimate', 'vm-sales-os' ),
+			__( '📅 Book Discovery Call', 'vm-sales-os' ),
+			__( 'Custom Web Development', 'vm-sales-os' ),
+			__( 'AI Chatbots & Automation', 'vm-sales-os' ),
+			__( 'Brand Identity & Design', 'vm-sales-os' ),
+		];
+
+		$chips = ! empty( $configuredChips ) ? array_merge( [ __( '⚡ Get Instant Estimate', 'vm-sales-os' ), __( '📅 Book Discovery Call', 'vm-sales-os' ) ], $configuredChips ) : $defaultChips;
+		$chips = array_values( array_unique( $chips ) );
+
+		$teaserEnabled = (bool) get_option( 'vmsos_widget_teaser_enabled', true );
+		$teaserDelay   = max( 1, (int) get_option( 'vmsos_widget_teaser_delay', 3 ) );
+		$teaserText    = (string) get_option( 'vmsos_widget_teaser_text', __( 'Looking to scale your business with custom web & AI automation? Let us chat!', 'vm-sales-os' ) );
+		$whatsapp      = (string) get_option( 'vmsos_widget_whatsapp', '' );
+		$phone         = (string) get_option( 'vmsos_widget_phone', '' );
+		$accent        = (string) get_option( 'vmsos_widget_accent', '#c9a227' );
+		$position      = (string) get_option( 'vmsos_widget_position', 'right' );
+		$siteName      = get_bloginfo( 'name' );
 
 		wp_localize_script(
 			'vmsos-widget',
 			'vmsosWidget',
 			[
-				'endpoint' => esc_url_raw( rest_url( 'vmsos/v1/chat/message' ) ),
-				'poll'     => esc_url_raw( rest_url( 'vmsos/v1/chat/poll' ) ),
-				'agent'    => (string) get_option( 'vmsos_agent_name', 'Ava' ),
-				'greeting' => (string) get_option( 'vmsos_widget_greeting', __( 'Hi â€” what are you looking for today?', 'vm-sales-os' ) ),
-				'accent'   => (string) get_option( 'vmsos_widget_accent', '#c9a227' ),
-				'position' => (string) get_option( 'vmsos_widget_position', 'right' ),
-				'strings'  => [
-					'placeholder' => __( 'Type your message', 'vm-sales-os' ),
+				'endpoint'       => esc_url_raw( rest_url( 'vmsos/v1/chat/message' ) ),
+				'poll'           => esc_url_raw( rest_url( 'vmsos/v1/chat/poll' ) ),
+				'agent'          => $agentName,
+				'agentTitle'     => $agentTitle,
+				'greeting'       => $greeting,
+				'accent'         => $accent,
+				'position'       => $position,
+				'chips'          => $chips,
+				'whatsapp'       => $whatsapp,
+				'phone'          => $phone,
+				'siteName'       => $siteName,
+				'teaserEnabled'  => $teaserEnabled,
+				'teaserDelay'    => $teaserDelay,
+				'teaserText'     => $teaserText,
+				'strings'        => [
+					'placeholder' => __( 'Ask anything or choose a topic above…', 'vm-sales-os' ),
 					'send'        => __( 'Send', 'vm-sales-os' ),
 					'open'        => __( 'Chat with us', 'vm-sales-os' ),
 					'close'       => __( 'Close chat', 'vm-sales-os' ),
-					'error'       => __( 'That did not go through. Try again.', 'vm-sales-os' ),
-					'waiting'     => __( 'A colleague is picking this up â€” stay on the page and their reply will appear here.', 'vm-sales-os' ),
+					'error'       => __( 'Could not deliver message. Please retry or contact us directly.', 'vm-sales-os' ),
+					'waiting'     => __( 'A specialist has been notified and is stepping in. Your reply will appear here shortly.', 'vm-sales-os' ),
+					'chatTab'     => __( '💬 Live AI Chat', 'vm-sales-os' ),
+					'quoteTab'    => __( '📋 Fast Inquiry', 'vm-sales-os' ),
+					'restart'     => __( 'New conversation', 'vm-sales-os' ),
+					'micTitle'    => __( 'Voice dictation', 'vm-sales-os' ),
+					'whatsapp'    => __( 'Direct WhatsApp', 'vm-sales-os' ),
+					'call'        => __( 'Call us', 'vm-sales-os' ),
 				],
 			]
 		);
