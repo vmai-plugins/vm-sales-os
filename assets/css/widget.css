@@ -331,19 +331,24 @@
 }
 
 /* When teaser is open, collapse launcher into an elegant 48px round FAB to avoid button clash */
-#vmsos-widget-root .vmsos-launcher.is-teaser-active {
+#vmsos-widget-root .vmsos-launcher.is-teaser-active,
+#vmsos-widget-root button.vmsos-launcher.is-teaser-active {
 	width: 50px !important;
+	min-width: 50px !important;
+	max-width: 50px !important;
 	height: 50px !important;
 	padding: 0 !important;
 	justify-content: center !important;
 	border-radius: 50% !important;
 }
 
-#vmsos-widget-root .vmsos-launcher.is-teaser-active .vmsos-launcher__label {
+#vmsos-widget-root .vmsos-launcher.is-teaser-active .vmsos-launcher__label,
+#vmsos-widget-root button.vmsos-launcher.is-teaser-active .vmsos-launcher__label {
 	display: none !important;
 }
 
-#vmsos-widget-root .vmsos-launcher.is-teaser-active .vmsos-launcher__pulse {
+#vmsos-widget-root .vmsos-launcher.is-teaser-active .vmsos-launcher__pulse,
+#vmsos-widget-root button.vmsos-launcher.is-teaser-active .vmsos-launcher__pulse {
 	left: auto !important;
 	right: 4px !important;
 	top: 4px !important;
@@ -395,7 +400,7 @@
 	bottom: 74px;
 	box-shadow: 0 24px 70px rgba(0, 0, 0, 0.75), 0 0 1px 1px rgba(201, 162, 39, 0.25) !important;
 	color: var(--vmsos-text) !important;
-	display: none !important;
+	display: none;
 	flex-direction: column;
 	height: min(78vh, 620px);
 	overflow: hidden;
@@ -406,7 +411,9 @@
 	backdrop-filter: blur(20px);
 }
 
-#vmsos-widget-root .vmsos-panel.is-open {
+#vmsos-widget-root .vmsos-panel.is-open,
+#vmsos-widget-root.is-open .vmsos-panel,
+#vmsos-widget-root.is-open #vmsos-panel {
 	display: flex !important;
 }
 
@@ -1345,8 +1352,13 @@
 }
 
 #vmsos-widget-root.is-open #vmsos-launcher,
-#vmsos-widget-root .vmsos-panel.is-open ~ #vmsos-launcher {
+#vmsos-widget-root.is-open .vmsos-launcher,
+#vmsos-widget-root.is-open button.vmsos-launcher,
+#vmsos-widget-root .vmsos-panel.is-open ~ #vmsos-launcher,
+#vmsos-widget-root #vmsos-launcher.is-hidden {
 	display: none !important;
+	visibility: hidden !important;
+	pointer-events: none !important;
 }
 
 /* ------------------------------------------------ Tab 3: WebCall & Voice */

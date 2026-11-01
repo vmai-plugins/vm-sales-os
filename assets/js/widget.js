@@ -231,19 +231,19 @@
 		}
 
 		// Fast-path: If server-rendered PHP markup already exists in DOM, bind directly!
-		let panel = document.getElementById( 'vmsos-panel' );
-		let launcher = document.getElementById( 'vmsos-launcher' );
-		let teaser = document.getElementById( 'vmsos-teaser' );
+		const existingPanel = document.getElementById( 'vmsos-panel' );
+		const existingLauncher = document.getElementById( 'vmsos-launcher' );
+		const existingTeaser = document.getElementById( 'vmsos-teaser' );
 
-		if ( panel && launcher ) {
+		if ( existingPanel && existingLauncher ) {
 			root.setAttribute( 'data-initialized', 'true' );
 			root.setAttribute( 'data-position', vmsosWidget.position || 'right' );
 			root.style.setProperty( '--vmsos-accent', vmsosWidget.accent || '#c9a227' );
 
 			const teaserClose = document.getElementById( 'vmsos-teaser-close' );
 			const teaserCta = document.getElementById( 'vmsos-teaser-cta' );
-			const launcherIconChat = launcher.querySelector( '.is-chat' );
-			const launcherIconClose = launcher.querySelector( '.is-close' );
+			const launcherIconChat = existingLauncher.querySelector( '.vmsos-launcher__icon-chat, .is-chat' );
+			const launcherIconClose = existingLauncher.querySelector( '.vmsos-launcher__icon-close, .is-close' );
 			const panelClose = document.getElementById( 'vmsos-panel-close' );
 			const restartBtn = document.getElementById( 'vmsos-restart-btn' );
 			const soundBtn = document.getElementById( 'vmsos-sound-toggle' );
@@ -263,13 +263,13 @@
 
 			return {
 				root,
-				teaser,
+				teaser: existingTeaser,
 				teaserClose,
 				teaserCta,
-				launcher,
+				launcher: existingLauncher,
 				launcherIconChat,
 				launcherIconClose,
-				panel,
+				panel: existingPanel,
 				close: panelClose,
 				restartBtn,
 				soundBtn,
@@ -863,7 +863,9 @@
 
 		function toggle( open ) {
 			state.open = open;
-			ui.launcher.setAttribute( 'aria-expanded', String( open ) );
+			if ( ui.launcher ) {
+				ui.launcher.setAttribute( 'aria-expanded', String( open ) );
+			}
 
 			if ( open ) {
 				setTeaserVisibility( false );
@@ -871,8 +873,12 @@
 				ui.panel.classList.add( 'is-open' );
 				ui.panel.style.display = 'flex';
 				ui.panel.removeAttribute( 'hidden' );
+				if ( ui.launcher ) {
+					ui.launcher.classList.add( 'is-hidden' );
+					ui.launcher.style.display = 'none';
+				}
 				if ( ui.launcherIconChat ) ui.launcherIconChat.style.display = 'none';
-				if ( ui.launcherIconClose ) ui.launcherIconClose.style.display = 'inline-block';
+				if ( ui.launcherIconClose ) ui.launcherIconClose.style.display = 'none';
 
 				if ( ui.log && ! ui.log.childElementCount ) {
 					renderWelcomeHero( ui, handleChipSelection );
@@ -885,9 +891,13 @@
 				ui.panel.classList.remove( 'is-open' );
 				ui.panel.style.display = 'none';
 				ui.panel.setAttribute( 'hidden', '' );
-				if ( ui.launcherIconChat ) ui.launcherIconChat.style.display = 'inline-block';
+				if ( ui.launcher ) {
+					ui.launcher.classList.remove( 'is-hidden' );
+					ui.launcher.style.display = '';
+					ui.launcher.classList.remove( 'is-teaser-active' );
+				}
+				if ( ui.launcherIconChat ) ui.launcherIconChat.style.display = 'inline-flex';
 				if ( ui.launcherIconClose ) ui.launcherIconClose.style.display = 'none';
-				ui.launcher.classList.remove( 'is-teaser-active' );
 				stopVisualizerLoop();
 				if ( isInVoiceCall ) endVoiceCall();
 			}
@@ -1161,12 +1171,12 @@
 		if ( ui.tabForm ) ui.tabForm.addEventListener( 'click', () => switchTab( 'form' ) );
 		if ( ui.tabVoice ) ui.tabVoice.addEventListener( 'click', () => switchTab( 'voice' ) );
 
-		ui.launcher.addEventListener( 'click', () => toggle( ! state.open ) );
-		ui.close.addEventListener( 'click', () => toggle( false ) );
+		if ( ui.launcher ) ui.launcher.addEventListener( 'click', () => toggle( ! state.open ) );
+		if ( ui.close ) ui.close.addEventListener( 'click', () => toggle( false ) );
 
 		// Proactive Sales Teaser Setup
 		const isDismissed = sessionStorage.getItem( 'vmsos_teaser_dismissed' );
-		if ( vmsosWidget.teaserEnabled && ! isDismissed ) {
+		if ( vmsosWidget.teaserEnabled && ! isDismissed && ui.teaser ) {
 			const delay = ( Number( vmsosWidget.teaserDelay ) || 3 ) * 1000;
 			state.teaserTimer = setTimeout( function () {
 				if ( ! state.open ) {
@@ -1175,46 +1185,126 @@
 			}, delay );
 		}
 
-		ui.teaserClose.addEventListener( 'click', function ( e ) {
-			e.stopPropagation();
-			setTeaserVisibility( false );
-			sessionStorage.setItem( 'vmsos_teaser_dismissed', '1' );
-		} );
-
-		ui.teaserCta.addEventListener( 'click', function () {
-			setTeaserVisibility( false );
-			sessionStorage.setItem( 'vmsos_teaser_dismissed', '1' );
-			toggle( true );
-		} );
-
-		ui.teaser.querySelectorAll( '.vmsos-chip, .vmsos-teaser__chip' ).forEach( function ( chip ) {
-			chip.addEventListener( 'click', function ( e ) {
+		if ( ui.teaserClose ) {
+			ui.teaserClose.addEventListener( 'click', function ( e ) {
 				e.stopPropagation();
-				const query = chip.getAttribute( 'data-chip' ) || chip.getAttribute( 'data-query' ) || chip.textContent;
+				setTeaserVisibility( false );
+				sessionStorage.setItem( 'vmsos_teaser_dismissed', '1' );
+			} );
+		}
+
+		if ( ui.teaserCta ) {
+			ui.teaserCta.addEventListener( 'click', function ( e ) {
+				e.stopPropagation();
 				setTeaserVisibility( false );
 				sessionStorage.setItem( 'vmsos_teaser_dismissed', '1' );
 				toggle( true );
-				sendMessage( query.trim() );
 			} );
-		} );
+		}
 
-		ui.restartBtn.addEventListener( 'click', function () {
-			state.uuid = '';
-			state.lastId = 0;
-			if ( state.poller ) {
-				clearInterval( state.poller );
-				state.poller = null;
-			}
-			ui.log.innerHTML = '';
-			renderWelcomeHero( ui, handleChipSelection );
-			ui.input.focus();
-		} );
+		if ( ui.teaser ) {
+			// Entire teaser card is interactive - clicking body/avatar/head opens chat
+			ui.teaser.addEventListener( 'click', function ( e ) {
+				if ( e.target.closest( '#vmsos-teaser-close' ) || e.target.closest( '.vmsos-teaser__close' ) ) {
+					return;
+				}
+				if ( e.target.closest( '.vmsos-chip, .vmsos-teaser__chip' ) ) {
+					return;
+				}
+				e.preventDefault();
+				setTeaserVisibility( false );
+				sessionStorage.setItem( 'vmsos_teaser_dismissed', '1' );
+				toggle( true );
+			} );
+
+			ui.teaser.querySelectorAll( '.vmsos-chip, .vmsos-teaser__chip' ).forEach( function ( chip ) {
+				chip.addEventListener( 'click', function ( e ) {
+					e.stopPropagation();
+					const query = chip.getAttribute( 'data-chip' ) || chip.getAttribute( 'data-query' ) || chip.textContent;
+					setTeaserVisibility( false );
+					sessionStorage.setItem( 'vmsos_teaser_dismissed', '1' );
+					toggle( true );
+					sendMessage( query.trim() );
+				} );
+			} );
+		}
+
+		if ( ui.restartBtn ) {
+			ui.restartBtn.addEventListener( 'click', function () {
+				state.uuid = '';
+				state.lastId = 0;
+				if ( state.poller ) {
+					clearInterval( state.poller );
+					state.poller = null;
+				}
+				ui.log.innerHTML = '';
+				renderWelcomeHero( ui, handleChipSelection );
+				if ( ui.input ) ui.input.focus();
+			} );
+		}
 
 		document.addEventListener( 'keydown', ( event ) => {
 			if ( 'Escape' === event.key && state.open ) {
 				toggle( false );
 			}
 		} );
+
+		// Global JavaScript API for theme, Elementor, and custom triggers
+		window.vmsosOpenChat = function ( initialMessage ) {
+			toggle( true );
+			if ( initialMessage && typeof initialMessage === 'string' ) {
+				sendMessage( initialMessage );
+			}
+		};
+		window.vmsosCloseChat = function () {
+			toggle( false );
+		};
+
+		// Document-level delegated click interceptor in capture phase for site-wide buttons
+		document.addEventListener( 'click', function ( e ) {
+			const target = e.target;
+			if ( ! target ) return;
+
+			// Check for direct chat trigger links, classes, or attributes
+			const trigger = target.closest( 'a[href*="/chatbot"], a[href="#chat"], a[href="#vmsos-chat"], .open-chat, .vmsos-trigger, [data-vmsos-chat]' );
+			if ( trigger ) {
+				e.preventDefault();
+				e.stopPropagation();
+				toggle( true );
+				return;
+			}
+
+			// Intercept any page button or link with chat intent (e.g. pink header "ASK AI" or hero "Chat with us")
+			const btn = target.closest( 'a, button' );
+			if ( btn && ! btn.closest( '#vmsos-widget-root' ) ) {
+				const text = ( btn.textContent || '' ).trim().toLowerCase();
+				const href = ( btn.getAttribute( 'href' ) || '' ).toLowerCase();
+
+				// Pink header button "ASK AI" or any element linking to /chatbot/
+				if ( text === 'ask ai' || text.includes( 'ask ai' ) || href.includes( 'chatbot' ) ) {
+					e.preventDefault();
+					e.stopPropagation();
+					toggle( true );
+					return;
+				}
+
+				// Generic "Chat with us" buttons
+				if ( text.includes( 'chat with us' ) || text.includes( 'chat now' ) ) {
+					e.preventDefault();
+					e.stopPropagation();
+					toggle( true );
+					return;
+				}
+			}
+		}, true );
+
+		// Auto-open chat if URL parameter ?open_chat=1 or hash #chat is detected
+		try {
+			const urlParams = new URLSearchParams( window.location.search );
+			if ( urlParams.get( 'open_chat' ) === '1' || window.location.hash === '#chat' || window.location.hash === '#chatbot' ) {
+				setTimeout( () => toggle( true ), 350 );
+			}
+		} catch ( e ) {}
 
 		// Speech-to-Text Microphone Integration
 		const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;

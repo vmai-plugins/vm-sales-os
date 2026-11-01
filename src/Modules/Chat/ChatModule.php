@@ -29,9 +29,27 @@ final class ChatModule extends Module {
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueueWidget' ] );
 		add_action( 'wp_footer', [ $this, 'renderWidgetRoot' ] );
 		add_shortcode( 'vmsos_chat', [ $this, 'shortcode' ] );
+		add_action( 'template_redirect', [ $this, 'handleChatbotUrlRedirect' ] );
+
+		add_filter( 'script_loader_tag', function ( $tag, $handle ) {
+			if ( 'vmsos-widget' === $handle ) {
+				return str_replace( ' src=', ' data-no-optimize="1" data-cfasync="false" src=', $tag );
+			}
+			return $tag;
+		}, 10, 2 );
 
 		$this->registerTools( $container->get( ToolRegistry::class ), $container );
 		\VMStudio\SalesOS\AI\UniversalTools::register( $container->get( ToolRegistry::class ), $container );
+	}
+
+	public function handleChatbotUrlRedirect(): void {
+		$uri = trim( (string) ( $_SERVER['REQUEST_URI'] ?? '' ), '/' );
+		$parts = explode( '?', $uri );
+		$path = $parts[0] ?? '';
+		if ( 'chatbot' === $path || 'chat' === $path ) {
+			wp_safe_redirect( home_url( '/?open_chat=1' ), 302 );
+			exit;
+		}
 	}
 
 	private function registerTools( ToolRegistry $tools, Container $container ): void {
@@ -106,7 +124,10 @@ final class ChatModule extends Module {
 
 		$teaserEnabled = (bool) get_option( 'vmsos_widget_teaser_enabled', true );
 		$teaserDelay   = max( 1, (int) get_option( 'vmsos_widget_teaser_delay', 3 ) );
-		$teaserText    = (string) get_option( 'vmsos_widget_teaser_text', __( 'Looking to scale your business with custom web & AI automation? Let us chat!', 'vm-sales-os' ) );
+		$teaserText    = trim( (string) get_option( 'vmsos_widget_teaser_text', '' ) );
+		if ( empty( $teaserText ) ) {
+			$teaserText = __( 'Looking to scale your business with custom web & AI automation? Let us chat!', 'vm-sales-os' );
+		}
 		$whatsapp      = (string) get_option( 'vmsos_widget_whatsapp', '' );
 		$phone         = (string) get_option( 'vmsos_widget_phone', '' );
 		$accent        = (string) get_option( 'vmsos_widget_accent', '#c9a227' );
@@ -183,7 +204,10 @@ final class ChatModule extends Module {
 		$chips = ! empty( $configuredChips ) ? array_merge( [ __( '⚡ Get Instant Estimate', 'vm-sales-os' ), __( '📅 Book Discovery Call', 'vm-sales-os' ) ], $configuredChips ) : $defaultChips;
 		$chips = array_values( array_unique( $chips ) );
 
-		$teaserText = (string) get_option( 'vmsos_widget_teaser_text', __( 'Looking to scale your business with custom web & AI automation? Let us chat!', 'vm-sales-os' ) );
+		$teaserText = trim( (string) get_option( 'vmsos_widget_teaser_text', '' ) );
+		if ( empty( $teaserText ) ) {
+			$teaserText = __( 'Looking to scale your business with custom web & AI automation? Let us chat!', 'vm-sales-os' );
+		}
 		$whatsapp   = (string) get_option( 'vmsos_widget_whatsapp', '' );
 		$phone      = (string) get_option( 'vmsos_widget_phone', '' );
 		$accent     = (string) get_option( 'vmsos_widget_accent', '#c9a227' );
@@ -228,18 +252,18 @@ final class ChatModule extends Module {
 
 			<!-- Floating Trigger FAB -->
 			<button type="button" id="vmsos-launcher" class="vmsos-launcher" aria-label="<?php esc_attr_e( 'Chat with us', 'vm-sales-os' ); ?>">
-				<span class="vmsos-launcher__dot"></span>
-				<span class="vmsos-launcher__icon is-chat">
+				<span class="vmsos-launcher__pulse"></span>
+				<span class="vmsos-launcher__icon-chat">
 					<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
 				</span>
-				<span class="vmsos-launcher__icon is-close" style="display:none;">
+				<span class="vmsos-launcher__icon-close" style="display:none;">
 					<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
 				</span>
 				<span class="vmsos-launcher__label"><?php esc_html_e( 'Chat with us', 'vm-sales-os' ); ?></span>
 			</button>
 
 			<!-- Main Chat Window Panel -->
-			<div id="vmsos-panel" class="vmsos-panel" role="dialog" aria-modal="true" style="display: none;">
+			<div id="vmsos-panel" class="vmsos-panel" role="dialog" aria-modal="true">
 				<!-- Header -->
 				<div class="vmsos-head">
 					<div class="vmsos-head__left">
