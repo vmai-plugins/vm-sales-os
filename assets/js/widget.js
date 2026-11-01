@@ -226,7 +226,70 @@
 
 	function build() {
 		const root = document.getElementById( 'vmsos-widget-root' );
-		if ( ! root || root.hasAttribute( 'data-initialized' ) ) {
+		if ( ! root ) {
+			return null;
+		}
+
+		// Fast-path: If server-rendered PHP markup already exists in DOM, bind directly!
+		let panel = document.getElementById( 'vmsos-panel' );
+		let launcher = document.getElementById( 'vmsos-launcher' );
+		let teaser = document.getElementById( 'vmsos-teaser' );
+
+		if ( panel && launcher ) {
+			root.setAttribute( 'data-initialized', 'true' );
+			root.setAttribute( 'data-position', vmsosWidget.position || 'right' );
+			root.style.setProperty( '--vmsos-accent', vmsosWidget.accent || '#c9a227' );
+
+			const teaserClose = document.getElementById( 'vmsos-teaser-close' );
+			const teaserCta = document.getElementById( 'vmsos-teaser-cta' );
+			const launcherIconChat = launcher.querySelector( '.is-chat' );
+			const launcherIconClose = launcher.querySelector( '.is-close' );
+			const panelClose = document.getElementById( 'vmsos-panel-close' );
+			const restartBtn = document.getElementById( 'vmsos-restart-btn' );
+			const soundBtn = document.getElementById( 'vmsos-sound-toggle' );
+			const log = document.getElementById( 'vmsos-log' );
+			const chatForm = document.getElementById( 'vmsos-chat-form' );
+			const input = document.getElementById( 'vmsos-chat-input' );
+			const micBtn = document.getElementById( 'vmsos-chat-mic' );
+			const send = document.getElementById( 'vmsos-chat-send' );
+			const tabChat = document.getElementById( 'vmsos-tab-btn-chat' );
+			const tabForm = document.getElementById( 'vmsos-tab-btn-form' );
+			const tabVoice = document.getElementById( 'vmsos-tab-btn-voice' );
+			const chatView = document.getElementById( 'vmsos-view-chat' );
+			const formView = document.getElementById( 'vmsos-view-form' );
+			const voiceView = document.getElementById( 'vmsos-view-voice' );
+			const inquiryForm = document.getElementById( 'vmsos-inquiry-form' );
+			const honeypot = inquiryForm ? inquiryForm.querySelector( '.vmsos-hp' ) : null;
+
+			return {
+				root,
+				teaser,
+				teaserClose,
+				teaserCta,
+				launcher,
+				launcherIconChat,
+				launcherIconClose,
+				panel,
+				close: panelClose,
+				restartBtn,
+				soundBtn,
+				log,
+				chatForm,
+				input,
+				micBtn,
+				send,
+				tabChat,
+				tabForm,
+				tabVoice,
+				chatView,
+				formView,
+				voiceView,
+				inquiryForm,
+				honeypot,
+			};
+		}
+
+		if ( root.hasAttribute( 'data-initialized' ) ) {
 			return null;
 		}
 		root.setAttribute( 'data-initialized', 'true' );
@@ -406,20 +469,14 @@
 		micBtn.title = vmsosWidget.strings.micTitle || 'Voice dictation';
 		micBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>';
 
-		const honeypot = el( 'input', 'vmsos-hp' );
-		honeypot.type = 'text';
-		honeypot.name = 'company_website';
-		honeypot.tabIndex = -1;
-		honeypot.setAttribute( 'aria-hidden', 'true' );
-		honeypot.autocomplete = 'off';
-		honeypot.style.cssText = 'display:none!important;visibility:hidden!important;position:absolute!important;width:0!important;height:0!important;opacity:0!important;pointer-events:none!important;clip:rect(0,0,0,0)!important;';
+		// Honeypot: only in inquiry form, never in chat form
 
 		const send = el( 'button', 'vmsos-send' );
 		send.type = 'submit';
 		send.title = vmsosWidget.strings.send || 'Send';
 		send.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path></svg>';
 
-		chatForm.append( input, micBtn, honeypot, send );
+		chatForm.append( input, micBtn, send );
 		chatView.append( log, chatForm );
 
 		// TAB 2: Fast Quote / Inquiry Form View
@@ -455,7 +512,7 @@
 			chatForm,
 			input,
 			micBtn,
-			honeypot,
+			honeypot: inquiryForm ? inquiryForm.querySelector( '.vmsos-hp' ) : null,
 			close,
 			restartBtn,
 			soundBtn,
@@ -810,51 +867,299 @@
 
 			if ( open ) {
 				setTeaserVisibility( false );
+				ui.root.classList.add( 'is-open' );
 				ui.panel.classList.add( 'is-open' );
+				ui.panel.style.display = 'flex';
 				ui.panel.removeAttribute( 'hidden' );
-				ui.launcherIconChat.style.display = 'none';
-				ui.launcherIconClose.style.display = 'inline-block';
+				if ( ui.launcherIconChat ) ui.launcherIconChat.style.display = 'none';
+				if ( ui.launcherIconClose ) ui.launcherIconClose.style.display = 'inline-block';
 
-				if ( ! ui.log.childElementCount ) {
+				if ( ui.log && ! ui.log.childElementCount ) {
 					renderWelcomeHero( ui, handleChipSelection );
 				}
-				if ( state.activeTab === 'chat' ) {
+				if ( state.activeTab === 'chat' && ui.input ) {
 					ui.input.focus();
 				}
 			} else {
+				ui.root.classList.remove( 'is-open' );
 				ui.panel.classList.remove( 'is-open' );
+				ui.panel.style.display = 'none';
 				ui.panel.setAttribute( 'hidden', '' );
-				ui.launcherIconChat.style.display = 'inline-block';
-				ui.launcherIconClose.style.display = 'none';
+				if ( ui.launcherIconChat ) ui.launcherIconChat.style.display = 'inline-block';
+				if ( ui.launcherIconClose ) ui.launcherIconClose.style.display = 'none';
 				ui.launcher.classList.remove( 'is-teaser-active' );
+				stopVisualizerLoop();
+				if ( isInVoiceCall ) endVoiceCall();
 			}
+		}
+
+		// WebCall & Voice Visualizer State
+		let animFrameId = null;
+		let wavePhase = 0;
+		let isInVoiceCall = false;
+		let voiceRecInstance = null;
+		const voiceRing = document.getElementById( 'vmsos-voice-ring' );
+		const voiceStatus = document.getElementById( 'vmsos-voice-status' );
+		const voiceCanvas = document.getElementById( 'vmsos-voice-visualizer' );
+		const voiceTranscript = document.getElementById( 'vmsos-voice-transcript' );
+		const voiceToggleBtn = document.getElementById( 'vmsos-voice-toggle-btn' );
+		const directPhoneInput = document.getElementById( 'vmsos-direct-phone-input' );
+		const triggerCallBtn = document.getElementById( 'vmsos-btn-trigger-mobile-call' );
+		const phoneCallStatus = document.getElementById( 'vmsos-phone-call-status' );
+
+		function stopVisualizerLoop() {
+			if ( animFrameId ) {
+				cancelAnimationFrame( animFrameId );
+				animFrameId = null;
+			}
+			if ( voiceCanvas ) {
+				const ctx = voiceCanvas.getContext( '2d' );
+				if ( ctx ) ctx.clearRect( 0, 0, voiceCanvas.width, voiceCanvas.height );
+			}
+		}
+
+		function startVisualizerLoop() {
+			if ( ! voiceCanvas ) return;
+			const ctx = voiceCanvas.getContext( '2d' );
+			if ( ! ctx ) return;
+
+			function draw() {
+				const w = voiceCanvas.width;
+				const h = voiceCanvas.height;
+				ctx.clearRect( 0, 0, w, h );
+
+				const bars = 22;
+				const barWidth = w / bars - 4;
+
+				for ( let i = 0; i < bars; i++ ) {
+					let barHeight;
+					if ( isInVoiceCall ) {
+						barHeight = Math.sin( wavePhase + i * 0.4 ) * ( h * 0.35 ) + ( h * 0.45 );
+					} else {
+						barHeight = 4 + Math.sin( wavePhase + i * 0.2 ) * 3;
+					}
+
+					const x = i * ( barWidth + 4 ) + 4;
+					const y = ( h - barHeight ) / 2;
+
+					ctx.fillStyle = isInVoiceCall ? '#10b981' : '#c9a227';
+					ctx.beginPath();
+					if ( ctx.roundRect ) {
+						ctx.roundRect( x, y, barWidth, barHeight, 3 );
+					} else {
+						ctx.rect( x, y, barWidth, barHeight );
+					}
+					ctx.fill();
+				}
+
+				wavePhase += isInVoiceCall ? 0.15 : 0.04;
+				animFrameId = requestAnimationFrame( draw );
+			}
+
+			stopVisualizerLoop();
+			draw();
+		}
+
+		function startVoiceCall() {
+			const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+			if ( ! SpeechRec ) {
+				if ( voiceStatus ) voiceStatus.textContent = 'Voice recognition not supported in this browser.';
+				return;
+			}
+			isInVoiceCall = true;
+			if ( voiceToggleBtn ) {
+				const lbl = voiceToggleBtn.querySelector( '.vmsos-voice-btn-label' );
+				const ico = voiceToggleBtn.querySelector( '.vmsos-voice-btn-icon' );
+				if ( lbl ) lbl.textContent = 'End Voice Call';
+				if ( ico ) ico.textContent = '🔴';
+			}
+			if ( voiceRing ) voiceRing.classList.add( 'active' );
+			if ( voiceStatus ) voiceStatus.textContent = 'Listening... Speak about your project or growth goals';
+
+			try {
+				voiceRecInstance = new SpeechRec();
+				voiceRecInstance.continuous = false;
+				voiceRecInstance.interimResults = true;
+				voiceRecInstance.lang = navigator.language || 'en-US';
+
+				voiceRecInstance.onresult = function ( e ) {
+					let interim = '';
+					let finalTranscript = '';
+					for ( let i = e.resultIndex; i < e.results.length; ++i ) {
+						if ( e.results[ i ].isFinal ) {
+							finalTranscript += e.results[ i ][ 0 ].transcript;
+						} else {
+							interim += e.results[ i ][ 0 ].transcript;
+						}
+					}
+					if ( interim && voiceTranscript ) {
+						voiceTranscript.textContent = '"' + interim + '..."';
+					}
+					if ( finalTranscript ) {
+						if ( voiceTranscript ) voiceTranscript.textContent = '"' + finalTranscript + '"';
+						if ( voiceStatus ) voiceStatus.textContent = 'Analyzing and generating response...';
+						sendVoiceQuery( finalTranscript );
+					}
+				};
+
+				voiceRecInstance.onerror = voiceRecInstance.onend = function () {
+					if ( ! isInVoiceCall ) return;
+				};
+
+				voiceRecInstance.start();
+			} catch ( err ) {}
+		}
+
+		function endVoiceCall() {
+			isInVoiceCall = false;
+			if ( voiceToggleBtn ) {
+				const lbl = voiceToggleBtn.querySelector( '.vmsos-voice-btn-label' );
+				const ico = voiceToggleBtn.querySelector( '.vmsos-voice-btn-icon' );
+				if ( lbl ) lbl.textContent = 'Start Voice Call';
+				if ( ico ) ico.textContent = '🎙️';
+			}
+			if ( voiceRing ) voiceRing.classList.remove( 'active' );
+			if ( voiceStatus ) voiceStatus.textContent = 'Voice call paused. Tap to speak again.';
+			if ( voiceRecInstance ) {
+				try { voiceRecInstance.stop(); } catch ( e ) {}
+				voiceRecInstance = null;
+			}
+			if ( window.speechSynthesis ) {
+				window.speechSynthesis.cancel();
+			}
+		}
+
+		async function sendVoiceQuery( queryText ) {
+			try {
+				const res = await fetch( vmsosWidget.endpoint, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify( {
+						message: queryText,
+						uuid: state.uuid,
+						attribution: getAttribution()
+					} )
+				} );
+				const payload = await res.json();
+				const reply = ( payload && payload.data && payload.data.reply ) || 'Thank you! How else can we assist your business today?';
+				if ( voiceTranscript ) {
+					voiceTranscript.textContent = '"' + reply + '"';
+				}
+				if ( voiceStatus ) {
+					voiceStatus.textContent = 'Speaking...';
+				}
+				if ( window.speechSynthesis ) {
+					window.speechSynthesis.cancel();
+					const utter = new SpeechSynthesisUtterance( reply );
+					utter.onend = function () {
+						if ( isInVoiceCall ) {
+							if ( voiceStatus ) voiceStatus.textContent = 'Listening... Speak anytime.';
+							try { voiceRecInstance && voiceRecInstance.start(); } catch ( e ) {}
+						}
+					};
+					window.speechSynthesis.speak( utter );
+				}
+			} catch ( e ) {
+				if ( voiceStatus ) voiceStatus.textContent = 'Could not process audio. Please retry.';
+			}
+		}
+
+		if ( voiceToggleBtn ) {
+			voiceToggleBtn.addEventListener( 'click', function () {
+				if ( isInVoiceCall ) {
+					endVoiceCall();
+				} else {
+					startVoiceCall();
+				}
+			} );
+		}
+
+		// Direct Mobile Telephony Call Me Trigger
+		if ( triggerCallBtn && directPhoneInput ) {
+			triggerCallBtn.addEventListener( 'click', async function () {
+				const phone = directPhoneInput.value.trim();
+				if ( ! phone || phone.length < 7 ) {
+					alert( 'Please enter a valid phone number with area/country code.' );
+					directPhoneInput.focus();
+					return;
+				}
+
+				triggerCallBtn.disabled = true;
+				triggerCallBtn.textContent = 'Connecting...';
+				if ( phoneCallStatus ) {
+					phoneCallStatus.style.display = 'block';
+					phoneCallStatus.textContent = 'Requesting immediate callback...';
+				}
+
+				const formUrl = vmsosWidget.formSubmit || vmsosWidget.endpoint.replace( '/chat/message', '/forms/submit' );
+				try {
+					const res = await fetch( formUrl, {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify( {
+							email: 'call-' + phone.replace( /[^0-9]/g, '' ) + '@vmstudio.digital',
+							phone: phone,
+							requirements: 'Inbound WebCall Request: Priority callback requested for ' + phone,
+							source: 'widget_call_me',
+							consent: true,
+							attribution: getAttribution()
+						} )
+					} );
+					if ( phoneCallStatus ) {
+						phoneCallStatus.textContent = '✓ Call requested! Our live specialist is dialing your mobile now.';
+					}
+					triggerCallBtn.textContent = '✓ Call Queued';
+				} catch ( e ) {
+					if ( phoneCallStatus ) {
+						phoneCallStatus.textContent = 'Could not queue call. Please call us directly or use WhatsApp.';
+					}
+					triggerCallBtn.disabled = false;
+					triggerCallBtn.textContent = '📞 Call Me';
+				}
+			} );
 		}
 
 		function switchTab( tab, prefillPhone ) {
 			state.activeTab = tab;
+			[ ui.tabChat, ui.tabForm, ui.tabVoice ].forEach( btn => {
+				if ( btn ) btn.classList.remove( 'is-active' );
+			} );
+
 			if ( tab === 'chat' ) {
-				ui.tabChat.classList.add( 'is-active' );
-				ui.tabForm.classList.remove( 'is-active' );
-				ui.chatView.style.display = 'flex';
-				ui.formView.style.display = 'none';
-				ui.input.focus();
-			} else {
-				ui.tabForm.classList.add( 'is-active' );
-				ui.tabChat.classList.remove( 'is-active' );
-				ui.chatView.style.display = 'none';
-				ui.formView.style.display = 'block';
+				if ( ui.tabChat ) ui.tabChat.classList.add( 'is-active' );
+				if ( ui.chatView ) ui.chatView.style.display = 'flex';
+				if ( ui.formView ) ui.formView.style.display = 'none';
+				if ( ui.voiceView ) ui.voiceView.style.display = 'none';
+				stopVisualizerLoop();
+				if ( isInVoiceCall ) endVoiceCall();
+				if ( ui.input ) ui.input.focus();
+			} else if ( tab === 'form' ) {
+				if ( ui.tabForm ) ui.tabForm.classList.add( 'is-active' );
+				if ( ui.chatView ) ui.chatView.style.display = 'none';
+				if ( ui.formView ) ui.formView.style.display = 'block';
+				if ( ui.voiceView ) ui.voiceView.style.display = 'none';
+				stopVisualizerLoop();
+				if ( isInVoiceCall ) endVoiceCall();
 
 				if ( prefillPhone ) {
 					const phoneInput = ui.inquiryForm.querySelector( 'input[name="phone"]' );
-					if ( phoneInput ) {
-						phoneInput.value = prefillPhone;
-					}
+					if ( phoneInput ) phoneInput.value = prefillPhone;
+				}
+			} else if ( tab === 'voice' ) {
+				if ( ui.tabVoice ) ui.tabVoice.classList.add( 'is-active' );
+				if ( ui.chatView ) ui.chatView.style.display = 'none';
+				if ( ui.formView ) ui.formView.style.display = 'none';
+				if ( ui.voiceView ) ui.voiceView.style.display = 'flex';
+				startVisualizerLoop();
+				if ( prefillPhone && directPhoneInput ) {
+					directPhoneInput.value = prefillPhone;
 				}
 			}
 		}
 
-		ui.tabChat.addEventListener( 'click', () => switchTab( 'chat' ) );
-		ui.tabForm.addEventListener( 'click', () => switchTab( 'form' ) );
+		if ( ui.tabChat ) ui.tabChat.addEventListener( 'click', () => switchTab( 'chat' ) );
+		if ( ui.tabForm ) ui.tabForm.addEventListener( 'click', () => switchTab( 'form' ) );
+		if ( ui.tabVoice ) ui.tabVoice.addEventListener( 'click', () => switchTab( 'voice' ) );
 
 		ui.launcher.addEventListener( 'click', () => toggle( ! state.open ) );
 		ui.close.addEventListener( 'click', () => toggle( false ) );
@@ -882,14 +1187,14 @@
 			toggle( true );
 		} );
 
-		ui.teaser.querySelectorAll( '.vmsos-chip' ).forEach( function ( chip ) {
+		ui.teaser.querySelectorAll( '.vmsos-chip, .vmsos-teaser__chip' ).forEach( function ( chip ) {
 			chip.addEventListener( 'click', function ( e ) {
 				e.stopPropagation();
-				const query = chip.getAttribute( 'data-query' ) || chip.textContent;
+				const query = chip.getAttribute( 'data-chip' ) || chip.getAttribute( 'data-query' ) || chip.textContent;
 				setTeaserVisibility( false );
 				sessionStorage.setItem( 'vmsos_teaser_dismissed', '1' );
 				toggle( true );
-				sendMessage( query );
+				sendMessage( query.trim() );
 			} );
 		} );
 
@@ -1007,7 +1312,7 @@
 						message: message,
 						uuid: state.uuid,
 						page_url: window.location.href,
-						company_website: ui.honeypot.value,
+						company_website: ( ui.honeypot ? ui.honeypot.value : '' ),
 						attribution: attr,
 					} ),
 				} );

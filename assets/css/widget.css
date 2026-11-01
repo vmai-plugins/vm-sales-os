@@ -1344,6 +1344,184 @@
 	color: #f87171;
 }
 
+#vmsos-widget-root.is-open #vmsos-launcher,
+#vmsos-widget-root .vmsos-panel.is-open ~ #vmsos-launcher {
+	display: none !important;
+}
+
+/* ------------------------------------------------ Tab 3: WebCall & Voice */
+#vmsos-widget-root .vmsos-tab-view.is-voice-tab {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	overflow-y: auto;
+}
+
+#vmsos-widget-root .vmsos-voice-container {
+	align-items: center !important;
+	display: flex !important;
+	flex-direction: column !important;
+	padding: 24px 18px !important;
+	text-align: center !important;
+	width: 100% !important;
+}
+
+#vmsos-widget-root .vmsos-voice-avatar-wrap {
+	margin-bottom: 14px !important;
+	position: relative !important;
+}
+
+#vmsos-widget-root .vmsos-voice-ring {
+	align-items: center !important;
+	background: linear-gradient(135deg, #101c3d 0%, #172752 100%) !important;
+	border: 2px solid var(--vmsos-accent) !important;
+	border-radius: 50% !important;
+	box-shadow: 0 10px 25px rgba(201, 162, 39, 0.25) !important;
+	display: flex !important;
+	height: 80px !important;
+	justify-content: center !important;
+	transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+	width: 80px !important;
+}
+
+#vmsos-widget-root .vmsos-voice-ring.active {
+	animation: vmsosVoicePulse 1.6s infinite ease-out !important;
+}
+
+@keyframes vmsosVoicePulse {
+	0% {
+		box-shadow: 0 0 0 0 rgba(201, 162, 39, 0.6), 0 0 0 8px rgba(16, 185, 129, 0.3);
+	}
+	70% {
+		box-shadow: 0 0 0 20px rgba(201, 162, 39, 0), 0 0 0 30px rgba(16, 185, 129, 0);
+	}
+	100% {
+		box-shadow: 0 0 0 0 rgba(201, 162, 39, 0), 0 0 0 0 rgba(16, 185, 129, 0);
+	}
+}
+
+#vmsos-widget-root #vmsos-voice-title {
+	color: var(--vmsos-text) !important;
+	font-size: 16px !important;
+	font-weight: 700 !important;
+	margin: 0 0 4px 0 !important;
+}
+
+#vmsos-widget-root #vmsos-voice-status {
+	color: var(--vmsos-text-muted) !important;
+	font-size: 12px !important;
+	margin: 0 0 14px 0 !important;
+}
+
+#vmsos-widget-root #vmsos-voice-visualizer {
+	border-radius: 8px !important;
+	height: 50px !important;
+	margin-bottom: 12px !important;
+	width: 280px !important;
+}
+
+#vmsos-widget-root .vmsos-voice-transcript {
+	background: rgba(14, 23, 42, 0.7) !important;
+	border: 1px dashed rgba(201, 162, 39, 0.35) !important;
+	border-radius: 12px !important;
+	color: #cbd5e1 !important;
+	font-size: 12.5px !important;
+	font-style: italic !important;
+	line-height: 1.45 !important;
+	margin-bottom: 16px !important;
+	max-height: 70px !important;
+	overflow-y: auto !important;
+	padding: 10px 14px !important;
+	width: 100% !important;
+}
+
+#vmsos-widget-root .vmsos-voice-call-btn,
+#vmsos-widget-root button.vmsos-voice-call-btn {
+	align-items: center !important;
+	all: unset !important;
+	background: linear-gradient(135deg, #c9a227 0%, #eab308 100%) !important;
+	border-radius: 28px !important;
+	box-shadow: 0 8px 20px rgba(201, 162, 39, 0.3) !important;
+	box-sizing: border-box !important;
+	color: #070d1e !important;
+	cursor: pointer !important;
+	display: inline-flex !important;
+	font-size: 14px !important;
+	font-weight: 700 !important;
+	gap: 8px !important;
+	padding: 10px 24px !important;
+	transition: all 0.25s ease !important;
+}
+
+#vmsos-widget-root .vmsos-voice-call-btn:hover {
+	box-shadow: 0 10px 26px rgba(201, 162, 39, 0.45) !important;
+	transform: scale(1.04) !important;
+}
+
+#vmsos-widget-root .vmsos-voice-phone-box {
+	background: rgba(14, 23, 42, 0.8) !important;
+	border: 1px solid var(--vmsos-surface-border) !important;
+	border-radius: 14px !important;
+	margin-top: 18px !important;
+	padding: 12px 14px !important;
+	width: 100% !important;
+}
+
+#vmsos-widget-root .vmsos-voice-phone-title {
+	color: var(--vmsos-text-muted) !important;
+	font-size: 12px !important;
+	font-weight: 600 !important;
+	margin-bottom: 8px !important;
+	text-align: left !important;
+}
+
+#vmsos-widget-root .vmsos-voice-phone-input-row {
+	display: flex !important;
+	gap: 8px !important;
+}
+
+#vmsos-widget-root .vmsos-voice-phone-input-row input {
+	all: unset !important;
+	background: rgba(7, 13, 30, 0.9) !important;
+	border: 1px solid rgba(255, 255, 255, 0.12) !important;
+	border-radius: 10px !important;
+	box-sizing: border-box !important;
+	color: var(--vmsos-text) !important;
+	flex: 1 !important;
+	font-size: 13px !important;
+	padding: 8px 12px !important;
+}
+
+#vmsos-widget-root .vmsos-voice-phone-input-row input:focus {
+	border-color: var(--vmsos-accent) !important;
+}
+
+#vmsos-widget-root .vmsos-btn-trigger-call,
+#vmsos-widget-root button.vmsos-btn-trigger-call {
+	all: unset !important;
+	background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+	border-radius: 10px !important;
+	box-sizing: border-box !important;
+	color: #fff !important;
+	cursor: pointer !important;
+	font-size: 12px !important;
+	font-weight: 700 !important;
+	padding: 8px 14px !important;
+	transition: transform 0.2s !important;
+	white-space: nowrap !important;
+}
+
+#vmsos-widget-root .vmsos-btn-trigger-call:hover {
+	transform: scale(1.03) !important;
+}
+
+#vmsos-widget-root .vmsos-phone-call-status {
+	color: var(--vmsos-emerald) !important;
+	font-size: 11.5px !important;
+	margin-top: 8px !important;
+	text-align: left !important;
+}
+
 /* ------------------------------------------------ Responsive Mobile Adaptations */
 @media (max-width: 480px) {
 	#vmsos-widget-root {
