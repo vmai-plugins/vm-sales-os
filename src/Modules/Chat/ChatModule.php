@@ -279,16 +279,6 @@ final class ChatModule extends Module {
 						</div>
 					</div>
 					<div class="vmsos-head__actions">
-						<?php if ( ! empty( $whatsapp ) ) : ?>
-							<a href="https://wa.me/<?php echo esc_attr( preg_replace( '/[^0-9]/', '', $whatsapp ) ); ?>" target="_blank" rel="noopener noreferrer" class="vmsos-head__btn is-wa" title="WhatsApp">
-								<svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38c1.45.79 3.08 1.21 4.79 1.21 5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2zm.01 18.06c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31c-.82-1.31-1.26-2.83-1.26-4.38 0-4.54 3.7-8.24 8.24-8.24 4.54 0 8.24 3.7 8.24 8.24 0 4.54-3.7 8.24-8.24 8.24zm4.52-6.17c-.25-.12-1.47-.72-1.7-.81-.23-.08-.39-.12-.56.12-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.39-1.72-.14-.25-.02-.38.11-.5.11-.11.25-.29.37-.43.12-.14.17-.25.25-.41.08-.17.04-.31-.02-.43s-.56-1.34-.76-1.84c-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.43.06-.66.31-.23.25-.87.85-.87 2.07s.89 2.4 1.01 2.57c.12.17 1.75 2.67 4.24 3.75.59.26 1.05.41 1.41.53.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.15-1.18-.06-.12-.22-.19-.47-.31z"/></svg>
-							</a>
-						<?php endif; ?>
-						<?php if ( ! empty( $phone ) ) : ?>
-							<a href="tel:<?php echo esc_attr( preg_replace( '/[^0-9+]/', '', $phone ) ); ?>" class="vmsos-head__btn is-phone" title="Call">
-								<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-							</a>
-						<?php endif; ?>
 						<button type="button" class="vmsos-head__btn is-sound" id="vmsos-sound-toggle" title="Toggle audio">
 							<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
 						</button>
@@ -303,9 +293,9 @@ final class ChatModule extends Module {
 
 				<!-- 3-Tab Navigation Bar -->
 				<nav class="vmsos-tabs-nav" role="tablist">
-					<button type="button" class="vmsos-tab-btn is-active" id="vmsos-tab-btn-chat" data-tab="chat">💬 Live AI Chat</button>
+					<button type="button" class="vmsos-tab-btn is-active" id="vmsos-tab-btn-chat" data-tab="chat">💬 Live Chat</button>
 					<button type="button" class="vmsos-tab-btn" id="vmsos-tab-btn-form" data-tab="form">📋 Fast Inquiry</button>
-					<button type="button" class="vmsos-tab-btn" id="vmsos-tab-btn-voice" data-tab="voice">🎙️ WebCall & Voice</button>
+					<button type="button" class="vmsos-tab-btn" id="vmsos-tab-btn-voice" data-tab="voice">🎙️ WebCall</button>
 				</nav>
 
 				<!-- Tab 1: Live AI Chat -->
@@ -324,9 +314,9 @@ final class ChatModule extends Module {
 							</div>
 						</div>
 						<!-- Starter Chips -->
-						<div class="vmsos-chips-wrap">
+						<div class="vmsos-chips-container" id="vmsos-starter-chips">
 							<?php foreach ( $chips as $chip ) : ?>
-								<button type="button" class="vmsos-chip-btn" data-query="<?php echo esc_attr( $chip ); ?>">
+								<button type="button" class="vmsos-chip" data-query="<?php echo esc_attr( $chip ); ?>">
 									<?php echo esc_html( $chip ); ?>
 								</button>
 							<?php endforeach; ?>

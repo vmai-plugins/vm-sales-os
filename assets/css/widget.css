@@ -227,16 +227,21 @@
 }
 
 /* -------------------------------------------------------------- Chips */
-#vmsos-widget-root .vmsos-chips-container {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
-	margin: 8px 0;
+#vmsos-widget-root .vmsos-chips-container,
+#vmsos-widget-root .vmsos-chips-wrap {
+	display: flex !important;
+	flex-wrap: wrap !important;
+	gap: 6px !important;
+	margin: 8px 0 12px 0 !important;
+	padding: 0 !important;
 }
 
 #vmsos-widget-root .vmsos-chip,
-#vmsos-widget-root button.vmsos-chip {
+#vmsos-widget-root button.vmsos-chip,
+#vmsos-widget-root .vmsos-chip-btn,
+#vmsos-widget-root button.vmsos-chip-btn {
 	all: unset !important;
+	align-items: center !important;
 	background: rgba(255, 255, 255, 0.05) !important;
 	border: 1px solid rgba(255, 255, 255, 0.12) !important;
 	border-radius: 20px !important;
@@ -245,19 +250,23 @@
 	color: #e2e8f0 !important;
 	cursor: pointer !important;
 	display: inline-flex !important;
-	align-items: center !important;
-	gap: 5px !important;
 	font-family: inherit !important;
 	font-size: 12px !important;
 	font-weight: 500 !important;
+	gap: 5px !important;
 	letter-spacing: normal !important;
-	padding: 6px 12px !important;
+	line-height: 1.25 !important;
+	padding: 6px 13px !important;
 	text-transform: none !important;
 	transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+	user-select: none !important;
+	white-space: nowrap !important;
 }
 
 #vmsos-widget-root .vmsos-chip:hover,
-#vmsos-widget-root button.vmsos-chip:hover {
+#vmsos-widget-root button.vmsos-chip:hover,
+#vmsos-widget-root .vmsos-chip-btn:hover,
+#vmsos-widget-root button.vmsos-chip-btn:hover {
 	background: rgba(201, 162, 39, 0.18) !important;
 	border-color: var(--vmsos-accent) !important;
 	color: #fbbf24 !important;
@@ -562,40 +571,50 @@
 
 /* ----------------------------------------------------------- Tab Navigation */
 #vmsos-widget-root .vmsos-tabs-nav {
-	background: rgba(0, 0, 0, 0.35) !important;
+	background: rgba(11, 19, 39, 0.85) !important;
 	border-bottom: 1px solid var(--vmsos-surface-border) !important;
-	display: flex;
-	padding: 5px !important;
-	gap: 4px;
+	display: flex !important;
+	padding: 8px 10px !important;
+	gap: 6px !important;
 }
 
 #vmsos-widget-root .vmsos-tab-btn,
 #vmsos-widget-root button.vmsos-tab-btn {
 	all: unset !important;
-	background: transparent !important;
-	border: none !important;
-	border-radius: 8px !important;
+	align-items: center !important;
+	background: rgba(255, 255, 255, 0.04) !important;
+	border: 1px solid rgba(255, 255, 255, 0.08) !important;
+	border-radius: 9px !important;
 	box-shadow: none !important;
 	box-sizing: border-box !important;
-	color: var(--vmsos-text-muted) !important;
+	color: rgba(255, 255, 255, 0.65) !important;
 	cursor: pointer !important;
-	display: block !important;
-	flex: 1 !important;
+	display: inline-flex !important;
+	flex: 1 1 0 !important;
 	font-family: inherit !important;
-	font-size: 12.5px !important;
+	font-size: 11.5px !important;
 	font-weight: 600 !important;
+	justify-content: center !important;
 	letter-spacing: normal !important;
-	padding: 8px 10px !important;
+	line-height: 1 !important;
+	padding: 8px 4px !important;
 	text-align: center !important;
 	text-transform: none !important;
-	transition: all 0.2s ease !important;
+	transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+	white-space: nowrap !important;
+}
+
+#vmsos-widget-root .vmsos-tab-btn:hover,
+#vmsos-widget-root button.vmsos-tab-btn:hover {
+	background: rgba(255, 255, 255, 0.08) !important;
+	color: #fff !important;
 }
 
 #vmsos-widget-root .vmsos-tab-btn.is-active,
 #vmsos-widget-root button.vmsos-tab-btn.is-active {
-	background: rgba(255, 255, 255, 0.1) !important;
+	background: rgba(201, 162, 39, 0.14) !important;
 	color: var(--vmsos-accent) !important;
-	border: 1px solid rgba(255, 255, 255, 0.1) !important;
+	border-color: rgba(201, 162, 39, 0.35) !important;
 }
 
 /* ------------------------------------------------------------- Tab Views */

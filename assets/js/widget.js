@@ -833,6 +833,11 @@
 		}
 
 		function handleChipSelection( selectedPrompt ) {
+			const starterChips = ui.log ? ui.log.querySelector( '#vmsos-starter-chips, .vmsos-chips-container, .vmsos-chips-wrap' ) : null;
+			if ( starterChips ) {
+				starterChips.remove();
+			}
+
 			if ( selectedPrompt.includes( 'Estimate' ) || selectedPrompt.includes( 'Quote' ) ) {
 				renderScopeCalculator( ui.log, function ( total, items ) {
 					switchTab( 'form' );
@@ -1243,6 +1248,20 @@
 			} );
 		}
 
+		// Delegate chip clicks inside the chat log
+		if ( ui.log ) {
+			ui.log.addEventListener( 'click', function ( e ) {
+				const chip = e.target.closest( '.vmsos-chip, .vmsos-chip-btn' );
+				if ( chip && ! chip.closest( '#vmsos-teaser' ) ) {
+					e.preventDefault();
+					const query = ( chip.getAttribute( 'data-query' ) || chip.getAttribute( 'data-chip' ) || chip.textContent || '' ).trim();
+					if ( query ) {
+						handleChipSelection( query );
+					}
+				}
+			} );
+		}
+
 		document.addEventListener( 'keydown', ( event ) => {
 			if ( 'Escape' === event.key && state.open ) {
 				toggle( false );
@@ -1375,6 +1394,12 @@
 			const message = ( messageText || ui.input.value ).trim();
 			if ( ! message || state.busy ) {
 				return;
+			}
+
+			// Clean up starter chips once conversation begins to prevent clutter
+			const starterChips = ui.log ? ui.log.querySelector( '#vmsos-starter-chips, .vmsos-chips-container, .vmsos-chips-wrap' ) : null;
+			if ( starterChips ) {
+				starterChips.remove();
 			}
 
 			state.busy = true;
