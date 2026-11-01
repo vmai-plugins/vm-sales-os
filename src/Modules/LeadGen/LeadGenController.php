@@ -480,7 +480,8 @@ final class LeadGenController extends AbstractController {
 
 	private function verifyAdminAjax(): void {
 		$nonce = isset( $_POST['_wpnonce'] ) ? sanitize_text_field( (string) $_POST['_wpnonce'] ) : '';
-		if ( ! current_user_can( 'vmsos_operate' ) || ! wp_verify_nonce( $nonce, 'vmsos_leadgen_nonce' ) ) {
+		$hasCap = current_user_can( 'vmsos_operate' ) || current_user_can( 'manage_options' );
+		if ( ! $hasCap || ! wp_verify_nonce( $nonce, 'vmsos_leadgen_nonce' ) ) {
 			wp_send_json_error( [ 'message' => __( 'Permission denied or security token expired. Please refresh the page.', 'vm-sales-os' ) ], 403 );
 		}
 	}

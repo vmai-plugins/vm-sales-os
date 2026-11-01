@@ -76,14 +76,27 @@ final class LeadGenModule extends Module {
 	}
 
 	public function registerAdminMenu(): void {
+		$cap = current_user_can( 'vmsos_operate' ) ? 'vmsos_operate' : 'manage_options';
+
+		// Primary submenu: Lead Finder matching URL admin.php?page=vm-sales-os-leadgen
 		add_submenu_page(
 			AdminArea::SLUG,
 			__( 'Lead Finder (Google Maps)', 'vm-sales-os' ),
 			__( 'Lead Finder', 'vm-sales-os' ),
-			'vmsos_operate',
-			'vmsos-lead-finder',
+			$cap,
+			'vm-sales-os-leadgen',
 			[ $this, 'renderFinderPage' ],
 			2
+		);
+
+		// Backward-compatibility alias for vmsos-lead-finder
+		add_submenu_page(
+			null,
+			__( 'Lead Finder (Google Maps)', 'vm-sales-os' ),
+			__( 'Lead Finder', 'vm-sales-os' ),
+			$cap,
+			'vmsos-lead-finder',
+			[ $this, 'renderFinderPage' ]
 		);
 	}
 

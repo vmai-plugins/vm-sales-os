@@ -14,6 +14,7 @@ use VMStudio\SalesOS\Modules\Compat\CompatModule;
 use VMStudio\SalesOS\Modules\CRM\CrmModule;
 use VMStudio\SalesOS\Modules\Inbox\InboxModule;
 use VMStudio\SalesOS\Modules\Knowledge\KnowledgeModule;
+use VMStudio\SalesOS\Modules\LeadGen\LeadGenModule;
 use VMStudio\SalesOS\Modules\LinkedInRadar\LinkedInRadarModule;
 use VMStudio\SalesOS\Modules\Memory\MemoryModule;
 use VMStudio\SalesOS\Modules\Sequences\SequencesModule;
@@ -72,6 +73,7 @@ final class Plugin {
 				SequencesModule::class,
 				ChannelsModule::class,
 				LinkedInRadarModule::class,
+				LeadGenModule::class,
 				AutomationModule::class,
 				AnalyticsModule::class,
 				// Last: it only re-exposes what the modules above provide.
