@@ -239,13 +239,16 @@
 
 		const teaserHead = el( 'div', 'vmsos-teaser__head' );
 		const teaserAvatarWrap = el( 'div', 'vmsos-teaser__avatar-wrap' );
-		teaserAvatarWrap.innerHTML = '<div class="vmsos-teaser__avatar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a8 8 0 0 0-8 8c0 3.3 2 6.2 5 7.4V20a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2.6c3-1.2 5-4.1 5-7.4a8 8 0 0 0-8-8z"></path><circle cx="9" cy="10" r="1" fill="currentColor"></circle><circle cx="15" cy="10" r="1" fill="currentColor"></circle></svg></div><span class="vmsos-teaser__dot"></span>';
+		teaserAvatarWrap.innerHTML = '<div class="vmsos-teaser__avatar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a8 8 0 0 0-8 8c0 3.3 2 6.2 5 7.4V20a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2v-2.6c3-1.2 5-4.1 5-7.4a8 8 0 0 0-8-8z"></path><circle cx="9" cy="10" r="1.2" fill="currentColor"></circle><circle cx="15" cy="10" r="1.2" fill="currentColor"></circle></svg></div><span class="vmsos-teaser__dot"></span>';
 
 		const teaserMeta = el( 'div', 'vmsos-teaser__meta' );
-		teaserMeta.append(
-			el( 'div', 'vmsos-teaser__name', vmsosWidget.agent ),
-			el( 'div', 'vmsos-teaser__sub', vmsosWidget.agentTitle || 'AI Growth Strategist • Live' )
-		);
+		const teaserNameEl = el( 'div', 'vmsos-teaser__name' );
+		teaserNameEl.innerHTML = ( vmsosWidget.agent || 'Ava' ) + ' <span class="vmsos-teaser__name-badge" title="Verified AI Specialist"><svg width="14" height="14" viewBox="0 0 24 24" fill="#10b981"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></span>';
+
+		const teaserSubEl = el( 'div', 'vmsos-teaser__sub' );
+		teaserSubEl.innerHTML = '<span class="vmsos-teaser__sub-dot"></span>' + ( vmsosWidget.agentTitle || 'Live Growth Specialist' );
+
+		teaserMeta.append( teaserNameEl, teaserSubEl );
 
 		const teaserClose = el( 'button', 'vmsos-teaser__close', '×' );
 		teaserClose.setAttribute( 'aria-label', 'Dismiss' );
@@ -253,7 +256,24 @@
 
 		teaserHead.append( teaserAvatarWrap, teaserMeta, teaserClose );
 
-		const teaserBody = el( 'div', 'vmsos-teaser__text', vmsosWidget.teaserText || 'Looking to scale your business with custom web & AI automation? Let us chat!' );
+		// Smart Context-Aware Hook Engine
+		function getContextualHook() {
+			try {
+				const path = ( window.location.pathname || '' ).toLowerCase();
+				if ( path.includes( 'pricing' ) || path.includes( 'cost' ) || path.includes( 'package' ) ) {
+					return 'Looking for a custom project quote or pricing estimate? I can calculate it instantly right here.';
+				}
+				if ( path.includes( 'contact' ) || path.includes( 'about' ) || path.includes( 'consult' ) ) {
+					return 'Have a question about team availability or project timelines? Let’s chat!';
+				}
+				if ( path.includes( 'service' ) || path.includes( 'work' ) || path.includes( 'portfolio' ) ) {
+					return 'Interested in custom web development, AI automation, or brand growth? Let’s explore your scope.';
+				}
+			} catch ( e ) {}
+			return vmsosWidget.teaserText || 'Looking to scale your business with custom web & AI automation? Let us chat!';
+		}
+
+		const teaserBody = el( 'div', 'vmsos-teaser__text', getContextualHook() );
 		const teaserChipsWrap = el( 'div', 'vmsos-teaser__chips' );
 
 		( vmsosWidget.chips || [] ).slice( 0, 3 ).forEach( function ( chipText ) {
@@ -265,7 +285,7 @@
 
 		const teaserCta = el( 'button', 'vmsos-teaser__cta' );
 		teaserCta.type = 'button';
-		teaserCta.innerHTML = '<span>💬 ' + ( vmsosWidget.strings.open || 'Chat Now' ) + '</span><span>&rarr;</span>';
+		teaserCta.innerHTML = '<span>⚡ ' + ( vmsosWidget.strings.teaserCta || 'Start Instant Consultation' ) + '</span><span class="vmsos-teaser__cta-arrow">&rarr;</span>';
 
 		teaser.append( teaserHead, teaserBody, teaserChipsWrap, teaserCta );
 
@@ -770,16 +790,26 @@
 			}
 		}
 
+		function setTeaserVisibility( visible ) {
+			if ( visible && ! state.open ) {
+				ui.teaser.style.display = 'flex';
+				ui.launcher.classList.add( 'is-teaser-active' );
+			} else {
+				ui.teaser.style.display = 'none';
+				ui.launcher.classList.remove( 'is-teaser-active' );
+			}
+		}
+
 		function toggle( open ) {
 			state.open = open;
 			ui.launcher.setAttribute( 'aria-expanded', String( open ) );
 
 			if ( open ) {
+				setTeaserVisibility( false );
 				ui.panel.classList.add( 'is-open' );
 				ui.panel.removeAttribute( 'hidden' );
 				ui.launcherIconChat.style.display = 'none';
 				ui.launcherIconClose.style.display = 'inline-block';
-				ui.teaser.style.display = 'none';
 
 				if ( ! ui.log.childElementCount ) {
 					renderWelcomeHero( ui, handleChipSelection );
@@ -792,6 +822,7 @@
 				ui.panel.setAttribute( 'hidden', '' );
 				ui.launcherIconChat.style.display = 'inline-block';
 				ui.launcherIconClose.style.display = 'none';
+				ui.launcher.classList.remove( 'is-teaser-active' );
 			}
 		}
 
@@ -830,19 +861,19 @@
 			const delay = ( Number( vmsosWidget.teaserDelay ) || 3 ) * 1000;
 			state.teaserTimer = setTimeout( function () {
 				if ( ! state.open ) {
-					ui.teaser.style.display = 'flex';
+					setTeaserVisibility( true );
 				}
 			}, delay );
 		}
 
 		ui.teaserClose.addEventListener( 'click', function ( e ) {
 			e.stopPropagation();
-			ui.teaser.style.display = 'none';
+			setTeaserVisibility( false );
 			sessionStorage.setItem( 'vmsos_teaser_dismissed', '1' );
 		} );
 
 		ui.teaserCta.addEventListener( 'click', function () {
-			ui.teaser.style.display = 'none';
+			setTeaserVisibility( false );
 			sessionStorage.setItem( 'vmsos_teaser_dismissed', '1' );
 			toggle( true );
 		} );
@@ -851,7 +882,7 @@
 			chip.addEventListener( 'click', function ( e ) {
 				e.stopPropagation();
 				const query = chip.getAttribute( 'data-query' ) || chip.textContent;
-				ui.teaser.style.display = 'none';
+				setTeaserVisibility( false );
 				sessionStorage.setItem( 'vmsos_teaser_dismissed', '1' );
 				toggle( true );
 				sendMessage( query );

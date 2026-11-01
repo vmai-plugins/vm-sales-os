@@ -66,20 +66,24 @@
 /* ---------------------------------------------------- Proactive Sales Teaser */
 #vmsos-widget-root .vmsos-teaser {
 	animation: vmsosSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-	background: linear-gradient(135deg, #0e172a 0%, #070d1e 100%) !important;
-	border: 1px solid rgba(201, 162, 39, 0.3) !important;
-	border-radius: 16px !important;
+	background: linear-gradient(145deg, rgba(14, 23, 42, 0.96) 0%, rgba(7, 13, 30, 0.98) 100%) !important;
+	border: 1px solid rgba(201, 162, 39, 0.35) !important;
+	border-radius: 20px !important;
 	bottom: 74px;
-	box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6), 0 0 20px var(--vmsos-accent-glow) !important;
+	box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.75), 0 0 25px rgba(201, 162, 39, 0.15) !important;
 	color: var(--vmsos-text) !important;
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
-	max-width: 320px;
-	padding: 16px !important;
+	gap: 12px;
+	width: calc(100vw - 36px);
+	max-width: 360px;
+	padding: 18px !important;
 	position: absolute;
 	right: 0;
 	z-index: 99999;
+	backdrop-filter: blur(24px) !important;
+	-webkit-backdrop-filter: blur(24px) !important;
+	box-sizing: border-box !important;
 }
 
 #vmsos-widget-root[data-position="left"] .vmsos-teaser {
@@ -88,27 +92,30 @@
 }
 
 @keyframes vmsosSlideUp {
-	from { opacity: 0; transform: translateY(12px) scale(0.96); }
+	from { opacity: 0; transform: translateY(14px) scale(0.96); }
 	to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 #vmsos-widget-root .vmsos-teaser__head {
 	align-items: center;
 	display: flex;
-	gap: 10px;
+	gap: 12px;
 	position: relative;
+	width: 100%;
 }
 
 #vmsos-widget-root .vmsos-teaser__avatar-wrap {
 	align-items: center;
-	background: linear-gradient(135deg, rgba(201, 162, 39, 0.2), rgba(16, 185, 129, 0.2)) !important;
-	border: 1px solid rgba(255, 255, 255, 0.15) !important;
+	background: linear-gradient(135deg, rgba(201, 162, 39, 0.25), rgba(16, 185, 129, 0.2)) !important;
+	border: 1.5px solid rgba(201, 162, 39, 0.45) !important;
 	border-radius: 50% !important;
 	display: flex;
-	height: 38px;
+	height: 42px;
 	justify-content: center;
 	position: relative;
-	width: 38px;
+	width: 42px;
+	flex-shrink: 0;
+	box-shadow: 0 0 14px rgba(201, 162, 39, 0.2);
 }
 
 #vmsos-widget-root .vmsos-teaser__avatar {
@@ -123,61 +130,100 @@
 	border: 2px solid #0e172a !important;
 	border-radius: 50% !important;
 	bottom: -1px;
-	height: 10px;
+	height: 11px;
 	position: absolute;
 	right: -1px;
-	width: 10px;
-	box-shadow: 0 0 6px #10b981;
+	width: 11px;
+	box-shadow: 0 0 8px #10b981;
 }
 
 #vmsos-widget-root .vmsos-teaser__meta {
 	display: flex;
 	flex-direction: column;
 	flex: 1;
-	line-height: 1.25;
+	min-width: 0;
+	gap: 2px;
 }
 
 #vmsos-widget-root .vmsos-teaser__name {
-	color: var(--vmsos-text) !important;
-	font-size: 14px !important;
+	color: #f8fafc !important;
+	font-size: 15px !important;
 	font-weight: 700 !important;
+	letter-spacing: -0.2px !important;
+	line-height: 1.25 !important;
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	white-space: nowrap !important;
+	overflow: hidden !important;
+	text-overflow: ellipsis !important;
+}
+
+#vmsos-widget-root .vmsos-teaser__name-badge {
+	color: #10b981;
+	display: inline-flex;
+	align-items: center;
 }
 
 #vmsos-widget-root .vmsos-teaser__sub {
 	color: #10b981 !important;
-	font-size: 11px !important;
+	font-size: 11.5px !important;
 	font-weight: 600 !important;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	white-space: nowrap !important;
+}
+
+#vmsos-widget-root .vmsos-teaser__sub-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: #10b981;
+	box-shadow: 0 0 6px #10b981;
+	display: inline-block;
 }
 
 #vmsos-widget-root .vmsos-teaser__close,
 #vmsos-widget-root button.vmsos-teaser__close {
-	background: transparent !important;
-	border: none !important;
+	align-items: center !important;
+	background: rgba(255, 255, 255, 0.06) !important;
+	border: 1px solid rgba(255, 255, 255, 0.1) !important;
+	border-radius: 50% !important;
 	box-shadow: none !important;
-	color: var(--vmsos-text-muted) !important;
+	color: #94a3b8 !important;
 	cursor: pointer !important;
-	font-size: 20px !important;
+	display: flex !important;
+	font-size: 16px !important;
+	height: 26px !important;
+	justify-content: center !important;
 	line-height: 1 !important;
-	padding: 2px 6px !important;
+	padding: 0 !important;
 	position: absolute;
-	right: -4px;
-	top: -4px;
+	right: -2px;
+	top: -2px;
+	width: 26px !important;
+	transition: all 0.2s ease !important;
 }
 
 #vmsos-widget-root .vmsos-teaser__close:hover {
-	color: var(--vmsos-text) !important;
+	background: rgba(255, 255, 255, 0.16) !important;
+	color: #ffffff !important;
+	transform: scale(1.08);
 }
 
 #vmsos-widget-root .vmsos-teaser__text {
-	color: #cbd5e1 !important;
+	color: #e2e8f0 !important;
 	font-size: 13.5px !important;
-	line-height: 1.45 !important;
+	line-height: 1.5 !important;
+	margin: 2px 0 2px 0 !important;
 }
 
 #vmsos-widget-root .vmsos-teaser__chips {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
+	margin-bottom: 2px;
 }
 
 /* -------------------------------------------------------------- Chips */
@@ -191,7 +237,7 @@
 #vmsos-widget-root .vmsos-chip,
 #vmsos-widget-root button.vmsos-chip {
 	all: unset !important;
-	background: rgba(255, 255, 255, 0.06) !important;
+	background: rgba(255, 255, 255, 0.05) !important;
 	border: 1px solid rgba(255, 255, 255, 0.12) !important;
 	border-radius: 20px !important;
 	box-shadow: none !important;
@@ -202,48 +248,60 @@
 	align-items: center !important;
 	gap: 5px !important;
 	font-family: inherit !important;
-	font-size: 11.5px !important;
+	font-size: 12px !important;
 	font-weight: 500 !important;
 	letter-spacing: normal !important;
 	padding: 6px 12px !important;
 	text-transform: none !important;
-	transition: all 0.2s ease !important;
+	transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 #vmsos-widget-root .vmsos-chip:hover,
 #vmsos-widget-root button.vmsos-chip:hover {
-	background: rgba(201, 162, 39, 0.16) !important;
+	background: rgba(201, 162, 39, 0.18) !important;
 	border-color: var(--vmsos-accent) !important;
 	color: #fbbf24 !important;
 	transform: translateY(-1px) !important;
-	box-shadow: 0 4px 12px rgba(201, 162, 39, 0.2) !important;
+	box-shadow: 0 4px 14px rgba(201, 162, 39, 0.25) !important;
 }
 
 #vmsos-widget-root .vmsos-teaser__cta,
 #vmsos-widget-root button.vmsos-teaser__cta {
 	all: unset !important;
 	align-items: center !important;
-	background: linear-gradient(135deg, #c9a227 0%, #dfb738 100%) !important;
+	background: linear-gradient(135deg, #c9a227 0%, #e0b429 100%) !important;
 	border: none !important;
-	border-radius: 10px !important;
-	box-shadow: 0 4px 12px rgba(201, 162, 39, 0.3) !important;
+	border-radius: 12px !important;
+	box-shadow: 0 4px 16px rgba(201, 162, 39, 0.35) !important;
 	box-sizing: border-box !important;
 	color: #0b1327 !important;
 	cursor: pointer !important;
 	display: flex !important;
 	font-family: inherit !important;
-	font-size: 13px !important;
+	font-size: 13.5px !important;
 	font-weight: 700 !important;
 	justify-content: space-between !important;
 	letter-spacing: normal !important;
-	padding: 9px 14px !important;
+	padding: 11px 16px !important;
 	text-transform: none !important;
-	transition: all 0.2s ease !important;
+	white-space: nowrap !important;
+	width: 100% !important;
+	transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 #vmsos-widget-root .vmsos-teaser__cta:hover {
 	transform: translateY(-1px);
-	box-shadow: 0 6px 16px rgba(201, 162, 39, 0.4) !important;
+	box-shadow: 0 6px 20px rgba(201, 162, 39, 0.45) !important;
+	background: linear-gradient(135deg, #d4ad2b 0%, #ebd04b 100%) !important;
+}
+
+#vmsos-widget-root .vmsos-teaser__cta-arrow {
+	transition: transform 0.2s ease;
+	display: inline-block;
+}
+
+#vmsos-widget-root .vmsos-teaser__cta:hover .vmsos-teaser__cta-arrow {
+	transform: translateX(3px);
 }
 
 /* ------------------------------------------------------------- Floating Launcher FAB */
@@ -252,7 +310,7 @@
 	all: unset !important;
 	align-items: center !important;
 	background: linear-gradient(135deg, #0b1327 0%, #17244a 100%) !important;
-	border: 1px solid rgba(201, 162, 39, 0.4) !important;
+	border: 1px solid rgba(201, 162, 39, 0.45) !important;
 	border-radius: 999px !important;
 	box-shadow: 0 10px 32px rgba(0, 0, 0, 0.5), 0 0 16px var(--vmsos-accent-glow) !important;
 	box-sizing: border-box !important;
@@ -264,7 +322,31 @@
 	padding: 0 20px !important;
 	position: relative !important;
 	text-transform: none !important;
-	transition: transform 0.2s, box-shadow 0.2s !important;
+	transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+#vmsos-widget-root .vmsos-launcher:hover {
+	box-shadow: 0 14px 40px rgba(0, 0, 0, 0.7), 0 0 24px var(--vmsos-accent-glow) !important;
+	transform: translateY(-2px) !important;
+}
+
+/* When teaser is open, collapse launcher into an elegant 48px round FAB to avoid button clash */
+#vmsos-widget-root .vmsos-launcher.is-teaser-active {
+	width: 50px !important;
+	height: 50px !important;
+	padding: 0 !important;
+	justify-content: center !important;
+	border-radius: 50% !important;
+}
+
+#vmsos-widget-root .vmsos-launcher.is-teaser-active .vmsos-launcher__label {
+	display: none !important;
+}
+
+#vmsos-widget-root .vmsos-launcher.is-teaser-active .vmsos-launcher__pulse {
+	left: auto !important;
+	right: 4px !important;
+	top: 4px !important;
 }
 
 #vmsos-widget-root .vmsos-launcher:hover {

@@ -135,6 +135,7 @@ final class ChatModule extends Module {
 					'placeholder' => __( 'Ask anything or choose a topic above…', 'vm-sales-os' ),
 					'send'        => __( 'Send', 'vm-sales-os' ),
 					'open'        => __( 'Chat with us', 'vm-sales-os' ),
+					'teaserCta'   => __( 'Start Consultation', 'vm-sales-os' ),
 					'close'       => __( 'Close chat', 'vm-sales-os' ),
 					'error'       => __( 'Could not deliver message. Please retry or contact us directly.', 'vm-sales-os' ),
 					'waiting'     => __( 'A specialist has been notified and is stepping in. Your reply will appear here shortly.', 'vm-sales-os' ),
