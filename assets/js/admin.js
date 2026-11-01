@@ -1051,7 +1051,19 @@
 	];
 
 	function App() {
-		const [ active, setActive ] = useState( 'dashboard' );
+		const initialTab = new URLSearchParams( window.location.search ).get( 'tab' ) || 'dashboard';
+		const validTab = TABS.some( ( t ) => t.key === initialTab ) ? initialTab : 'dashboard';
+		const [ active, setActiveState ] = useState( validTab );
+
+		const setActive = ( key ) => {
+			setActiveState( key );
+			try {
+				const url = new URL( window.location.href );
+				url.searchParams.set( 'tab', key );
+				window.history.replaceState( {}, '', url.toString() );
+			} catch ( e ) {}
+		};
+
 		const Current = ( TABS.find( ( tab ) => tab.key === active ) || TABS[ 0 ] ).view;
 
 		return h( 'div', { className: 'vmsos-app' },

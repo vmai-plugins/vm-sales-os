@@ -63,8 +63,14 @@ final class AdminArea {
 			26
 		);
 
-		add_submenu_page( self::SLUG, __( 'Dashboard', 'vm-sales-os' ), __( 'Dashboard', 'vm-sales-os' ), 'vmsos_operate', self::SLUG, [ $this, 'render' ] );
-		add_submenu_page( self::SLUG, __( 'Settings', 'vm-sales-os' ), __( 'Settings', 'vm-sales-os' ), 'vmsos_manage', self::SLUG . '-settings', [ $this, 'renderSettings' ] );
+		$capOperate = current_user_can( 'vmsos_operate' ) ? 'vmsos_operate' : 'manage_options';
+		$capManage  = current_user_can( 'vmsos_manage' ) ? 'vmsos_manage' : 'manage_options';
+
+		add_submenu_page( self::SLUG, __( 'Dashboard', 'vm-sales-os' ), __( 'Dashboard', 'vm-sales-os' ), $capOperate, self::SLUG, [ $this, 'render' ] );
+		add_submenu_page( self::SLUG, __( 'Live Inbox', 'vm-sales-os' ), __( 'Inbox', 'vm-sales-os' ), $capOperate, self::SLUG . '&tab=inbox', [ $this, 'render' ] );
+		add_submenu_page( self::SLUG, __( 'Leads & Contacts', 'vm-sales-os' ), __( 'Leads', 'vm-sales-os' ), $capOperate, self::SLUG . '&tab=leads', [ $this, 'render' ] );
+		add_submenu_page( self::SLUG, __( 'Sales Pipeline & Deals', 'vm-sales-os' ), __( 'Deals', 'vm-sales-os' ), $capOperate, self::SLUG . '&tab=deals', [ $this, 'render' ] );
+		add_submenu_page( self::SLUG, __( 'Settings', 'vm-sales-os' ), __( 'Settings', 'vm-sales-os' ), $capManage, self::SLUG . '-settings', [ $this, 'renderSettings' ] );
 	}
 
 	public function assets( string $hook ): void {

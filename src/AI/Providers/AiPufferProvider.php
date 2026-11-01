@@ -122,6 +122,12 @@ final class AiPufferProvider extends AbstractProvider {
 		return untrailingslashit( $url );
 	}
 
+	private function isLocal(): bool {
+		$url  = $this->siteUrl();
+		$home = untrailingslashit( home_url() );
+		return '' === $url || $url === $home || str_contains( $url, 'localhost' ) || str_contains( $url, '127.0.0.1' );
+	}
+
 	private function base(): string {
 		return $this->siteUrl() . '/wp-json/aipkit/v1';
 	}
@@ -196,43 +202,96 @@ final class AiPufferProvider extends AbstractProvider {
 		$botError  = '';
 
 		if ( '' !== $botId && 'default' !== $botId ) {
-			try {
-				$data = $this->post(
-					$this->base() . '/chat/' . rawurlencode( $botId ) . '/message',
-					$headers,
-					[
-						'messages'          => $messages,
-						'conversation_uuid' => (string) ( $request->meta['session_id'] ?? '' ),
-					],
-					45
-				);
-				$text      = (string) ( $data['reply'] ?? $data['content'] ?? '' );
-				$modelUsed = (string) ( $data['model'] ?? 'bot-' . $botId );
-				$usageData = (array) ( $data['usage'] ?? [] );
-			} catch ( \Throwable $e ) {
-				$botError = $e->getMessage();
+			// Fast-path: When running on the same site, invoke AIPKit directly via rest_do_request()
+			// This completely eliminates loopback network latency, Cloudflare timeouts, and cURL error 28!
+			if ( $this->isLocal() && function_exists( 'rest_do_request' ) ) {
+				$restReq = new \WP_REST_Request( 'POST', '/aipkit/v1/chat/' . rawurlencode( $botId ) . '/message' );
+				$restReq->set_header( 'Content-Type', 'application/json' );
+				$restReq->set_header( 'Authorization', 'Bearer ' . $this->apiKey() );
+				$restReq->set_body( (string) wp_json_encode( [
+					'messages'          => $messages,
+					'conversation_uuid' => (string) ( $request->meta['session_id'] ?? '' ),
+				] ) );
+				$restResp = rest_do_request( $restReq );
+				if ( $restResp->get_status() >= 200 && $restResp->get_status() < 300 ) {
+					$data      = (array) $restResp->get_data();
+					$text      = (string) ( $data['reply'] ?? $data['content'] ?? '' );
+					$modelUsed = (string) ( $data['model'] ?? 'bot-' . $botId );
+					$usageData = (array) ( $data['usage'] ?? [] );
+				} else {
+					$errData  = $restResp->get_data();
+					$botError = is_array( $errData ) ? ( $errData['message'] ?? 'HTTP ' . $restResp->get_status() ) : 'HTTP ' . $restResp->get_status();
+				}
+			}
+
+			// Remote or fallback cURL
+			if ( '' === $text ) {
+				try {
+					$data = $this->post(
+						$this->base() . '/chat/' . rawurlencode( $botId ) . '/message',
+						$headers,
+						[
+							'messages'          => $messages,
+							'conversation_uuid' => (string) ( $request->meta['session_id'] ?? '' ),
+						],
+						25
+					);
+					$text      = (string) ( $data['reply'] ?? $data['content'] ?? '' );
+					$modelUsed = (string) ( $data['model'] ?? 'bot-' . $botId );
+					$usageData = (array) ( $data['usage'] ?? [] );
+				} catch ( \Throwable $e ) {
+					$botError = $e->getMessage();
+				}
 			}
 		}
 
 		// Fallback to /generate if bot response was empty or threw
 		if ( '' === $text ) {
+			$fallbackModel = $this->setting( 'model', 'auto/best-free' );
+			if ( is_numeric( $fallbackModel ) || 'default' === $fallbackModel || '' === $fallbackModel ) {
+				$fallbackModel = 'auto/best-free';
+			}
+
 			try {
-				$data = $this->post(
-					$this->base() . '/generate',
-					$headers,
-					[
+				if ( $this->isLocal() && function_exists( 'rest_do_request' ) ) {
+					$restReq = new \WP_REST_Request( 'POST', '/aipkit/v1/generate' );
+					$restReq->set_header( 'Content-Type', 'application/json' );
+					$restReq->set_header( 'Authorization', 'Bearer ' . $this->apiKey() );
+					$restReq->set_body( (string) wp_json_encode( [
 						'provider'    => $this->setting( 'provider', 'openai' ),
-						'model'       => $this->setting( 'model', 'auto/best-free' ),
+						'model'       => $fallbackModel,
 						'messages'    => $request->messagesArray(),
 						'prompt'      => $this->flatten( $request ),
 						'temperature' => $request->temperature,
 						'max_tokens'  => $request->maxTokens,
-					],
-					45
-				);
-				$text      = (string) ( $data['content'] ?? $data['reply'] ?? '' );
-				$modelUsed = (string) ( $data['model'] ?? 'aipuffer-generate' );
-				$usageData = (array) ( $data['usage'] ?? [] );
+					] ) );
+					$restResp = rest_do_request( $restReq );
+					if ( $restResp->get_status() >= 200 && $restResp->get_status() < 300 ) {
+						$data      = (array) $restResp->get_data();
+						$text      = (string) ( $data['content'] ?? $data['reply'] ?? '' );
+						$modelUsed = (string) ( $data['model'] ?? 'aipuffer-generate' );
+						$usageData = (array) ( $data['usage'] ?? [] );
+					}
+				}
+
+				if ( '' === $text ) {
+					$data = $this->post(
+						$this->base() . '/generate',
+						$headers,
+						[
+							'provider'    => $this->setting( 'provider', 'openai' ),
+							'model'       => $fallbackModel,
+							'messages'    => $request->messagesArray(),
+							'prompt'      => $this->flatten( $request ),
+							'temperature' => $request->temperature,
+							'max_tokens'  => $request->maxTokens,
+						],
+						25
+					);
+					$text      = (string) ( $data['content'] ?? $data['reply'] ?? '' );
+					$modelUsed = (string) ( $data['model'] ?? 'aipuffer-generate' );
+					$usageData = (array) ( $data['usage'] ?? [] );
+				}
 			} catch ( \Throwable $e ) {
 				throw new AiException( 'aipuffer: ' . ( '' !== $botError ? "bot {$botId} failed ({$botError}); generate failed: " : '' ) . $e->getMessage() );
 			}

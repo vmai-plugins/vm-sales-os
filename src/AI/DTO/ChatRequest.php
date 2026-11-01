@@ -27,6 +27,12 @@ final class ChatRequest {
 		return $clone;
 	}
 
+	public function withTools( array $tools ): self {
+		$clone        = clone $this;
+		$clone->tools = $tools;
+		return $clone;
+	}
+
 	public function withMessages( array $messages ): self {
 		$clone           = clone $this;
 		$clone->messages = $messages;

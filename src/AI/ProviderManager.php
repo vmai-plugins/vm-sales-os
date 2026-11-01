@@ -66,8 +66,44 @@ final class ProviderManager {
 
 	/** @return array<int, string> */
 	public function chain(): array {
-		$chain = get_option( 'vmsos_ai_chain', [ 'aipuffer', 'openai', 'anthropic', 'gemini' ] );
-		return array_values( array_filter( (array) apply_filters( 'vmsos_ai_chain', $chain ) ) );
+		$chain = get_option( 'vmsos_ai_chain', [ 'aipuffer', 'openai', 'gemini', 'anthropic' ] );
+
+		if ( is_string( $chain ) ) {
+			$unserialized = maybe_unserialize( $chain );
+			$chain = is_array( $unserialized ) ? $unserialized : explode( ',', $chain );
+		}
+
+		if ( is_array( $chain ) && 1 === count( $chain ) && is_string( $chain[0] ) && str_contains( $chain[0], ':{' ) ) {
+			$unserialized = maybe_unserialize( $chain[0] );
+			if ( is_array( $unserialized ) ) {
+				$chain = $unserialized;
+			}
+		}
+
+		$flat = [];
+		foreach ( (array) $chain as $item ) {
+			if ( is_string( $item ) ) {
+				if ( str_contains( $item, ',' ) ) {
+					foreach ( explode( ',', $item ) as $sub ) {
+						$clean = sanitize_key( trim( $sub ) );
+						if ( '' !== $clean ) {
+							$flat[] = $clean;
+						}
+					}
+				} else {
+					$clean = sanitize_key( trim( $item ) );
+					if ( '' !== $clean ) {
+						$flat[] = $clean;
+					}
+				}
+			}
+		}
+
+		if ( empty( $flat ) ) {
+			$flat = [ 'aipuffer', 'openai', 'gemini', 'anthropic' ];
+		}
+
+		return array_values( array_unique( (array) apply_filters( 'vmsos_ai_chain', $flat ) ) );
 	}
 
 	/**
@@ -83,10 +119,20 @@ final class ProviderManager {
 			throw new AiException( 'No AI provider is configured. Add a key under VM Sales OS → AI.' );
 		}
 
+		// If all candidates have open circuit breakers, allow a canary retry on the chain
+		// to test recovery rather than dropping visitors with a fatal error for 5 minutes.
+		$allBreakersOpen = true;
+		foreach ( $candidates as $id ) {
+			if ( ! $this->breakerOpen( $id ) ) {
+				$allBreakersOpen = false;
+				break;
+			}
+		}
+
 		foreach ( $candidates as $id ) {
 			$provider = $this->providers[ $id ];
 
-			if ( $this->breakerOpen( $id ) ) {
+			if ( ! $allBreakersOpen && $this->breakerOpen( $id ) ) {
 				$attempts[ $id ] = 'circuit open';
 				continue;
 			}
@@ -118,31 +164,46 @@ final class ProviderManager {
 		$forced = (string) ( $request->meta['provider'] ?? '' );
 		$chain  = '' !== $forced ? [ $forced ] : $this->chain();
 
-		$eligible = [];
+		$configured  = [];
+		$toolCapable = [];
 		foreach ( $chain as $id ) {
 			$provider = $this->providers[ $id ] ?? null;
 			if ( ! $provider instanceof ChatProvider || ! $provider->isConfigured() ) {
 				continue;
 			}
-			if ( $request->tools && ! $provider->supportsTools() ) {
-				continue; // Tool-using turns need a tool-capable model.
+			$configured[] = $id;
+			if ( $provider->supportsTools() ) {
+				$toolCapable[] = $id;
 			}
-			$eligible[] = $id;
 		}
 
-		return $eligible;
+		// If caller provided tools and we have tool-capable providers, prioritize them first,
+		// but preserve the remaining configured providers as seamless conversational fallbacks.
+		if ( ! empty( $request->tools ) && ! empty( $toolCapable ) ) {
+			return array_values( array_unique( array_merge( $toolCapable, $configured ) ) );
+		}
+
+		return $configured;
 	}
 
-	/** Apply per-provider model overrides before dispatch. */
+	/** Apply per-provider model overrides and graceful tool degradation before dispatch. */
 	private function prepare( ChatRequest $request, ChatProvider $provider ): ChatRequest {
-		if ( '' !== $request->model ) {
-			return $request; // Caller pinned a model.
+		$req = $request;
+
+		// Graceful tool degradation: if provider does not support native function calling, strip tools
+		// so conversational generation succeeds cleanly without throwing schema errors.
+		if ( ! empty( $req->tools ) && ! $provider->supportsTools() ) {
+			$req = $req->withTools( [] );
+		}
+
+		if ( '' !== $req->model ) {
+			return $req; // Caller pinned a model.
 		}
 
 		$overrides = (array) get_option( 'vmsos_ai_model_map', [] );
-		$model     = (string) ( $overrides[ $provider->id() . ':' . $request->operation ] ?? $overrides[ $provider->id() ] ?? '' );
+		$model     = (string) ( $overrides[ $provider->id() . ':' . $req->operation ] ?? $overrides[ $provider->id() ] ?? '' );
 
-		return '' === $model ? $request : $request->withModel( $model );
+		return '' === $model ? $req : $req->withModel( $model );
 	}
 
 	/**

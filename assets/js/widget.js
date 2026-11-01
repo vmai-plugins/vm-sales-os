@@ -573,17 +573,16 @@
 	}
 
 	// 7. Starter & Follow-Up Chips
-	function renderStarterChips( log, chips, onSelect ) {
+	function renderStarterChips( log, chips ) {
 		if ( ! chips || ! chips.length ) {
 			return;
 		}
 		const chipsWrap = el( 'div', 'vmsos-chips-container' );
+		chipsWrap.id = 'vmsos-starter-chips';
 		chips.forEach( function ( chipText ) {
 			const chip = el( 'button', 'vmsos-chip', chipText );
 			chip.type = 'button';
-			chip.addEventListener( 'click', function () {
-				onSelect( chipText );
-			} );
+			chip.setAttribute( 'data-query', chipText );
 			chipsWrap.appendChild( chip );
 		} );
 		log.appendChild( chipsWrap );
@@ -799,30 +798,28 @@
 		log.scrollTop = log.scrollHeight;
 	}
 
-	// 11. Welcome Hero Experience
-	function renderWelcomeHero( ui, onChipSelect ) {
-		const hero = el( 'div', 'vmsos-welcome-hero' );
-
-		const badge = el( 'div', 'vmsos-welcome-badge' );
-		badge.innerHTML = '<span class="vmsos-welcome-pulse-dot"></span><span>Autonomous Sales Intelligence</span>';
-
-		const text = el( 'div', 'vmsos-welcome-text', vmsosWidget.greeting || ( 'Hello! I am ' + ( vmsosWidget.agent || 'Ava' ) + '. How can we help scale your business today?' ) );
-
-		hero.append( badge, text );
+	// 11. Welcome Experience
+	function renderWelcomeHero( ui ) {
+		const msg = el( 'div', 'vmsos-msg is-agent' );
+		const bubbleWrap = el( 'div', 'vmsos-msg__bubble' );
+		const p = el( 'p', '', vmsosWidget.greeting || ( 'Hello! I am ' + ( vmsosWidget.agent || 'Ava' ) + '. How can we help scale your business today?' ) );
+		bubbleWrap.appendChild( p );
 
 		if ( vmsosWidget.whatsapp ) {
-			const waCallout = el( 'a', 'vmsos-welcome-wa' );
-			waCallout.href = 'https://wa.me/' + encodeURIComponent( vmsosWidget.whatsapp ) + '?text=' + encodeURIComponent( 'Hi ' + ( vmsosWidget.siteName || '' ) + ', inquiring from your live chat.' );
-			waCallout.target = '_blank';
-			waCallout.rel = 'noopener noreferrer';
-			waCallout.innerHTML = '<span class="vmsos-wa-pill-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766 0-3.187-2.59-5.771-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.312.045-.694.072-2.18-.545-1.898-.787-3.13-2.73-3.224-2.855-.094-.127-.775-1.03-.775-1.965 0-.934.489-1.393.663-1.583.175-.19.38-.238.508-.238.127 0 .254.002.365.008.117.006.273-.044.428.328.16.383.548 1.339.596 1.436.048.098.08.212.015.339-.064.127-.095.207-.19.317-.095.111-.2.248-.286.333-.095.096-.195.2-.084.391.111.19.493.813 1.056 1.314.726.645 1.338.845 1.53.94.19.096.302.08.413-.048.111-.127.476-.556.603-.746.127-.19.254-.159.429-.095.174.064 1.111.524 1.302.619.19.096.317.143.365.223.048.079.048.461-.096.866z"/></svg></span><span>Chat directly on WhatsApp</span><span class="vmsos-wa-arrow">&rarr;</span>';
-			hero.appendChild( waCallout );
+			const cleanWa = ( vmsosWidget.whatsapp || '' ).replace( /[^0-9]/g, '' );
+			const waBtn = el( 'a', 'vmsos-wa-card-btn' );
+			waBtn.href = 'https://wa.me/' + encodeURIComponent( cleanWa );
+			waBtn.target = '_blank';
+			waBtn.rel = 'noopener noreferrer';
+			waBtn.innerHTML = '<span class="vmsos-wa-card-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38c1.45.79 3.08 1.21 4.79 1.21 5.46 0 9.91-4.45 9.91-9.91S17.5 2 12.04 2zm.01 18.06c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31c-.82-1.31-1.26-2.83-1.26-4.38 0-4.54 3.7-8.24 8.24-8.24 4.54 0 8.24 3.7 8.24 8.24 0 4.54-3.7 8.24-8.24 8.24zm4.52-6.17c-.25-.12-1.47-.72-1.7-.81-.23-.08-.39-.12-.56.12-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-2-1.23-.74-.66-1.24-1.47-1.39-1.72-.14-.25-.02-.38.11-.5.11-.11.25-.29.37-.43.12-.14.17-.25.25-.41.08-.17.04-.31-.02-.43s-.56-1.34-.76-1.84c-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.43.06-.66.31-.23.25-.87.85-.87 2.07s.89 2.4 1.01 2.57c.12.17 1.75 2.67 4.24 3.75.59.26 1.05.41 1.41.53.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.15-1.18-.06-.12-.22-.19-.47-.31z"/></svg></span><span class="vmsos-wa-card-text">Chat directly on WhatsApp &rarr;</span>';
+			bubbleWrap.appendChild( waBtn );
 		}
 
-		ui.log.appendChild( hero );
+		msg.appendChild( bubbleWrap );
+		ui.log.appendChild( msg );
 
 		// Quick Action Pills
-		renderStarterChips( ui.log, vmsosWidget.chips, onChipSelect );
+		renderStarterChips( ui.log, vmsosWidget.chips );
 	}
 
 	function init() {
@@ -886,7 +883,7 @@
 				if ( ui.launcherIconClose ) ui.launcherIconClose.style.display = 'none';
 
 				if ( ui.log && ! ui.log.childElementCount ) {
-					renderWelcomeHero( ui, handleChipSelection );
+					renderWelcomeHero( ui );
 				}
 				if ( state.activeTab === 'chat' && ui.input ) {
 					ui.input.focus();
@@ -1229,7 +1226,7 @@
 					setTeaserVisibility( false );
 					sessionStorage.setItem( 'vmsos_teaser_dismissed', '1' );
 					toggle( true );
-					sendMessage( query.trim() );
+					handleChipSelection( query.trim() );
 				} );
 			} );
 		}
@@ -1243,7 +1240,7 @@
 					state.poller = null;
 				}
 				ui.log.innerHTML = '';
-				renderWelcomeHero( ui, handleChipSelection );
+				renderWelcomeHero( ui );
 				if ( ui.input ) ui.input.focus();
 			} );
 		}
@@ -1365,12 +1362,12 @@
 		function postReplyActions( text ) {
 			const lower = ( text || '' ).toLowerCase();
 
-			if ( lower.includes( 'whatsapp' ) ) {
+			if ( lower.includes( 'whatsapp' ) && ! ui.log.querySelector( '.vmsos-action-wa' ) ) {
 				renderWhatsAppCard( ui.log, 'Hi ' + ( vmsosWidget.siteName || '' ) + ', following up on our chat inquiry.' );
 			}
 
 			// Generative UI: Discovery Calendar Card
-			if ( lower.includes( 'book' ) || lower.includes( 'schedule' ) || lower.includes( 'consultation' ) || lower.includes( 'calendar' ) || lower.includes( 'demo' ) ) {
+			if ( ( lower.includes( 'book' ) || lower.includes( 'schedule' ) || lower.includes( 'consultation' ) || lower.includes( 'calendar' ) || lower.includes( 'demo' ) ) && ! ui.log.querySelector( '.vmsos-booking-card' ) ) {
 				renderBookingCard( ui.log, function ( date, slot ) {
 					bubble( ui.log, 'visitor', 'Requested discovery consultation for ' + date + ' at ' + slot );
 					bubble( ui.log, 'agent', '✓ Perfect! Your discovery session for ' + date + ' at ' + slot + ' is confirmed. A calendar invitation has been prepared for your team.' );
@@ -1378,7 +1375,7 @@
 			}
 
 			// Generative UI: Custom Scope & Pricing Calculator
-			if ( lower.includes( 'pricing' ) || lower.includes( 'quote' ) || lower.includes( 'package' ) || lower.includes( 'investment' ) || lower.includes( 'cost' ) ) {
+			if ( ( lower.includes( 'pricing' ) || lower.includes( 'quote' ) || lower.includes( 'package' ) || lower.includes( 'investment' ) || lower.includes( 'cost' ) ) && ! ui.log.querySelector( '.vmsos-quote-card' ) ) {
 				renderScopeCalculator( ui.log, function ( total, items ) {
 					switchTab( 'form' );
 					const reqTextarea = ui.inquiryForm.querySelector( 'textarea[name="requirements"]' );
@@ -1597,7 +1594,7 @@
 		}
 
 		state.poller = setInterval( async function () {
-			if ( document.hidden || ! state.uuid ) {
+			if ( document.hidden || ! state.open || ! state.uuid ) {
 				return;
 			}
 
