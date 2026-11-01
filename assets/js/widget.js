@@ -226,9 +226,11 @@
 
 	function build() {
 		const root = document.getElementById( 'vmsos-widget-root' );
-		if ( ! root ) {
+		if ( ! root || root.hasAttribute( 'data-initialized' ) ) {
 			return null;
 		}
+		root.setAttribute( 'data-initialized', 'true' );
+		root.innerHTML = '';
 
 		root.setAttribute( 'data-position', vmsosWidget.position || 'right' );
 		root.style.setProperty( '--vmsos-accent', vmsosWidget.accent || '#c9a227' );
@@ -409,6 +411,8 @@
 		honeypot.name = 'company_website';
 		honeypot.tabIndex = -1;
 		honeypot.setAttribute( 'aria-hidden', 'true' );
+		honeypot.autocomplete = 'off';
+		honeypot.style.cssText = 'display:none!important;visibility:hidden!important;position:absolute!important;width:0!important;height:0!important;opacity:0!important;pointer-events:none!important;clip:rect(0,0,0,0)!important;';
 
 		const send = el( 'button', 'vmsos-send' );
 		send.type = 'submit';

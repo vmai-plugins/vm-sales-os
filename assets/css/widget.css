@@ -1132,6 +1132,22 @@
 	margin-left: 4px;
 }
 
+/* Honeypot Anti-Spam (Completely hidden from human visitors) */
+#vmsos-widget-root .vmsos-hp,
+#vmsos-widget-root input.vmsos-hp {
+	display: none !important;
+	position: absolute !important;
+	visibility: hidden !important;
+	width: 0 !important;
+	height: 0 !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	border: 0 !important;
+	opacity: 0 !important;
+	pointer-events: none !important;
+	clip: rect(0, 0, 0, 0) !important;
+}
+
 /* ----------------------------------------------------------- Input & Mic Bar */
 #vmsos-widget-root .vmsos-chat-form {
 	align-items: center;
