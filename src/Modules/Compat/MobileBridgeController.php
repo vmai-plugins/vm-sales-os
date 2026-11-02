@@ -120,6 +120,22 @@ final class MobileBridgeController extends AbstractController {
 		$route( '/zoho/summary', 'GET', 'getZohoSummary' );
 		$route( '/zoho/config', 'GET', 'getZohoConfig' );
 
+		// Public Authentication Endpoints (supports Direct Web & App Login)
+		$authRoutes = [ '/auth/login', '/mobile/auth/login' ];
+		foreach ( $namespaces as $ns ) {
+			foreach ( $authRoutes as $p ) {
+				register_rest_route(
+					$ns,
+					$p,
+					[
+						'methods'             => 'POST',
+						'callback'            => [ $this, 'handleLogin' ],
+						'permission_callback' => '__return_true',
+					]
+				);
+			}
+		}
+
 		// Everything the app calls that this version cannot serve yet.
 		foreach ( array_keys( self::UNIMPLEMENTED ) as $path ) {
 			register_rest_route(
@@ -892,6 +908,52 @@ final class MobileBridgeController extends AbstractController {
 		return $this->bare( [
 			'configured' => true,
 			'mode'       => 'auto_token',
+		] );
+	}
+
+	public function handleLogin( WP_REST_Request $request ): WP_REST_Response {
+		$params   = $request->get_json_params() ?: [];
+		$username = trim( (string) ( $params['username'] ?? '' ) );
+		$password = (string) ( $params['password'] ?? '' );
+
+		if ( '' === $username || '' === $password ) {
+			return $this->bare( [
+				'ok'    => false,
+				'error' => 'Username and password are required.',
+			], 400 );
+		}
+
+		$user = wp_authenticate( $username, $password );
+
+		if ( is_wp_error( $user ) ) {
+			return $this->bare( [
+				'ok'    => false,
+				'error' => $user->get_error_message() ?: 'Invalid username or password.',
+			], 401 );
+		}
+
+		wp_set_current_user( $user->ID );
+		wp_set_auth_cookie( $user->ID, true );
+
+		$token = get_user_meta( $user->ID, 'vmai_mobile_token', true );
+		if ( ! $token ) {
+			$token = wp_generate_password( 32, false );
+			update_user_meta( $user->ID, 'vmai_mobile_token', $token );
+		}
+
+		return $this->bare( [
+			'ok'    => true,
+			'token' => $token,
+			'user'  => [
+				'id'          => $user->ID,
+				'name'        => $user->display_name ?: $user->user_login,
+				'email'       => $user->user_email,
+				'username'    => $user->user_login,
+				'role'        => ! empty( $user->roles ) ? $user->roles[0] : 'administrator',
+				'role_label'  => 'Enterprise Administrator',
+				'avatar_url'  => get_avatar_url( $user->ID ),
+				'permissions' => [ 'all', 'leads_view', 'dialer', 'whatsapp', 'seo_brain', 'social_ai', 'finance' ],
+			],
 		] );
 	}
 
