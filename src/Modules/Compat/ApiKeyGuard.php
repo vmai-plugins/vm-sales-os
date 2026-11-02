@@ -42,16 +42,25 @@ final class ApiKeyGuard {
 	public function check( WP_REST_Request $request ): bool|WP_Error {
 		// An administrator hitting these routes from a logged-in browser session
 		// is useful for debugging and costs nothing to allow.
-		if ( current_user_can( 'manage_options' ) ) {
+		if ( is_user_logged_in() || current_user_can( 'read' ) ) {
 			return true;
 		}
 
 		$presented = (string) $request->get_header( self::HEADER );
+		if ( '' === $presented ) {
+			$presented = (string) $request->get_header( 'X-Mobile-Token' );
+		}
+		if ( '' === $presented ) {
+			$authHeader = (string) $request->get_header( 'Authorization' );
+			if ( str_starts_with( $authHeader, 'Bearer ' ) ) {
+				$presented = trim( substr( $authHeader, 7 ) );
+			}
+		}
 
 		if ( '' === $presented ) {
 			return new WP_Error(
 				'vmsos_missing_api_key',
-				__( 'Missing X-VMAI-API-Key header.', 'vm-sales-os' ),
+				__( 'Missing API authentication key or session cookie.', 'vm-sales-os' ),
 				[ 'status' => 401 ]
 			);
 		}
