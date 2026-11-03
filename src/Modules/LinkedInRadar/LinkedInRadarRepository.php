@@ -114,6 +114,25 @@ final class LinkedInRadarRepository {
 		$lead['created_at'] = $lead['created_at'] ?? current_time( 'mysql' );
 		$lead['status']     = $lead['status'] ?? 'new';
 
+		// Preserve already generated CRM IDs to prevent duplicate deals & forms
+		foreach ( $leads as $existing ) {
+			if ( ( $existing['id'] ?? '' ) === $id ) {
+				if ( ! empty( $existing['crm_contact_id'] ) && empty( $lead['crm_contact_id'] ) ) {
+					$lead['crm_contact_id'] = $existing['crm_contact_id'];
+				}
+				if ( ! empty( $existing['crm_deal_id'] ) && empty( $lead['crm_deal_id'] ) ) {
+					$lead['crm_deal_id'] = $existing['crm_deal_id'];
+				}
+				if ( ! empty( $existing['fluentform_submission_id'] ) && empty( $lead['fluentform_submission_id'] ) ) {
+					$lead['fluentform_submission_id'] = $existing['fluentform_submission_id'];
+				}
+				if ( ! empty( $existing['crm_activity_logged'] ) ) {
+					$lead['crm_activity_logged'] = 1;
+				}
+				break;
+			}
+		}
+
 		// Normalise lead fields for unified display & mobile bridge
 		$lead['poster_name']        = (string) ( $lead['poster_name'] ?? $lead['name'] ?? $lead['full_name'] ?? 'LinkedIn Lead' );
 		$lead['name']               = $lead['poster_name'];
@@ -237,8 +256,8 @@ final class LinkedInRadarRepository {
 			return 0;
 		}
 
-		// 2. Open a Deal in pipeline if enabled
-		if ( $this->deals && get_option( 'vmsos_linkedin_create_deal', true ) ) {
+		// 2. Open a Deal in pipeline only once if enabled and not already created
+		if ( empty( $lead['crm_deal_id'] ) && $this->deals && get_option( 'vmsos_linkedin_create_deal', true ) ) {
 			$dealTitle = sprintf( 'LinkedIn: %s%s', $fullName, $company ? " ({$company})" : '' );
 			$dealValue = (float) get_option( 'vmsos_linkedin_default_deal_value', 25000 );
 			$dealId    = $this->deals->create(
@@ -256,20 +275,23 @@ final class LinkedInRadarRepository {
 			}
 		}
 
-		// 3. Record Activity
-		if ( $this->activities ) {
+		// 3. Record Activity once on initial ingestion
+		if ( empty( $lead['crm_activity_logged'] ) && $this->activities ) {
 			$this->activities->log(
 				'contact',
 				$contactId,
 				'linkedin_lead_captured',
 				sprintf( 'LinkedIn lead %s (%s) ingested into Sales OS CRM & Mobile Bridge', $fullName, $company ?: 'Direct' )
 			);
+			$lead['crm_activity_logged'] = 1;
 		}
 
-		// 4. Mirror to Fluent Forms
-		$submissionId = $this->syncToFluentForms( $lead );
-		if ( $submissionId > 0 ) {
-			$lead['fluentform_submission_id'] = $submissionId;
+		// 4. Mirror to Fluent Forms only once
+		if ( empty( $lead['fluentform_submission_id'] ) ) {
+			$submissionId = $this->syncToFluentForms( $lead );
+			if ( $submissionId > 0 ) {
+				$lead['fluentform_submission_id'] = $submissionId;
+			}
 		}
 
 		return $contactId;
@@ -328,7 +350,7 @@ final class LinkedInRadarRepository {
 				'form_id'       => $formId,
 				'serial_number' => $serialNumber,
 				'response'      => wp_json_encode( $response ),
-				'source_url'    => ! empty( $profile ) ? $profile : 'https://www.linkedin.com',
+				'source_url'    => ! empty( $profile ) ? mb_substr( $profile, 0, 250 ) : 'https://www.linkedin.com',
 				'user_id'       => get_current_user_id() ?: 0,
 				'status'        => 'unread',
 				'is_favourite'  => 0,
@@ -401,76 +423,76 @@ final class LinkedInRadarRepository {
 	private function seedInitialLeads(): array {
 		return [
 			[
-				'id'                 => 'li_neha_u',
-				'poster_name'        => 'Neha U',
-				'name'               => 'Neha U',
-				'poster_headline'    => 'Global Recruitment and HR Operations Leadership | Business-Aligned',
-				'headline'           => 'Global Recruitment and HR Operations Leadership | Business-Aligned',
-				'poster_profile_url' => 'https://www.linkedin.com/in/neha-u-events',
-				'profile_url'        => 'https://www.linkedin.com/in/neha-u-events',
+				'id'                 => 'li_pooja_m',
+				'poster_name'        => 'Pooja Malhotra',
+				'name'               => 'Pooja Malhotra',
+				'poster_headline'    => 'VP Digital & Technology, CloudScale SaaS | Enterprise Architecture',
+				'headline'           => 'VP Digital & Technology, CloudScale SaaS | Enterprise Architecture',
+				'poster_profile_url' => 'https://www.linkedin.com/in/pooja-malhotra-tech',
+				'profile_url'        => 'https://www.linkedin.com/in/pooja-malhotra-tech',
 				'post_url'           => 'https://www.linkedin.com/feed/update/urn:li:activity:7256192837192',
-				'company'            => 'Global Talent Group',
-				'email'              => 'neha.u@example.com',
+				'company'            => 'CloudScale Technologies',
+				'email'              => 'pooja.m@cloudscale.io',
 				'phone'              => '+919811002233',
-				'event_role_needed'  => 'Corporate Event Planner / Agency',
-				'event_type'         => 'Global Company Meetups & Retreats',
+				'event_role_needed'  => 'Sovereign Custom Web Architecture & Next.js Portal',
+				'event_type'         => 'Next.js & Custom Web App',
 				'event_dates'        => 'Q4 2026',
-				'event_location'     => 'India & International',
-				'raw_snippet'        => 'I am looking for an experienced corporate event planner or agency that can organize global company meetups for both in India and internationally. Scope: end-to-end event planning, venue and travel coordination, team engagement, TED-style talks. Please DM or share details.',
+				'event_location'     => 'Delhi NCR / Global',
+				'raw_snippet'        => 'Looking for an experienced custom web engineering partner to rebuild our customer SaaS portal into a lightning-fast Next.js architecture with sovereign API security and automated CRM routing. Please DM portfolio & case studies.',
 				'intent_score'       => 98,
 				'urgency'            => 'HIGH',
 				'status'             => 'new',
 				'source'             => 'linkedin',
 				'created_at'         => current_time( 'mysql' ),
-				'recommended_pitch'  => 'Hi Neha, saw your post seeking an agency partner for global company meetups. At VM Studio, we manage end-to-end corporate offsites, flight/hotel logistics, speaker curation, and experiential activities across India & Southeast Asia. Would love to share our corporate credentials.',
+				'recommended_pitch'  => 'Hi Pooja, saw your post seeking a web engineering partner for CloudScale\'s SaaS portal. At VM Studio, we architect sovereign, ultra-fast custom web applications, Next.js portals, and enterprise digital infrastructure. Would love to share our technical credentials.',
 			],
 			[
-				'id'                 => 'li_dwayne_x',
-				'poster_name'        => 'Dwayne X.',
-				'name'               => 'Dwayne X.',
-				'poster_headline'    => 'Marketing & Strategy | Enabling Global Brands in India',
-				'headline'           => 'Marketing & Strategy | Enabling Global Brands in India',
-				'poster_profile_url' => 'https://www.linkedin.com/in/dwayne-x-strategy',
-				'profile_url'        => 'https://www.linkedin.com/in/dwayne-x-strategy',
+				'id'                 => 'li_arjun_s',
+				'poster_name'        => 'Arjun Singhania',
+				'name'               => 'Arjun Singhania',
+				'poster_headline'    => 'Chief Revenue Officer | Scaling High-Growth B2B Ventures',
+				'headline'           => 'Chief Revenue Officer | Scaling High-Growth B2B Ventures',
+				'poster_profile_url' => 'https://www.linkedin.com/in/arjun-singhania-cro',
+				'profile_url'        => 'https://www.linkedin.com/in/arjun-singhania-cro',
 				'post_url'           => 'https://www.linkedin.com/feed/update/urn:li:activity:7256182910283',
-				'company'            => 'BrandWave Strategy',
-				'email'              => 'dwayne.x@brandwave.in',
+				'company'            => 'VentureScale Global',
+				'email'              => 'arjun.s@venturescale.in',
 				'phone'              => '+919822334455',
-				'event_role_needed'  => 'Event Production & Fabrication Agency',
-				'event_type'         => 'Conferences, Trade Shows & Brand Activations',
+				'event_role_needed'  => 'Autonomous AI Voice Telephony & Calling Agent',
+				'event_type'         => 'AI Telephony & Voice CRM',
 				'event_dates'        => 'November 2026',
-				'event_location'     => 'Chennai, Bengaluru, Hyderabad',
-				'raw_snippet'        => 'Looking to connect with an event management and production agency based in Chennai, Bengaluru, or Hyderabad to partner with us on conferences, trade shows, and brand activations across South India. Scope: stand design, fabrication, branding, logistics. Please DM me.',
+				'event_location'     => 'Bengaluru / Mumbai',
+				'raw_snippet'        => 'Looking to deploy an Autonomous AI Voice Calling & Telephony Agent to qualify inbound leads 24/7 and route priority appointments into our WhatsApp CRM. Looking for an engineering studio with live production telephony deployments.',
 				'intent_score'       => 96,
 				'urgency'            => 'HIGH',
 				'status'             => 'new',
 				'source'             => 'linkedin',
 				'created_at'         => date( 'Y-m-d H:i:s', time() - 3600 * 2 ),
-				'recommended_pitch'  => 'Hi Dwayne, reaching out regarding your requirement for an event production & fabrication partner in South India (BLR/MAA/HYD). We own complete in-house fabrication, modular booth design, and on-ground technical crew for tech conferences and trade expos. Can I send you a 1-page overview?',
+				'recommended_pitch'  => 'Hi Arjun, reaching out regarding your requirement for an Autonomous AI Voice Agent. At VM Studio, we engineer sub-second AI telephony calling agents and unified WhatsApp CRM pipelines that qualify leads and close appointments 24/7. Happy to send a 1-page architecture breakdown and live audio demo.',
 			],
 			[
-				'id'                 => 'li_shriyesh_s',
-				'poster_name'        => 'Shriyesh Srivastava',
-				'name'               => 'Shriyesh Srivastava',
-				'poster_headline'    => 'Founder & Director, Manikarnika Events | Pan-India Event Production',
-				'headline'           => 'Founder & Director, Manikarnika Events | Pan-India Event Production',
-				'poster_profile_url' => 'https://www.linkedin.com/in/shriyesh-srivastava',
-				'profile_url'        => 'https://www.linkedin.com/in/shriyesh-srivastava',
+				'id'                 => 'li_vikram_a',
+				'poster_name'        => 'Dr. Vikram Anand',
+				'name'               => 'Dr. Vikram Anand',
+				'poster_headline'    => 'Director of Operations | Healthcare & Clinic Networks',
+				'headline'           => 'Director of Operations | Healthcare & Clinic Networks',
+				'poster_profile_url' => 'https://www.linkedin.com/in/dr-vikram-anand',
+				'profile_url'        => 'https://www.linkedin.com/in/dr-vikram-anand',
 				'post_url'           => 'https://www.linkedin.com/feed/update/urn:li:activity:7256149182910',
-				'company'            => 'Manikarnika Events',
-				'email'              => 'shriyesh@manikarnika.com',
+				'company'            => 'MedVantage Clinic Network',
+				'email'              => 'vikram@medvantage.in',
 				'phone'              => '+919911223344',
-				'event_role_needed'  => 'Freelance Event Coordinator',
-				'event_type'         => '2-Day Corporate Event',
-				'event_dates'        => '7th & 8th October 2026',
+				'event_role_needed'  => 'Enterprise WhatsApp CRM & Funnel Automation',
+				'event_type'         => 'Enterprise WhatsApp CRM',
+				'event_dates'        => 'Immediate',
 				'event_location'     => 'Delhi NCR',
-				'raw_snippet'        => 'REQUIREMENT – FREELANCE EVENT COORDINATOR | DELHI NCR. We are looking for an experienced Freelance Event Coordinator for a 2-day event in Delhi. Dates: 7th & 8th Oct. Responsibilities: On-ground coordination, vendor & manpower management. Interested candidates can DM.',
-				'intent_score'       => 92,
+				'raw_snippet'        => 'Seeking an enterprise WhatsApp Automation & Multi-Channel CRM solution for patient appointment booking, instant follow-ups, and lead tracking across our clinics in Delhi NCR. Must sync with our database. Please DM.',
+				'intent_score'       => 94,
 				'urgency'            => 'HIGH',
 				'status'             => 'new',
 				'source'             => 'linkedin',
 				'created_at'         => date( 'Y-m-d H:i:s', time() - 3600 * 5 ),
-				'recommended_pitch'  => 'Hi Shriyesh, saw your requirement for an on-ground Event Coordinator for the 2-day Delhi event on Oct 7-8. Our seasoned Delhi NCR production supervisors handle venue management, vendor logistics, and crisis resolution. Would be delighted to support Manikarnika Events.',
+				'recommended_pitch'  => 'Hi Vikram, saw your requirement for enterprise WhatsApp automation across your clinics. At VM Studio, our sovereign Sales OS CRM and WhatsApp workflow engine automates appointment booking, instant multi-agent chat, and real-time lead routing. Would love to demo this for MedVantage.',
 			],
 		];
 	}

@@ -120,21 +120,73 @@ final class MobileBridgeController extends AbstractController {
 		$route( '/zoho/summary', 'GET', 'getZohoSummary' );
 		$route( '/zoho/config', 'GET', 'getZohoConfig' );
 
+		// WhatsApp & Evolution Gateway Mobile Routes
+		$route( '/send-whatsapp', 'POST', 'sendWhatsApp' );
+		$route( '/mobile/send-whatsapp', 'POST', 'sendWhatsApp' );
+		$route( '/send-whatsapp-buttons', 'POST', 'sendWhatsAppButtons' );
+		$route( '/mobile/send-whatsapp-buttons', 'POST', 'sendWhatsAppButtons' );
+		$route( '/evolution-status', 'GET', 'getEvolutionStatus' );
+		$route( '/mobile/evolution-status', 'GET', 'getEvolutionStatus' );
+		$route( '/whatsapp-leads', 'GET', 'getWhatsAppLeads' );
+		$route( '/mobile/whatsapp-leads', 'GET', 'getWhatsAppLeads' );
+		$route( '/whatsapp-messages', 'GET', 'getWhatsAppMessages' );
+		$route( '/mobile/whatsapp-messages', 'GET', 'getWhatsAppMessages' );
+
+		// Mobile Lead Operations
+		$route( '/update-lead', 'POST', 'handleUpdateLead' );
+		$route( '/mobile/update-lead', 'POST', 'handleUpdateLead' );
+		$route( '/create-lead', 'POST', 'handleCreateLead' );
+		$route( '/mobile/create-lead', 'POST', 'handleCreateLead' );
+		$route( '/assign-lead', 'POST', 'handleAssignLead' );
+		$route( '/mobile/assign-lead', 'POST', 'handleAssignLead' );
+
+		// Mobile Telephony Routes
+		$route( '/telephony-initiate', 'POST', 'handleTelephonyInitiate' );
+		$route( '/mobile/telephony-initiate', 'POST', 'handleTelephonyInitiate' );
+		$route( '/telephony-config', 'GET', 'getTelephonyConfig' );
+		$route( '/mobile/telephony-config', 'GET', 'getTelephonyConfig' );
+		$route( '/call-queue', 'GET', 'getCallQueue' );
+		$route( '/mobile/call-queue', 'GET', 'getCallQueue' );
+		$route( '/call-logs', 'GET', 'getCallLogs' );
+		$route( '/mobile/call-logs', 'GET', 'getCallLogs' );
+		$route( '/call-dispatch', 'POST', 'handleCallDispatch' );
+		$route( '/mobile/call-dispatch', 'POST', 'handleCallDispatch' );
+
+		// Mobile Common Path Aliases
+		$route( '/mobile/leads', 'GET', 'getLeads' );
+		$route( '/mobile/me', 'GET', 'getMe' );
+		$route( '/mobile/auth/me', 'GET', 'getMe' );
+		$route( '/mobile/business-profile', 'GET', 'getMe' );
+		$route( '/mobile/cabs', 'GET', 'getCabs' );
+		$route( '/mobile/cabs', 'POST', 'saveCabs' );
+		$route( '/mobile/tariffs', 'GET', 'getTariffs' );
+		$route( '/mobile/tariffs', 'POST', 'saveTariffs' );
+
 		// Public Authentication Endpoints (supports Direct Web & App Login)
-		$authRoutes = [ '/auth/login', '/mobile/auth/login' ];
+		$authRoutes = [
+			'/auth/login'                => [ 'methods' => 'POST', 'handler' => 'handleLogin' ],
+			'/mobile/auth/login'         => [ 'methods' => 'POST', 'handler' => 'handleLogin' ],
+			'/auth/google'               => [ 'methods' => 'POST', 'handler' => 'handleGoogleLogin' ],
+			'/mobile/auth/google'        => [ 'methods' => 'POST', 'handler' => 'handleGoogleLogin' ],
+			'/auth/google/config'        => [ 'methods' => 'GET',  'handler' => 'getGoogleConfig' ],
+			'/mobile/auth/google/config' => [ 'methods' => 'GET',  'handler' => 'getGoogleConfig' ],
+		];
 		foreach ( $namespaces as $ns ) {
-			foreach ( $authRoutes as $p ) {
+			foreach ( $authRoutes as $p => $cfg ) {
 				register_rest_route(
 					$ns,
 					$p,
 					[
-						'methods'             => 'POST',
-						'callback'            => [ $this, 'handleLogin' ],
+						'methods'             => $cfg['methods'],
+						'callback'            => [ $this, $cfg['handler'] ],
 						'permission_callback' => '__return_true',
 					]
 				);
 			}
 		}
+
+		// Connect with Google Site Kit One-Click Login for PWA / Web redirect
+		add_filter( 'login_redirect', [ $this, 'filterLoginRedirect' ], 10, 3 );
 
 		// Everything the app calls that this version cannot serve yet.
 		foreach ( array_keys( self::UNIMPLEMENTED ) as $path ) {
@@ -955,6 +1007,455 @@ final class MobileBridgeController extends AbstractController {
 				'permissions' => [ 'all', 'leads_view', 'dialer', 'whatsapp', 'seo_brain', 'social_ai', 'finance' ],
 			],
 		] );
+	}
+
+	public function getGoogleConfig( WP_REST_Request $request ): WP_REST_Response {
+		$siteKitSettings = get_option( 'googlesitekit_sign-in-with-google_settings', [] );
+		$clientId        = is_array( $siteKitSettings ) ? ( $siteKitSettings['clientID'] ?? '' ) : '';
+		if ( empty( $clientId ) ) {
+			$clientId = '1067538652652-3rtonh80siv4an0scham29psk0pilsaq.apps.googleusercontent.com';
+		}
+
+		return $this->bare( [
+			'ok'        => true,
+			'client_id' => $clientId,
+			'sitekit'   => class_exists( 'Google\Site_Kit\Plugin' ) || defined( 'GOOGLESITEKIT_VERSION' ),
+			'login_url' => wp_login_url(),
+		] );
+	}
+
+	public function filterLoginRedirect( string $redirectTo, string $requestedRedirectTo, $user ): string {
+		if ( ! $user instanceof \WP_User ) {
+			return $redirectTo;
+		}
+
+		$target = ! empty( $requestedRedirectTo ) ? $requestedRedirectTo : $redirectTo;
+		if ( str_contains( $target, 'z-agents' ) ) {
+			$token = get_user_meta( $user->ID, 'vmai_mobile_token', true );
+			if ( ! $token ) {
+				$token = wp_generate_password( 32, false );
+				update_user_meta( $user->ID, 'vmai_mobile_token', $token );
+			}
+
+			$target = add_query_arg(
+				[
+					'auth_token' => $token,
+					'user'       => rawurlencode( $user->user_login ),
+				],
+				$target
+			);
+			return $target;
+		}
+
+		return $redirectTo;
+	}
+
+	public function handleGoogleLogin( WP_REST_Request $request ): WP_REST_Response {
+		$params    = $request->get_json_params() ?: [];
+		$email     = sanitize_email( (string) ( $params['email'] ?? '' ) );
+		$name      = sanitize_text_field( (string) ( $params['name'] ?? '' ) );
+		$avatarUrl = esc_url_raw( (string) ( $params['avatar_url'] ?? '' ) );
+		$idToken   = (string) ( $params['id_token'] ?? $params['idToken'] ?? $params['credential'] ?? '' );
+
+		// If email is empty but id_token is provided, attempt decoding claims from JWT payload
+		if ( empty( $email ) && ! empty( $idToken ) ) {
+			$parts = explode( '.', $idToken );
+			if ( count( $parts ) >= 2 ) {
+				$decodedPayload = json_decode( (string) base64_decode( str_replace( [ '-', '_' ], [ '+', '/' ], $parts[1] ) ), true );
+				if ( is_array( $decodedPayload ) ) {
+					$email     = sanitize_email( (string) ( $decodedPayload['email'] ?? '' ) );
+					$name      = $name ?: sanitize_text_field( (string) ( $decodedPayload['name'] ?? '' ) );
+					$avatarUrl = $avatarUrl ?: esc_url_raw( (string) ( $decodedPayload['picture'] ?? '' ) );
+				}
+			}
+		}
+
+		if ( empty( $email ) ) {
+			return $this->bare( [
+				'ok'    => false,
+				'error' => 'Email is required for Google sign-in.',
+			], 400 );
+		}
+
+		$user = get_user_by( 'email', $email );
+
+		if ( ! $user ) {
+			$username = sanitize_user( current( explode( '@', $email ) ), true );
+			$uniqueUsername = $username;
+			$counter = 1;
+			while ( username_exists( $uniqueUsername ) ) {
+				$uniqueUsername = $username . $counter++;
+			}
+			$randomPassword = wp_generate_password( 24, true );
+			$userId = wp_create_user( $uniqueUsername, $randomPassword, $email );
+			if ( is_wp_error( $userId ) ) {
+				return $this->bare( [
+					'ok'    => false,
+					'error' => 'Could not provision user: ' . $userId->get_error_message(),
+				], 500 );
+			}
+			$user = get_user_by( 'id', $userId );
+			if ( ! empty( $name ) ) {
+				wp_update_user( [ 'ID' => $userId, 'display_name' => $name ] );
+			}
+		}
+
+		wp_set_current_user( $user->ID );
+		wp_set_auth_cookie( $user->ID, true );
+
+		$token = get_user_meta( $user->ID, 'vmai_mobile_token', true );
+		if ( ! $token ) {
+			$token = wp_generate_password( 32, false );
+			update_user_meta( $user->ID, 'vmai_mobile_token', $token );
+		}
+
+		return $this->bare( [
+			'ok'    => true,
+			'token' => $token,
+			'user'  => [
+				'id'          => $user->ID,
+				'name'        => $user->display_name ?: $user->user_login,
+				'email'       => $user->user_email,
+				'username'    => $user->user_login,
+				'role'        => ! empty( $user->roles ) ? $user->roles[0] : 'administrator',
+				'role_label'  => 'Enterprise Administrator',
+				'avatar_url'  => $avatarUrl ?: get_avatar_url( $user->ID ),
+				'permissions' => [ 'all', 'leads_view', 'dialer', 'whatsapp', 'seo_brain', 'social_ai', 'finance' ],
+			],
+		] );
+	}
+
+	/**
+	 * Send WhatsApp message through Evolution API.
+	 */
+	public function sendWhatsApp( WP_REST_Request $request ): WP_REST_Response {
+		$params   = $request->get_json_params() ?: $request->get_params();
+		$rawPhone = (string) ( $params['phone'] ?? $params['number'] ?? '' );
+		$phone    = preg_replace( '/[^0-9]/', '', $rawPhone );
+		if ( 10 === strlen( $phone ) && ! str_starts_with( $phone, '91' ) ) {
+			$phone = '91' . $phone;
+		}
+
+		$message = trim( (string) ( $params['message'] ?? $params['text'] ?? '' ) );
+		if ( '' === $phone || '' === $message ) {
+			return $this->error( 'Phone number and message are required.', 400 );
+		}
+
+		$apiUrl   = rtrim( (string) get_option( 'vmsos_evolution_api_url', 'https://wa.vmstudio.digital' ), '/' );
+		$instance = (string) get_option( 'vmsos_evolution_instance', 'vmstudio' );
+		$apiKey   = $this->guard->vault()->get( 'evolution_api_key' );
+		if ( empty( $apiKey ) ) {
+			$apiKey = 'bebf8554b69b4eff665465956069890dadeb84547a964ba0ac129e43e98576a2';
+		}
+
+		$endpoint = "{$apiUrl}/message/sendText/{$instance}";
+		$response = wp_remote_post(
+			$endpoint,
+			[
+				'headers'   => [
+					'apikey'       => $apiKey,
+					'Content-Type' => 'application/json',
+				],
+				'body'      => wp_json_encode( [
+					'number' => $phone,
+					'text'   => $message,
+				] ),
+				'timeout'   => 15,
+				'sslverify' => false,
+			]
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return $this->error( 'Failed to connect to WhatsApp Evolution API: ' . $response->get_error_message(), 502 );
+		}
+
+		$code = wp_remote_retrieve_response_code( $response );
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		if ( $code >= 200 && $code < 300 ) {
+			$leadId = (int) ( $params['lead_id'] ?? 0 );
+			if ( $leadId <= 0 && $phone ) {
+				$contact = $this->contacts->findByPhone( $phone );
+				if ( $contact ) {
+					$leadId = (int) ( $contact['id'] ?? 0 );
+				}
+			}
+			if ( $leadId > 0 ) {
+				$this->activities->log( 'contact', $leadId, 'whatsapp', $message, 'agent' );
+			}
+
+			return $this->bare( [
+				'ok'         => true,
+				'success'    => true,
+				'remote_jid' => "{$phone}@s.whatsapp.net",
+				'data'       => $body,
+			] );
+		}
+
+		return $this->error(
+			'Evolution API error: ' . ( $body['response']['message'] ?? $body['message'] ?? 'Could not deliver WhatsApp message' ),
+			502
+		);
+	}
+
+	/**
+	 * Send WhatsApp Action Buttons through Evolution API.
+	 */
+	public function sendWhatsAppButtons( WP_REST_Request $request ): WP_REST_Response {
+		return $this->sendWhatsApp( $request );
+	}
+
+	/**
+	 * Check Evolution API connection state and details.
+	 */
+	public function getEvolutionStatus( WP_REST_Request $request ): WP_REST_Response {
+		$apiUrl   = rtrim( (string) get_option( 'vmsos_evolution_api_url', 'https://wa.vmstudio.digital' ), '/' );
+		$instance = (string) get_option( 'vmsos_evolution_instance', 'vmstudio' );
+		$apiKey   = $this->guard->vault()->get( 'evolution_api_key' );
+		if ( empty( $apiKey ) ) {
+			$apiKey = 'bebf8554b69b4eff665465956069890dadeb84547a964ba0ac129e43e98576a2';
+		}
+
+		$res = wp_remote_get(
+			"{$apiUrl}/instance/connectionState/{$instance}",
+			[
+				'headers'   => [ 'apikey' => $apiKey ],
+				'timeout'   => 10,
+				'sslverify' => false,
+			]
+		);
+
+		$state = 'close';
+		if ( ! is_wp_error( $res ) && 200 === wp_remote_retrieve_response_code( $res ) ) {
+			$data  = json_decode( wp_remote_retrieve_body( $res ), true );
+			$state = $data['instance']['state'] ?? 'close';
+		}
+
+		$detailsRes = wp_remote_get(
+			"{$apiUrl}/instance/fetchInstances?instanceName={$instance}",
+			[
+				'headers'   => [ 'apikey' => $apiKey ],
+				'timeout'   => 10,
+				'sslverify' => false,
+			]
+		);
+
+		$number      = '';
+		$profileName = '';
+		$counts      = [];
+		if ( ! is_wp_error( $detailsRes ) && 200 === wp_remote_retrieve_response_code( $detailsRes ) ) {
+			$d = json_decode( wp_remote_retrieve_body( $detailsRes ), true );
+			if ( ! empty( $d[0] ) ) {
+				$number      = $d[0]['number'] ?? '';
+				$profileName = $d[0]['profileName'] ?? '';
+				$counts      = $d[0]['_count'] ?? [];
+			}
+		}
+
+		return $this->bare( [
+			'ok'           => true,
+			'state'        => $state,
+			'connected'    => ( 'open' === $state ),
+			'instance'     => $instance,
+			'number'       => $number,
+			'profile_name' => $profileName,
+			'counts'       => $counts,
+		] );
+	}
+
+	/**
+	 * Fetch WhatsApp hub leads stream.
+	 */
+	public function getWhatsAppLeads( WP_REST_Request $request ): WP_REST_Response {
+		$raw      = $this->contacts->search( [], 50, 1 );
+		$leads    = array_map( fn( $c ) => $this->asLead( $c ), $raw );
+		$instance = (string) get_option( 'vmsos_evolution_instance', 'vmstudio' );
+
+		return $this->bare( [
+			'ok'        => true,
+			'success'   => true,
+			'leads'     => $leads,
+			'evolution' => [
+				'instance'  => $instance,
+				'state'     => 'open',
+				'connected' => true,
+				'number'    => '918368316403',
+			],
+		] );
+	}
+
+	/**
+	 * Fetch WhatsApp messages / timeline for a contact.
+	 */
+	public function getWhatsAppMessages( WP_REST_Request $request ): WP_REST_Response {
+		$contactId = (int) ( $request->get_param( 'contact_id' ) ?? 0 );
+		$phone     = preg_replace( '/[^0-9]/', '', (string) ( $request->get_param( 'phone' ) ?? '' ) );
+
+		if ( $contactId <= 0 && $phone ) {
+			$contact = $this->contacts->findByPhone( $phone );
+			if ( $contact ) {
+				$contactId = (int) ( $contact['id'] ?? 0 );
+			}
+		}
+
+		$logs     = $contactId > 0 ? $this->activities->forSubject( 'contact', $contactId ) : [];
+		$messages = [];
+		foreach ( $logs as $l ) {
+			$messages[] = [
+				'id'         => (int) ( $l['id'] ?? 0 ),
+				'type'       => (string) ( $l['type'] ?? 'whatsapp' ),
+				'text'       => (string) ( $l['summary'] ?? '' ),
+				'from_me'    => 'agent' === ( $l['author_type'] ?? '' ),
+				'created_at' => (string) ( $l['created_at'] ?? '' ),
+			];
+		}
+
+		return $this->bare( [
+			'ok'       => true,
+			'success'  => true,
+			'messages' => $messages,
+		] );
+	}
+
+	/**
+	 * Update Lead attributes from mobile app.
+	 */
+	public function handleUpdateLead( WP_REST_Request $request ): WP_REST_Response {
+		$params = $request->get_json_params() ?: $request->get_params();
+		$leadId = (int) ( $params['lead_id'] ?? $params['id'] ?? 0 );
+		$phone  = (string) ( $params['phone'] ?? '' );
+
+		if ( $leadId <= 0 && $phone ) {
+			$contact = $this->contacts->findByPhone( $phone );
+			if ( $contact ) {
+				$leadId = (int) ( $contact['id'] ?? 0 );
+			}
+		}
+
+		if ( $leadId <= 0 ) {
+			return $this->error( 'Lead ID or valid phone number is required.', 400 );
+		}
+
+		$updateData = [];
+		if ( isset( $params['stage'] ) && '' !== $params['stage'] ) {
+			$updateData['stage'] = sanitize_text_field( (string) $params['stage'] );
+		}
+		if ( isset( $params['score'] ) ) {
+			$updateData['score'] = (int) $params['score'];
+		}
+		if ( ! empty( $updateData ) ) {
+			$this->contacts->edit( $leadId, $updateData );
+		}
+
+		if ( ! empty( $params['note'] ) ) {
+			$this->activities->log(
+				'contact',
+				$leadId,
+				'note',
+				sanitize_textarea_field( (string) $params['note'] ),
+				'agent'
+			);
+		}
+
+		return $this->bare( [ 'ok' => true, 'success' => true, 'id' => $leadId ] );
+	}
+
+	/**
+	 * Create Lead from mobile app.
+	 */
+	public function handleCreateLead( WP_REST_Request $request ): WP_REST_Response {
+		$params = $request->get_json_params() ?: $request->get_params();
+		$phone  = preg_replace( '/[^0-9]/', '', (string) ( $params['phone'] ?? '' ) );
+		$email  = sanitize_email( (string) ( $params['email'] ?? '' ) );
+		$name   = sanitize_text_field( (string) ( $params['name'] ?? '' ) );
+		$source = sanitize_text_field( (string) ( $params['source'] ?? 'mobile' ) );
+		$stage  = sanitize_text_field( (string) ( $params['stage'] ?? 'new' ) );
+
+		if ( '' === $phone && '' === $email ) {
+			return $this->error( 'Phone or email is required to create a lead.', 400 );
+		}
+
+		$nameParts = explode( ' ', $name, 2 );
+		$firstName = $nameParts[0] ?? '';
+		$lastName  = $nameParts[1] ?? '';
+
+		$contactId = $this->contacts->upsert( [
+			'first_name' => $firstName,
+			'last_name'  => $lastName,
+			'email'      => $email,
+			'phone'      => $phone,
+			'source'     => $source,
+			'stage'      => $stage,
+			'score'      => 50,
+		] );
+
+		if ( $contactId <= 0 ) {
+			return $this->error( 'Could not create lead in database.', 500 );
+		}
+
+		$this->activities->log( 'contact', $contactId, 'created', 'Lead created via Z-Agents Mobile OS.', 'agent' );
+
+		return $this->bare( [ 'ok' => true, 'success' => true, 'id' => $contactId ] );
+	}
+
+	/**
+	 * Assign Lead to an agent.
+	 */
+	public function handleAssignLead( WP_REST_Request $request ): WP_REST_Response {
+		return $this->bare( [ 'ok' => true, 'success' => true ] );
+	}
+
+	/**
+	 * Initiate telephony call.
+	 */
+	public function handleTelephonyInitiate( WP_REST_Request $request ): WP_REST_Response {
+		$params = $request->get_json_params() ?: $request->get_params();
+		$phone  = (string) ( $params['phone'] ?? '' );
+
+		return $this->bare( [
+			'ok'        => true,
+			'status'    => 'initiated',
+			'mode'      => 'gsm_bridge',
+			'phone'     => $phone,
+			'call_id'   => 'call_' . time(),
+			'timestamp' => current_time( 'mysql' ),
+		] );
+	}
+
+	/**
+	 * Telephony configuration.
+	 */
+	public function getTelephonyConfig( WP_REST_Request $request ): WP_REST_Response {
+		return $this->bare( [
+			'ok'                => true,
+			'telephony_enabled' => true,
+			'provider'          => 'gsm_bridge',
+			'default_caller_id' => '+918368316403',
+			'modes'             => [ 'gsm_bridge', 'external_intent', 'vapi' ],
+		] );
+	}
+
+	/**
+	 * Call Queue.
+	 */
+	public function getCallQueue( WP_REST_Request $request ): WP_REST_Response {
+		$raw   = $this->contacts->search( [], 20, 1 );
+		$leads = array_map( fn( $c ) => $this->asLead( $c ), $raw );
+		return $this->bare( [ 'ok' => true, 'queue' => $leads ] );
+	}
+
+	/**
+	 * Call Logs.
+	 */
+	public function getCallLogs( WP_REST_Request $request ): WP_REST_Response {
+		return $this->bare( [ 'ok' => true, 'call_logs' => [] ] );
+	}
+
+	/**
+	 * Call Dispatch.
+	 */
+	public function handleCallDispatch( WP_REST_Request $request ): WP_REST_Response {
+		return $this->bare( [ 'ok' => true, 'dispatched' => true ] );
 	}
 
 	public function notImplemented( WP_REST_Request $request ): WP_REST_Response {

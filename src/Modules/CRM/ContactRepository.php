@@ -64,9 +64,9 @@ final class ContactRepository extends Repository {
 			'first_name'   => sanitize_text_field( (string) ( $input['first_name'] ?? '' ) ),
 			'last_name'    => sanitize_text_field( (string) ( $input['last_name'] ?? '' ) ),
 			'email'        => $email,
-			'email_hash'   => self::hash( $email ),
+			'email_hash'   => '' !== $email ? self::hash( $email ) : ( '' !== $phone ? md5( 'no_email_' . $phone ) : md5( 'no_email_' . uniqid( 'c_', true ) ) ),
 			'phone'        => $phone,
-			'phone_hash'   => self::hash( $phone ),
+			'phone_hash'   => '' !== $phone ? self::hash( $phone ) : md5( 'no_phone_' . uniqid( 'c_', true ) ),
 			'source'       => sanitize_text_field( (string) ( $input['source'] ?? 'web' ) ),
 			'requirements' => mb_substr( wp_strip_all_tags( (string) ( $input['requirements'] ?? '' ) ), 0, 2000 ),
 			'consent'      => ! empty( $input['consent'] ) ? 1 : 0,
@@ -104,7 +104,11 @@ final class ContactRepository extends Repository {
 				}
 			}
 			$fields['updated_at'] = $this->now();
-			$this->update( (int) $existing['id'], $fields, array_fill( 0, count( $fields ), '%s' ) );
+						$updateFormats = [];
+			foreach ( $fields as $k => $v ) {
+				$updateFormats[] = in_array( $k, [ 'score', 'company_id', 'consent', 'owner_id' ], true ) ? '%d' : '%s';
+			}
+			$this->update( (int) $existing['id'], $fields, $updateFormats );
 			return (int) $existing['id'];
 		}
 
@@ -178,7 +182,7 @@ final class ContactRepository extends Repository {
 		return $out;
 	}
 
-	/** subscribed | unsubscribed | bounced — empty means never asked. */
+	/** subscribed | unsubscribed | bounced Ã¢â‚¬â€ empty means never asked. */
 	public function setMarketingStatus( int $id, string $status ): bool {
 		return $this->update(
 			$id,

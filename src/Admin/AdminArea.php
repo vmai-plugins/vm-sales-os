@@ -1253,6 +1253,7 @@ final class AdminArea {
 											$leadUrl     = esc_url( (string) ( $lead['poster_profile_url'] ?? $lead['profile_url'] ?? '' ) );
 											$intentScore = (int) ( $lead['intent_score'] ?? 85 );
 											$cleanPhone  = preg_replace( '/[^0-9]/', '', $leadPhone );
+											$waPhone     = ( strlen( $cleanPhone ) === 10 ) ? '91' . $cleanPhone : $cleanPhone;
 										?>
 										<tr>
 											<td>
@@ -1290,7 +1291,7 @@ final class AdminArea {
 											<td>
 												<div style="display: flex; gap: 6px; flex-wrap: wrap;">
 													<?php if ( $cleanPhone ) : ?>
-														<a href="https://wa.me/<?php echo $cleanPhone; ?>" target="_blank" class="button button-small" style="background: #25D366; color: #fff; border-color: #25D366; display: inline-flex; align-items: center; gap: 4px;">
+														<a href="https://wa.me/<?php echo $waPhone; ?>" target="_blank" class="button button-small" style="background: #25D366; color: #fff; border-color: #25D366; display: inline-flex; align-items: center; gap: 4px;">
 															<span class="dashicons dashicons-whatsapp" style="font-size: 13px; width: 13px; height: 13px;"></span> WA
 														</a>
 														<a href="tel:<?php echo $leadPhone; ?>" class="button button-small" style="background: #0ea5e9; color: #fff; border-color: #0ea5e9; display: inline-flex; align-items: center; gap: 4px;">
@@ -1399,19 +1400,39 @@ final class AdminArea {
 					});
 				});
 
-				// LinkedIn Helper Handlers
+				// LinkedIn Helper Handlers with Fallback for Insecure HTTP Contexts
+				function vmsosFallbackCopy(text, cb) {
+					var ta = document.createElement('textarea');
+					ta.value = text;
+					ta.style.position = 'fixed';
+					ta.style.opacity = '0';
+					document.body.appendChild(ta);
+					ta.select();
+					try {
+						document.execCommand('copy');
+						if (cb) cb();
+					} catch (_) {}
+					document.body.removeChild(ta);
+				}
+
 				window.vmsosCopyWebhook = function() {
 					var code = document.getElementById('vmsos-linkedin-webhook-display');
-					if (code) {
-						var text = code.innerText.trim();
-						navigator.clipboard.writeText(text).then(function() {
-							var status = document.getElementById('vmsos-copy-status');
-							if (status) {
-								var orig = status.innerText;
-								status.innerText = 'Copied to Clipboard!';
-								setTimeout(function() { status.innerText = orig; }, 3000);
-							}
+					if (!code) return;
+					var text = code.innerText.trim();
+					function updateLabel() {
+						var status = document.getElementById('vmsos-copy-status');
+						if (status) {
+							var orig = status.innerText;
+							status.innerText = 'Copied to Clipboard!';
+							setTimeout(function() { status.innerText = orig; }, 3000);
+						}
+					}
+					if (navigator.clipboard && navigator.clipboard.writeText) {
+						navigator.clipboard.writeText(text).then(updateLabel).catch(function() {
+							vmsosFallbackCopy(text, updateLabel);
 						});
+					} else {
+						vmsosFallbackCopy(text, updateLabel);
 					}
 				};
 
@@ -1461,7 +1482,8 @@ final class AdminArea {
 						btn.disabled = false;
 						spinner.classList.remove('is-active');
 
-						if (data.success || data.lead) {
+						var payload = (data && data.data) ? data.data : data;
+						if (payload && (payload.success || payload.lead || data.success || data.lead)) {
 							alertBox.style.display = 'block';
 							alertBox.style.background = 'rgba(16, 185, 129, 0.2)';
 							alertBox.style.border = '1px solid #10b981';
@@ -1482,7 +1504,7 @@ final class AdminArea {
 							alertBox.style.background = 'rgba(239, 68, 68, 0.2)';
 							alertBox.style.border = '1px solid #ef4444';
 							alertBox.style.color = '#fca5a5';
-							alertBox.innerText = data.message || 'Failed to import lead.';
+							alertBox.innerText = (payload && payload.message) || data.message || 'Failed to import lead.';
 						}
 					})
 					.catch(function(err) {
@@ -1502,7 +1524,7 @@ final class AdminArea {
 					})
 					.then(function(res) { return res.json(); })
 					.then(function(data) {
-						var leads = (data && data.leads) ? data.leads : [];
+						var leads = (data && data.data && data.data.leads) ? data.data.leads : ((data && data.leads) ? data.leads : []);
 						var tbody = document.getElementById('vmsos-linkedin-leads-tbody');
 						if (!tbody) return;
 
@@ -1527,6 +1549,8 @@ final class AdminArea {
 							var score = lead.intent_score || 85;
 							var status = (lead.status || 'new').toUpperCase();
 							var cleanPhone = phone.replace(/[^0-9]/g, '');
+							var waPhone = cleanPhone;
+							if (waPhone.length === 10) { waPhone = '91' + waPhone; }
 
 							html += '<tr>';
 							html += '<td><strong style="color: #fff; font-size: 14px;">' + escapeHtml(name) + '</strong>';
@@ -1561,7 +1585,7 @@ final class AdminArea {
 
 							html += '<td><div style="display: flex; gap: 6px; flex-wrap: wrap;">';
 							if (cleanPhone) {
-								html += '<a href="https://wa.me/' + cleanPhone + '" target="_blank" class="button button-small" style="background: #25D366; color: #fff; border-color: #25D366; display: inline-flex; align-items: center; gap: 4px;"><span class="dashicons dashicons-whatsapp" style="font-size: 13px; width: 13px; height: 13px;"></span> WA</a>';
+								html += '<a href="https://wa.me/' + waPhone + '" target="_blank" class="button button-small" style="background: #25D366; color: #fff; border-color: #25D366; display: inline-flex; align-items: center; gap: 4px;"><span class="dashicons dashicons-whatsapp" style="font-size: 13px; width: 13px; height: 13px;"></span> WA</a>';
 								html += '<a href="tel:' + escapeHtml(phone) + '" class="button button-small" style="background: #0ea5e9; color: #fff; border-color: #0ea5e9; display: inline-flex; align-items: center; gap: 4px;"><span class="dashicons dashicons-phone" style="font-size: 13px; width: 13px; height: 13px;"></span> Call</a>';
 							}
 							html += '</div></td>';

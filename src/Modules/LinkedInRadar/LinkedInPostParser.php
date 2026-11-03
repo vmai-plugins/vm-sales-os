@@ -59,74 +59,67 @@ final class LinkedInPostParser {
 			if ( preg_match( '/^([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/m', $raw, $m ) ) {
 				$authorName = $m[1];
 			} else {
-				$authorName = 'Event Host';
+				$authorName = 'Tech Lead / Founder';
 			}
 		}
 
 		// Detect City / Location
-		$location = 'India';
-		if ( preg_match( '/\b(Delhi|Delhi NCR|Noida|Gurgaon|Gurugram|CP|Connaught Place)\b/i', $raw, $m ) ) {
+		$location = 'India / Global';
+		if ( preg_match( '/\b(Delhi|Delhi NCR|Noida|Gurgaon|Gurugram)\b/i', $raw, $m ) ) {
 			$location = 'Delhi NCR';
 		} elseif ( preg_match( '/\b(Bengaluru|Bangalore)\b/i', $raw ) ) {
 			$location = 'Bengaluru';
-		} elseif ( preg_match( '/\b(Mumbai|Navi Mumbai|Thane)\b/i', $raw ) ) {
-			$location = 'Mumbai';
-		} elseif ( preg_match( '/\b(Chennai)\b/i', $raw ) ) {
-			$location = 'Chennai';
-		} elseif ( preg_match( '/\b(Hyderabad)\b/i', $raw ) ) {
-			$location = 'Hyderabad';
-		} elseif ( preg_match( '/\b(Goa|Jaipur|Udaipur|Pune|Kolkata)\b/i', $raw, $m ) ) {
+		} elseif ( preg_match( '/\b(Mumbai|Navi Mumbai|Pune)\b/i', $raw ) ) {
+			$location = 'Mumbai / Pune';
+		} elseif ( preg_match( '/\b(Hyderabad|Chennai)\b/i', $raw, $m ) ) {
 			$location = ucfirst( strtolower( $m[1] ) );
+		} elseif ( preg_match( '/\b(USA|US|UK|UAE|Dubai|Singapore|Europe)\b/i', $raw, $m ) ) {
+			$location = strtoupper( $m[1] );
 		}
 
-		// Detect Role / Requirement Type
-		$role = 'Event Management & Execution';
-		if ( preg_match( '/\b(?:freelance\s+)?event\s+coordinator\b/i', $raw ) ) {
-			$role = 'Freelance Event Coordinator';
-		} elseif ( preg_match( '/\b(?:freelance\s+)?event\s+manager\b/i', $raw ) ) {
-			$role = 'Freelance Event Manager';
-		} elseif ( preg_match( '/\b(?:corporate\s+event\s+planner|corporate\s+meetups?|global\s+company\s+meetups?)\b/i', $raw ) ) {
-			$role = 'Corporate Event Agency / Planner';
-		} elseif ( preg_match( '/\b(?:production\s+agency|exhibition\s+stand|brand\s+activations?|trade\s+shows?)\b/i', $raw ) ) {
-			$role = 'Event Production & Fabrication Agency';
-		} elseif ( preg_match( '/\bluxury\s+(?:brand\s+)?launch\b/i', $raw ) ) {
-			$role = 'Luxury Event Producer';
+		// Detect Role / Service Needed (VM Studio core competencies)
+		$role = 'Custom Web Architecture & Enterprise AI Automation';
+		if ( preg_match( '/\b(?:web\s*developer|web\s*development|next\.?js|react|frontend|custom\s*website|web\s*app|saas\s*portal|wordpress\s*custom)\b/i', $raw ) ) {
+			$role = 'Sovereign Custom Web Architecture & Next.js Portal';
+		} elseif ( preg_match( '/\b(?:telephony|calling\s*agent|voice\s*ai|ai\s*caller|superfone|vapi|retell|inbound\s*calls?|cold\s*calling)\b/i', $raw ) ) {
+			$role = 'Autonomous AI Voice Telephony & Calling Agent';
+		} elseif ( preg_match( '/\b(?:whatsapp\s*crm|whatsapp\s*automation|lead\s*routing|crm\s*pipeline|funnel\s*automation|hubspot\s*alternative)\b/i', $raw ) ) {
+			$role = 'Enterprise WhatsApp CRM & Funnel Automation';
+		} elseif ( preg_match( '/\b(?:seo\s*agency|seo\s*expert|organic\s*traffic|content\s*engine|growth\s*audit)\b/i', $raw ) ) {
+			$role = 'High-Performance SEO & Autonomous Content Engine';
 		}
 
-		// Detect Event Type
-		$eventType = 'Corporate Event';
-		if ( preg_match( '/\b(?:meetup|retreat|offsite|ted-style|speaker\s+session)\b/i', $raw ) ) {
-			$eventType = 'Corporate Meetup & Offsite';
-		} elseif ( preg_match( '/\b(?:luxury|brand\s+launch)\b/i', $raw ) ) {
-			$eventType = 'Luxury Brand Launch';
-		} elseif ( preg_match( '/\b(?:conference|trade\s+show|exhibition)\b/i', $raw ) ) {
-			$eventType = 'Conference & Trade Show';
-		} elseif ( preg_match( '/\b(?:on-ground|2-day|activation)\b/i', $raw ) ) {
-			$eventType = 'On-Ground Brand Activation';
+		// Detect Project Scope / Category
+		$eventType = 'Enterprise Digital Acceleration';
+		if ( preg_match( '/\b(?:mvp|rebuild|portal|platform|dashboard|saas)\b/i', $raw ) ) {
+			$eventType = 'SaaS Portal & Custom Web Application';
+		} elseif ( preg_match( '/\b(?:voice|phone|calling|appointment\s*setting)\b/i', $raw ) ) {
+			$eventType = 'Autonomous AI Voice Telephony & CRM';
+		} elseif ( preg_match( '/\b(?:whatsapp|messaging|lead\s*qualification)\b/i', $raw ) ) {
+			$eventType = 'Enterprise WhatsApp CRM Automation';
+		} elseif ( preg_match( '/\b(?:seo|traffic|rankings|organic)\b/i', $raw ) ) {
+			$eventType = 'Autonomous SEO & Inbound Lead Engine';
 		}
 
-		// Detect Dates
-		$dates = 'Upcoming';
-		if ( preg_match( '/\b(\d{1,2}(?:st|nd|rd|th)?(?:\s*&?\s*\d{1,2}(?:st|nd|rd|th)?)?\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:\s+\d{4})?)\b/i', $raw, $m ) ) {
-			$dates = $m[1];
+		// Detect Timeline / Dates
+		$dates = 'Immediate / Q4';
+		if ( preg_match( '/\b(immediately|urgent|asap|next\s+week|this\s+month|q4|q1)\b/i', $raw, $m ) ) {
+			$dates = ucfirst( strtolower( $m[1] ) );
 		}
 
 		// Calculate Intent Score (0 - 100)
-		$score = 75; // baseline for relevant post
-		if ( preg_match( '/\b(DM|direct message|looking for|requirement|partner with us|connect)\b/i', $raw ) ) {
+		$score = 80;
+		if ( preg_match( '/\b(DM|direct message|looking for|hiring|agency|developer|partner with us|recommendations?|budget)\b/i', $raw ) ) {
 			$score += 15;
 		}
-		if ( 'Upcoming' !== $dates ) {
-			$score += 5; // Has specific dates
-		}
-		if ( 'India' !== $location ) {
-			$score += 5; // Has specific city
+		if ( 'India / Global' !== $location ) {
+			$score += 4;
 		}
 		$score = min( 99, $score );
 
 		return [
 			'poster_name'        => $authorName,
-			'poster_headline'    => $headline ?: 'Event Decision Maker',
+			'poster_headline'    => $headline ?: 'Technology Decision Maker',
 			'poster_profile_url' => $profileUrl,
 			'post_url'           => $postUrl,
 			'event_role_needed'  => $role,
@@ -135,7 +128,7 @@ final class LinkedInPostParser {
 			'event_location'     => $location,
 			'raw_snippet'        => mb_substr( $raw, 0, 500 ),
 			'intent_score'       => $score,
-			'urgency'            => ( 'Upcoming' !== $dates ) ? 'HIGH' : 'MEDIUM',
+			'urgency'            => ( 'Immediate' === $dates || 'Asap' === $dates ) ? 'HIGH' : 'MEDIUM',
 			'source'             => 'linkedin_radar',
 		];
 	}
@@ -149,17 +142,17 @@ final class LinkedInPostParser {
 		}
 
 		$prompt = <<<PROMPT
-You are an expert B2B sales intelligence agent for an Event Management, Production & Corporate MICE Agency.
+You are an expert B2B sales intelligence agent for VM Studio (Specializing in Sovereign Custom Web Architecture, Next.js, Autonomous AI Voice Telephony & Calling Agents, and Enterprise WhatsApp CRM).
 Analyze this LinkedIn post and output a strict JSON object with these keys:
 {
   "poster_name": "Full name or best guess",
-  "poster_headline": "Job title/headline if mentioned",
-  "event_role_needed": "Exact service or role they are seeking (e.g. Corporate Event Agency, Freelance Coordinator, Exhibition Fabricator)",
-  "event_type": "Event type (e.g. Global Corporate Meetup, Luxury Brand Launch, Trade Show)",
-  "event_dates": "Extracted dates or 'Upcoming'",
-  "event_location": "Target city/region or 'India'",
+  "poster_headline": "Job title or headline",
+  "event_role_needed": "Exact service needed (e.g. Sovereign Custom Web Architecture, Autonomous AI Voice Telephony, Enterprise WhatsApp CRM, AI SEO Growth)",
+  "event_type": "Project category (e.g. SaaS Web App Rebuild, AI Voice Telephony & Lead Qualification, WhatsApp CRM Funnel)",
+  "event_dates": "Timeline or 'Immediate'",
+  "event_location": "Target city/region or 'India / Global'",
   "intent_score": Integer 0-100 indicating buyer seriousness,
-  "recommended_pitch": "A 2-3 sentence ultra-crisp, professional LinkedIn DM pitch addressing them by first name, citing their specific requirements and offering a portfolio/call without being spammy"
+  "recommended_pitch": "A 2-3 sentence ultra-crisp, professional LinkedIn DM pitch addressing them by first name, citing their specific requirements and offering a live demo or technical overview without sounding like spam"
 }
 
 LinkedIn Post Content:
@@ -192,21 +185,21 @@ PROMPT;
 	 */
 	public function generateDefaultPitch( array $lead, string $angle = 'agency' ): string {
 		$firstName = explode( ' ', (string) ( $lead['poster_name'] ?? 'there' ) )[0];
-		$role      = (string) ( $lead['event_role_needed'] ?? 'event planning' );
-		$location  = (string) ( $lead['event_location'] ?? 'your location' );
-		$eventType = (string) ( $lead['event_type'] ?? 'upcoming event' );
-		$dates     = (string) ( $lead['event_dates'] ?? '' );
+		$role      = (string) ( $lead['event_role_needed'] ?? 'Custom Web Architecture' );
+		$location  = (string) ( $lead['event_location'] ?? 'your region' );
+		$eventType = (string) ( $lead['event_type'] ?? 'digital architecture' );
 
-		if ( 'coordinator' === $angle || str_contains( strtolower( $role ), 'coordinator' ) || str_contains( strtolower( $role ), 'freelance' ) ) {
-			$dateRef = ( $dates && 'Upcoming' !== $dates ) ? " on {$dates}" : '';
-			return "Hi {$firstName}, saw your requirement for a {$role} in {$location}{$dateRef}. Our team handles on-ground event management, VIP delegation, and venue fabrication across {$location}. Would love to share our event deck and recent execution portfolio with you. Can I send that across?";
+		// 1. AI Telephony / Calling Agent Pitch
+		if ( 'telephony' === $angle || str_contains( strtolower( $role ), 'telephony' ) || str_contains( strtolower( $role ), 'voice' ) ) {
+			return "Hi {$firstName}, reaching out regarding your requirement for autonomous voice telephony. At VM Studio, we engineer sub-second AI voice calling agents that qualify inbound leads 24/7 and route priority bookings into WhatsApp CRM. Happy to share our 1-page architecture overview and a live demo.";
 		}
 
-		if ( 'luxury' === $angle || str_contains( strtolower( $eventType ), 'luxury' ) ) {
-			return "Hi {$firstName}, reaching out regarding your {$eventType} in {$location}. We specialize in high-touch brand activations, curated stage design, and seamless on-ground production. Happy to share our luxury event credentials and case studies. Would you be open to a quick 5-min connect?";
+		// 2. WhatsApp CRM / Automation Pitch
+		if ( 'crm' === $angle || str_contains( strtolower( $role ), 'crm' ) || str_contains( strtolower( $role ), 'whatsapp' ) ) {
+			return "Hi {$firstName}, saw your post regarding CRM and lead management. At VM Studio, our sovereign Sales OS CRM integrates enterprise WhatsApp automation, multi-agent chat, and real-time lead qualification. Would love to send a quick walkthrough of our system.";
 		}
 
-		// Default Corporate Agency / MICE Pitch
-		return "Hi {$firstName}, saw your post seeking an agency for {$eventType} in {$location}. We manage end-to-end corporate gatherings, flight/hotel logistics, speaker sessions, and custom booth fabrication across India & globally. Would love to share a tailored proposal. What's the best email to send our credential deck?";
+		// 3. Web Architecture / Next.js / SaaS Pitch (Default)
+		return "Hi {$firstName}, saw your requirement for {$role}. At VM Studio, we specialize in sovereign custom web architecture, ultra-fast Next.js applications, and scalable digital infrastructure. Would love to share our technical credentials and recent case studies. Can I send that across to your email?";
 	}
 }

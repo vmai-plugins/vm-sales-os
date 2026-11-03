@@ -67,5 +67,36 @@ final class CompatModule extends Module {
 
 	public function boot( Container $container ): void {
 		$container->get( RestRouter::class )->add( MobileBridgeController::class );
+
+		// Connect with Google Site Kit One-Click Login for PWA / Web redirect
+		add_filter(
+			'login_redirect',
+			static function( string $redirectTo, string $requestedRedirectTo, $user ): string {
+				if ( ! $user instanceof \WP_User ) {
+					return $redirectTo;
+				}
+
+				$target = ! empty( $requestedRedirectTo ) ? $requestedRedirectTo : $redirectTo;
+				if ( str_contains( $target, 'z-agents' ) ) {
+					$token = get_user_meta( $user->ID, 'vmai_mobile_token', true );
+					if ( ! $token ) {
+						$token = wp_generate_password( 32, false );
+						update_user_meta( $user->ID, 'vmai_mobile_token', $token );
+					}
+
+					return add_query_arg(
+						[
+							'auth_token' => $token,
+							'user'       => rawurlencode( $user->user_login ),
+						],
+						$target
+					);
+				}
+
+				return $redirectTo;
+			},
+			10,
+			3
+		);
 	}
 }

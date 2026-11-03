@@ -35,6 +35,10 @@ final class ApiKeyGuard {
 
 	public function __construct( private Vault $vault ) {}
 
+	public function vault(): Vault {
+		return $this->vault;
+	}
+
 	/**
 	 * Permission callback. Returns true, or a WP_Error carrying the right status
 	 * so the app can tell "no key" (401) from "wrong key" (403).
@@ -66,6 +70,13 @@ final class ApiKeyGuard {
 		}
 
 		if ( $this->matchesAccountKey( $presented ) ) {
+			$this->brandId = 0;
+			return true;
+		}
+
+		$userId = $this->matchUserToken( $presented );
+		if ( $userId > 0 ) {
+			wp_set_current_user( $userId );
 			$this->brandId = 0;
 			return true;
 		}
@@ -131,6 +142,26 @@ final class ApiKeyGuard {
 		}
 
 		return $match;
+	}
+
+	/**
+	 * Matches user-level token stored in wp_usermeta ('vmai_mobile_token').
+	 */
+	private function matchUserToken( string $presented ): int {
+		if ( '' === $presented ) {
+			return 0;
+		}
+
+		global $wpdb;
+
+		$userId = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT user_id FROM {$wpdb->usermeta} WHERE meta_key = 'vmai_mobile_token' AND meta_value = %s LIMIT 1",
+				$presented
+			)
+		);
+
+		return $userId > 0 ? $userId : 0;
 	}
 
 	/**
