@@ -837,12 +837,73 @@ final class MobileBridgeController extends AbstractController {
 	 * A 501 with a `feature` key so the gap is visible in logs and in the app,
 	 * instead of a 404 the client would render as an empty screen.
 	 */
+	/**
+	 * Map WordPress user roles to granular Sales OS permissions & human-readable labels.
+	 *
+	 * @param \WP_User|null $user
+	 * @return array{role: string, role_label: string, permissions: array<string>}
+	 */
+	private function resolveUserRoleProfile( ?\WP_User $user ): array {
+		if ( ! $user || ! $user->exists() ) {
+			return [
+				'role'        => 'administrator',
+				'role_label'  => 'Enterprise Administrator',
+				'permissions' => [ 'all', 'leads_view', 'leads_manage', 'dialer', 'whatsapp', 'seo_brain', 'social_ai', 'finance', 'settings', 'pipelines' ],
+			];
+		}
+
+		$roles = (array) $user->roles;
+		$primaryRole = ! empty( $roles ) ? $roles[0] : 'subscriber';
+
+		// If user has 'manage_options' capability in WordPress, treat as full admin
+		if ( user_can( $user, 'manage_options' ) ) {
+			return [
+				'role'        => 'administrator',
+				'role_label'  => 'Enterprise Administrator',
+				'permissions' => [ 'all', 'leads_view', 'leads_manage', 'dialer', 'whatsapp', 'seo_brain', 'social_ai', 'finance', 'settings', 'pipelines' ],
+			];
+		}
+
+		return match ( $primaryRole ) {
+			'administrator' => [
+				'role'        => 'administrator',
+				'role_label'  => 'Enterprise Administrator',
+				'permissions' => [ 'all', 'leads_view', 'leads_manage', 'dialer', 'whatsapp', 'seo_brain', 'social_ai', 'finance', 'settings', 'pipelines' ],
+			],
+			'editor' => [
+				'role'        => 'editor',
+				'role_label'  => 'Operations & Sales Director',
+				'permissions' => [ 'leads_view', 'leads_manage', 'dialer', 'whatsapp', 'seo_brain', 'social_ai', 'finance', 'pipelines' ],
+			],
+			'author' => [
+				'role'        => 'author',
+				'role_label'  => 'Senior Growth Strategist & Closer',
+				'permissions' => [ 'leads_view', 'leads_manage', 'dialer', 'whatsapp', 'social_ai', 'pipelines' ],
+			],
+			'contributor' => [
+				'role'        => 'contributor',
+				'role_label'  => 'Sales & Outbound Agent',
+				'permissions' => [ 'leads_view', 'dialer', 'whatsapp' ],
+			],
+			'subscriber' => [
+				'role'        => 'subscriber',
+				'role_label'  => 'Client & Read-Only Viewer',
+				'permissions' => [ 'leads_view', 'client_view' ],
+			],
+			default => [
+				'role'        => $primaryRole,
+				'role_label'  => ucwords( str_replace( [ '_', '-' ], ' ', $primaryRole ) ),
+				'permissions' => [ 'leads_view', 'dialer', 'whatsapp' ],
+			],
+		};
+	}
+
 	public function getMe( WP_REST_Request $request ): WP_REST_Response {
 		$currentUser = wp_get_current_user();
-		$userId = $currentUser->ID ?: 1;
-		$userEmail = $currentUser->user_email ?: 'admin@' . ( $_SERVER['HTTP_HOST'] ?? 'vmstudio.digital' );
-		$userName = $currentUser->display_name ?: 'Executive Admin';
-		$userRole = ! empty( $currentUser->roles ) ? $currentUser->roles[0] : 'administrator';
+		$userId      = $currentUser->ID ?: 1;
+		$userEmail   = $currentUser->user_email ?: 'admin@' . ( $_SERVER['HTTP_HOST'] ?? 'vmstudio.digital' );
+		$userName    = $currentUser->display_name ?: 'Executive Admin';
+		$profile     = $this->resolveUserRoleProfile( $currentUser->exists() ? $currentUser : null );
 
 		return $this->bare( [
 			'authenticated' => true,
@@ -851,10 +912,10 @@ final class MobileBridgeController extends AbstractController {
 				'name'        => $userName,
 				'email'       => $userEmail,
 				'username'    => $currentUser->user_login ?: 'admin',
-				'role'        => $userRole,
-				'role_label'  => 'Enterprise Administrator',
+				'role'        => $profile['role'],
+				'role_label'  => $profile['role_label'],
 				'avatar_url'  => get_avatar_url( $userId ),
-				'permissions' => [ 'all', 'leads_view', 'dialer', 'whatsapp', 'seo_brain', 'social_ai', 'finance' ],
+				'permissions' => $profile['permissions'],
 			],
 			'team' => [
 				[ 'name' => 'Leo AI', 'role' => 'Master Sales Strategist', 'id' => '101' ],
@@ -1202,6 +1263,8 @@ final class MobileBridgeController extends AbstractController {
 			update_user_meta( $user->ID, 'vmai_mobile_token', $token );
 		}
 
+		$profile = $this->resolveUserRoleProfile( $user );
+
 		return $this->bare( [
 			'ok'    => true,
 			'token' => $token,
@@ -1210,10 +1273,10 @@ final class MobileBridgeController extends AbstractController {
 				'name'        => $user->display_name ?: $user->user_login,
 				'email'       => $user->user_email,
 				'username'    => $user->user_login,
-				'role'        => ! empty( $user->roles ) ? $user->roles[0] : 'administrator',
-				'role_label'  => 'Enterprise Administrator',
+				'role'        => $profile['role'],
+				'role_label'  => $profile['role_label'],
 				'avatar_url'  => $avatarUrl ?: get_avatar_url( $user->ID ),
-				'permissions' => [ 'all', 'leads_view', 'dialer', 'whatsapp', 'seo_brain', 'social_ai', 'finance' ],
+				'permissions' => $profile['permissions'],
 			],
 		] );
 	}
