@@ -75,6 +75,27 @@ final class ContactRepository extends Repository {
 
 		$formats = [ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s' ];
 
+		if ( isset( $input['score'] ) ) {
+			$fields['score'] = max( 0, min( 100, (int) $input['score'] ) );
+			$formats[]       = '%d';
+		}
+		if ( isset( $input['score_reason'] ) ) {
+			$fields['score_reason'] = mb_substr( sanitize_text_field( (string) $input['score_reason'] ), 0, 255 );
+			$formats[]              = '%s';
+		}
+		if ( isset( $input['company_id'] ) ) {
+			$fields['company_id'] = (int) $input['company_id'];
+			$formats[]            = '%d';
+		}
+		if ( isset( $input['tags'] ) ) {
+			$fields['tags'] = is_array( $input['tags'] ) ? implode( ',', array_map( 'sanitize_text_field', $input['tags'] ) ) : sanitize_text_field( (string) $input['tags'] );
+			$formats[]      = '%s';
+		}
+		if ( isset( $input['meta'] ) ) {
+			$fields['meta'] = is_array( $input['meta'] ) ? wp_json_encode( $input['meta'] ) : (string) $input['meta'];
+			$formats[]      = '%s';
+		}
+
 		if ( $existing ) {
 			// Never blank out a known value with an empty one.
 			foreach ( $fields as $key => $value ) {

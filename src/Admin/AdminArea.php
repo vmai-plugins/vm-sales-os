@@ -607,6 +607,10 @@ final class AdminArea {
 					<span class="dashicons dashicons-format-chat"></span>
 					<?php esc_html_e( 'WhatsApp & Voice Telephony', 'vm-sales-os' ); ?>
 				</button>
+				<button type="button" class="vmsos-tab-btn" data-tab="tab-linkedin">
+					<span class="dashicons dashicons-networking"></span>
+					<?php esc_html_e( 'LinkedIn Page & Leads', 'vm-sales-os' ); ?>
+				</button>
 				<button type="button" class="vmsos-tab-btn" data-tab="tab-mobile-sync">
 					<span class="dashicons dashicons-smartphone"></span>
 					<?php esc_html_e( 'Mobile Bridge & GitHub Updates', 'vm-sales-os' ); ?>
@@ -981,7 +985,13 @@ final class AdminArea {
 							</div>
 							<div class="vmsos-form-group">
 								<label for="vmsos_evolution_instance"><?php esc_html_e( 'Evolution Instance Name', 'vm-sales-os' ); ?></label>
-								<input name="vmsos_evolution_instance" id="vmsos_evolution_instance" class="vmsos-input-modern" value="<?php echo esc_attr( (string) get_option( 'vmsos_evolution_instance', 'mynearby' ) ); ?>" placeholder="mynearby" />
+								<?php
+								$evoInstance = (string) get_option( 'vmsos_evolution_instance', 'vmstudio' );
+								if ( in_array( $evoInstance, [ 'mynearby', 'vmstudi', '' ], true ) ) {
+									$evoInstance = 'vmstudio';
+								}
+								?>
+								<input name="vmsos_evolution_instance" id="vmsos_evolution_instance" class="vmsos-input-modern" value="<?php echo esc_attr( $evoInstance ); ?>" placeholder="vmstudio" />
 							</div>
 						</div>
 
@@ -1046,6 +1056,254 @@ final class AdminArea {
 								<?php esc_html_e( 'Enforce Quiet Hours Window (marketing sequences only)', 'vm-sales-os' ); ?>
 							</label>
 							<input name="vmsos_send_window" class="vmsos-input-modern" style="margin-top: 6px; max-width: 250px;" value="<?php echo esc_attr( (string) get_option( 'vmsos_send_window', '09:00-21:00' ) ); ?>" placeholder="09:00-21:00" />
+						</div>
+					</div>
+				</div>
+
+				<!-- TAB: LinkedIn Page & Leads Hub -->
+				<div class="vmsos-tab-content" id="tab-linkedin">
+					<!-- Hero & Inbound Webhook Gateway -->
+					<div class="vmsos-card">
+						<div class="vmsos-card-header">
+							<div>
+								<h2><?php esc_html_e( 'LinkedIn Inbound Leads Gateway & Webhook', 'vm-sales-os' ); ?></h2>
+								<p><?php esc_html_e( 'Real-time webhook receiver for LinkedIn Lead Gen Forms, Zapier, Make, n8n, PhantomBuster, and page inquiries.', 'vm-sales-os' ); ?></p>
+							</div>
+							<span class="vmsos-pill vmsos-pill--cyan">
+								<?php esc_html_e( 'Z-Agents Sync Active', 'vm-sales-os' ); ?>
+							</span>
+						</div>
+
+						<div style="margin-bottom: 20px; padding: 16px; background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.25); border-radius: 8px;">
+							<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+								<div>
+									<span style="font-size: 13px; font-weight: 700; color: #38bdf8; display: block; margin-bottom: 4px;">
+										<?php esc_html_e( 'Your Live Inbound LinkedIn Webhook URL:', 'vm-sales-os' ); ?>
+									</span>
+									<code id="vmsos-linkedin-webhook-display" style="font-size: 13px; color: #fff; background: rgba(0,0,0,0.4); padding: 6px 10px; border-radius: 4px; display: inline-block;">
+										<?php echo esc_html( rest_url( 'vmsos/v1/webhook/linkedin' ) ); ?>
+									</code>
+								</div>
+								<button type="button" class="button button-secondary" id="vmsos-btn-copy-linkedin-webhook" onclick="vmsosCopyWebhook()">
+									<span class="dashicons dashicons-clipboard" style="vertical-align: middle;"></span>
+									<span id="vmsos-copy-status"><?php esc_html_e( 'Copy Webhook URL', 'vm-sales-os' ); ?></span>
+								</button>
+							</div>
+							<p style="font-size: 12px; color: var(--vmsos-muted); margin: 8px 0 0 0;">
+								<?php esc_html_e( 'Point your LinkedIn Lead Gen Form webhook, Zapier/Make scenario, or scraper to this URL. All incoming leads instantly ingest into CRM Contacts, create a Sales OS Deal, mirror to Fluent Forms, and trigger 1-tap call/WhatsApp inside the Z-Agents mobile app.', 'vm-sales-os' ); ?>
+							</p>
+						</div>
+
+						<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+							<div class="vmsos-form-group">
+								<label for="vmsos_linkedin_page_url"><?php esc_html_e( 'LinkedIn Company / Personal Page URL', 'vm-sales-os' ); ?></label>
+								<input type="url" name="vmsos_linkedin_page_url" id="vmsos_linkedin_page_url" class="vmsos-input-modern" value="<?php echo esc_attr( (string) get_option( 'vmsos_linkedin_page_url', 'https://www.linkedin.com/company/vmstudio' ) ); ?>" placeholder="https://www.linkedin.com/company/your-company" />
+								<span style="font-size: 11px; color: var(--vmsos-muted); margin-top: 4px;">
+									<?php esc_html_e( 'Official LinkedIn page used for brand reference and attribution.', 'vm-sales-os' ); ?>
+								</span>
+							</div>
+							<div class="vmsos-form-group">
+								<label for="vmsos_linkedin_webhook_secret"><?php esc_html_e( 'Webhook Security Secret / Token (Optional)', 'vm-sales-os' ); ?></label>
+								<input type="text" name="vmsos_linkedin_webhook_secret" id="vmsos_linkedin_webhook_secret" class="vmsos-input-modern" value="<?php echo esc_attr( (string) get_option( 'vmsos_linkedin_webhook_secret', '' ) ); ?>" placeholder="Leave blank or set custom secret..." />
+								<span style="font-size: 11px; color: var(--vmsos-muted); margin-top: 4px;">
+									<?php esc_html_e( 'If set, incoming webhooks must provide header X-LinkedIn-Token: <secret> or query param ?token=<secret>', 'vm-sales-os' ); ?>
+								</span>
+							</div>
+						</div>
+
+						<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+							<div style="background: rgba(255,255,255,0.03); border: 1px solid var(--vmsos-line); padding: 14px; border-radius: 8px;">
+								<label style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--vmsos-text); font-weight: 600; margin-bottom: 6px;">
+									<input type="checkbox" name="vmsos_linkedin_create_deal" value="1" <?php checked( (bool) get_option( 'vmsos_linkedin_create_deal', true ) ); ?> />
+									<?php esc_html_e( 'Auto-create Deal in Sales OS Pipeline', 'vm-sales-os' ); ?>
+								</label>
+								<div class="vmsos-form-group" style="margin-top: 10px;">
+									<label for="vmsos_linkedin_default_deal_value"><?php esc_html_e( 'Default Estimated Deal Value (₹ INR)', 'vm-sales-os' ); ?></label>
+									<input type="number" name="vmsos_linkedin_default_deal_value" id="vmsos_linkedin_default_deal_value" class="vmsos-input-modern" value="<?php echo esc_attr( (string) get_option( 'vmsos_linkedin_default_deal_value', 25000 ) ); ?>" min="0" step="1000" />
+								</div>
+							</div>
+
+							<div style="background: rgba(255,255,255,0.03); border: 1px solid var(--vmsos-line); padding: 14px; border-radius: 8px;">
+								<label style="display: flex; align-items: center; gap: 10px; cursor: pointer; color: var(--vmsos-text); font-weight: 600; margin-bottom: 6px;">
+									<input type="checkbox" name="vmsos_linkedin_sync_fluentform" value="1" <?php checked( (bool) get_option( 'vmsos_linkedin_sync_fluentform', true ) ); ?> />
+									<?php esc_html_e( 'Mirror Inbound Leads to Fluent Forms Submissions', 'vm-sales-os' ); ?>
+								</label>
+								<div class="vmsos-form-group" style="margin-top: 10px;">
+									<label for="vmsos_linkedin_target_form_id"><?php esc_html_e( 'Target Fluent Form to Mirror Into', 'vm-sales-os' ); ?></label>
+									<?php
+									global $wpdb;
+									$ffForms = [];
+									if ( $wpdb->get_var( "SHOW TABLES LIKE '{$wpdb->prefix}fluentform_forms'" ) === "{$wpdb->prefix}fluentform_forms" ) {
+										$ffForms = $wpdb->get_results( "SELECT id, title FROM {$wpdb->prefix}fluentform_forms", ARRAY_A ) ?: [];
+									}
+									$selectedFormId = (int) get_option( 'vmsos_linkedin_target_form_id', 1 );
+									?>
+									<select name="vmsos_linkedin_target_form_id" id="vmsos_linkedin_target_form_id" class="vmsos-select-modern">
+										<?php if ( empty( $ffForms ) ) : ?>
+											<option value="1">Form #1 (Default)</option>
+										<?php else : ?>
+											<?php foreach ( $ffForms as $f ) : ?>
+												<option value="<?php echo esc_attr( (string) $f['id'] ); ?>" <?php selected( $selectedFormId, (int) $f['id'] ); ?>>
+													Form #<?php echo esc_html( (string) $f['id'] ); ?>: <?php echo esc_html( (string) $f['title'] ); ?>
+												</option>
+											<?php endforeach; ?>
+										<?php endif; ?>
+									</select>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Card 2: Interactive 1-Click LinkedIn Lead Importer -->
+					<div class="vmsos-card">
+						<div class="vmsos-card-header">
+							<div>
+								<h2><?php esc_html_e( 'Quick LinkedIn Lead Importer (1-Click Push to CRM & Z-Agents)', 'vm-sales-os' ); ?></h2>
+								<p><?php esc_html_e( 'Quickly import a prospect from a LinkedIn connection, message, or lead gen response directly into your sales pipeline.', 'vm-sales-os' ); ?></p>
+							</div>
+						</div>
+
+						<div id="vmsos-import-alert" style="display:none; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-weight: 600;"></div>
+
+						<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px;">
+							<div class="vmsos-form-group">
+								<label for="li_import_name"><?php esc_html_e( 'Lead Full Name *', 'vm-sales-os' ); ?></label>
+								<input type="text" id="li_import_name" class="vmsos-input-modern" placeholder="e.g. Vikram Sharma" required />
+							</div>
+							<div class="vmsos-form-group">
+								<label for="li_import_phone"><?php esc_html_e( 'Phone / Mobile (Dialable) *', 'vm-sales-os' ); ?></label>
+								<input type="text" id="li_import_phone" class="vmsos-input-modern" placeholder="+91 98110 00000" />
+							</div>
+							<div class="vmsos-form-group">
+								<label for="li_import_email"><?php esc_html_e( 'Email Address', 'vm-sales-os' ); ?></label>
+								<input type="email" id="li_import_email" class="vmsos-input-modern" placeholder="vikram@example.com" />
+							</div>
+						</div>
+
+						<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-top: 14px;">
+							<div class="vmsos-form-group">
+								<label for="li_import_company"><?php esc_html_e( 'Company Name', 'vm-sales-os' ); ?></label>
+								<input type="text" id="li_import_company" class="vmsos-input-modern" placeholder="e.g. TechCorp India" />
+							</div>
+							<div class="vmsos-form-group">
+								<label for="li_import_headline"><?php esc_html_e( 'Headline / Designation', 'vm-sales-os' ); ?></label>
+								<input type="text" id="li_import_headline" class="vmsos-input-modern" placeholder="e.g. VP of Marketing" />
+							</div>
+							<div class="vmsos-form-group">
+								<label for="li_import_profile"><?php esc_html_e( 'LinkedIn Profile / Post URL', 'vm-sales-os' ); ?></label>
+								<input type="url" id="li_import_profile" class="vmsos-input-modern" placeholder="https://linkedin.com/in/prospect" />
+							</div>
+						</div>
+
+						<div class="vmsos-form-group" style="margin-top: 14px;">
+							<label for="li_import_notes"><?php esc_html_e( 'Lead Requirement / Notes / Inquiry', 'vm-sales-os' ); ?></label>
+							<textarea id="li_import_notes" rows="2" class="vmsos-textarea-modern" placeholder="e.g. Inquired about corporate event branding & web application development..."></textarea>
+						</div>
+
+						<div style="margin-top: 16px; display: flex; gap: 12px; align-items: center;">
+							<button type="button" class="button button-primary" id="vmsos-btn-submit-import" onclick="vmsosSubmitLinkedInLead()">
+								<span class="dashicons dashicons-upload" style="vertical-align: middle;"></span>
+								<?php esc_html_e( '⚡ Import Lead to CRM & Push to Z-Agents', 'vm-sales-os' ); ?>
+							</button>
+							<span id="vmsos-import-spinner" class="spinner" style="float:none; margin:0;"></span>
+						</div>
+					</div>
+
+					<!-- Card 3: Recent LinkedIn Leads Roster -->
+					<div class="vmsos-card">
+						<div class="vmsos-card-header">
+							<div>
+								<h2><?php esc_html_e( 'Recent Inbound LinkedIn Leads & Phone Directory', 'vm-sales-os' ); ?></h2>
+								<p><?php esc_html_e( 'All leads synchronized across Sales OS CRM, Fluent Forms, and the Z-Agents mobile client with 1-tap call and WhatsApp.', 'vm-sales-os' ); ?></p>
+							</div>
+							<button type="button" class="button button-secondary" onclick="vmsosReloadLeadsTable()">
+								<span class="dashicons dashicons-update" style="vertical-align: middle;"></span>
+								<?php esc_html_e( 'Refresh Leads', 'vm-sales-os' ); ?>
+							</button>
+						</div>
+
+						<?php
+						$repoInstance = $this->container->has( \VMStudio\SalesOS\Modules\LinkedInRadar\LinkedInRadarRepository::class )
+							? $this->container->get( \VMStudio\SalesOS\Modules\LinkedInRadar\LinkedInRadarRepository::class )
+							: null;
+						$liLeads = $repoInstance ? $repoInstance->list() : [];
+						?>
+
+						<div style="overflow-x: auto;">
+							<table class="wp-list-table widefat fixed striped" id="vmsos-linkedin-leads-table" style="background: rgba(11, 19, 39, 0.6); border: 1px solid var(--vmsos-line); color: #e2e8f0;">
+								<thead>
+									<tr style="background: #131c36;">
+										<th style="color: #94a3b8; font-weight: 600; width: 22%;"><?php esc_html_e( 'Lead Prospect', 'vm-sales-os' ); ?></th>
+										<th style="color: #94a3b8; font-weight: 600; width: 20%;"><?php esc_html_e( 'Company & Role', 'vm-sales-os' ); ?></th>
+										<th style="color: #94a3b8; font-weight: 600; width: 25%;"><?php esc_html_e( 'Phone / WhatsApp / Email', 'vm-sales-os' ); ?></th>
+										<th style="color: #94a3b8; font-weight: 600; width: 15%;"><?php esc_html_e( 'Status & Intent', 'vm-sales-os' ); ?></th>
+										<th style="color: #94a3b8; font-weight: 600; width: 18%;"><?php esc_html_e( 'Mobile 1-Tap Action', 'vm-sales-os' ); ?></th>
+									</tr>
+								</thead>
+								<tbody id="vmsos-linkedin-leads-tbody">
+									<?php if ( empty( $liLeads ) ) : ?>
+										<tr><td colspan="5" style="text-align: center; color: var(--vmsos-muted); padding: 24px;"><?php esc_html_e( 'No LinkedIn leads ingested yet. Send a test webhook or use the Quick Importer above.', 'vm-sales-os' ); ?></td></tr>
+									<?php else : ?>
+										<?php foreach ( $liLeads as $lead ) :
+											$leadName    = esc_html( (string) ( $lead['poster_name'] ?? $lead['name'] ?? 'LinkedIn Lead' ) );
+											$leadCompany = esc_html( (string) ( $lead['company'] ?? 'Direct Lead' ) );
+											$leadTitle   = esc_html( (string) ( $lead['poster_headline'] ?? $lead['headline'] ?? '' ) );
+											$leadPhone   = esc_attr( (string) ( $lead['phone'] ?? '' ) );
+											$leadEmail   = esc_html( (string) ( $lead['email'] ?? '' ) );
+											$leadUrl     = esc_url( (string) ( $lead['poster_profile_url'] ?? $lead['profile_url'] ?? '' ) );
+											$intentScore = (int) ( $lead['intent_score'] ?? 85 );
+											$cleanPhone  = preg_replace( '/[^0-9]/', '', $leadPhone );
+										?>
+										<tr>
+											<td>
+												<strong style="color: #fff; font-size: 14px;"><?php echo $leadName; ?></strong>
+												<?php if ( $leadUrl ) : ?>
+													<br><a href="<?php echo $leadUrl; ?>" target="_blank" rel="noopener" style="font-size: 11px; color: #38bdf8;">LinkedIn Profile ↗</a>
+												<?php endif; ?>
+											</td>
+											<td>
+												<strong style="color: #cbd5e1;"><?php echo $leadCompany; ?></strong>
+												<?php if ( $leadTitle ) : ?>
+													<br><span style="font-size: 11px; color: var(--vmsos-muted);"><?php echo $leadTitle; ?></span>
+												<?php endif; ?>
+											</td>
+											<td>
+												<?php if ( $leadPhone ) : ?>
+													<div style="display: flex; gap: 6px; align-items: center; margin-bottom: 4px;">
+														<span class="dashicons dashicons-phone" style="font-size: 14px; width: 14px; height: 14px; color: #10b981;"></span>
+														<a href="tel:<?php echo $leadPhone; ?>" style="color: #10b981; font-weight: 600; font-size: 13px; text-decoration: none;"><?php echo esc_html( $leadPhone ); ?></a>
+													</div>
+												<?php endif; ?>
+												<?php if ( $leadEmail ) : ?>
+													<div style="display: flex; gap: 6px; align-items: center;">
+														<span class="dashicons dashicons-email" style="font-size: 14px; width: 14px; height: 14px; color: #94a3b8;"></span>
+														<a href="mailto:<?php echo esc_attr( $leadEmail ); ?>" style="color: #94a3b8; font-size: 12px;"><?php echo $leadEmail; ?></a>
+													</div>
+												<?php endif; ?>
+											</td>
+											<td>
+												<span class="vmsos-pill vmsos-pill--green" style="font-size: 10px; margin-bottom: 4px; display: inline-block;">
+													<?php echo esc_html( strtoupper( (string) ( $lead['status'] ?? 'NEW' ) ) ); ?>
+												</span>
+												<br><span style="font-size: 11px; color: var(--vmsos-muted);">Intent: <strong><?php echo $intentScore; ?>%</strong></span>
+											</td>
+											<td>
+												<div style="display: flex; gap: 6px; flex-wrap: wrap;">
+													<?php if ( $cleanPhone ) : ?>
+														<a href="https://wa.me/<?php echo $cleanPhone; ?>" target="_blank" class="button button-small" style="background: #25D366; color: #fff; border-color: #25D366; display: inline-flex; align-items: center; gap: 4px;">
+															<span class="dashicons dashicons-whatsapp" style="font-size: 13px; width: 13px; height: 13px;"></span> WA
+														</a>
+														<a href="tel:<?php echo $leadPhone; ?>" class="button button-small" style="background: #0ea5e9; color: #fff; border-color: #0ea5e9; display: inline-flex; align-items: center; gap: 4px;">
+															<span class="dashicons dashicons-phone" style="font-size: 13px; width: 13px; height: 13px;"></span> Call
+														</a>
+													<?php endif; ?>
+												</div>
+											</td>
+										</tr>
+										<?php endforeach; ?>
+									<?php endif; ?>
+								</tbody>
+							</table>
 						</div>
 					</div>
 				</div>
@@ -1140,20 +1398,179 @@ final class AdminArea {
 						}
 					});
 				});
-			var tabBtns = document.querySelectorAll('#vmsos-settings-tabs .vmsos-tab-btn');
-			var tabPanes = document.querySelectorAll('.vmsos-tab-content');
 
-			tabBtns.forEach(function(btn) {
-				btn.addEventListener('click', function() {
-					tabBtns.forEach(function(b) { b.classList.remove('is-active'); });
-					tabPanes.forEach(function(p) { p.classList.remove('is-active'); });
+				// LinkedIn Helper Handlers
+				window.vmsosCopyWebhook = function() {
+					var code = document.getElementById('vmsos-linkedin-webhook-display');
+					if (code) {
+						var text = code.innerText.trim();
+						navigator.clipboard.writeText(text).then(function() {
+							var status = document.getElementById('vmsos-copy-status');
+							if (status) {
+								var orig = status.innerText;
+								status.innerText = 'Copied to Clipboard!';
+								setTimeout(function() { status.innerText = orig; }, 3000);
+							}
+						});
+					}
+				};
 
-					btn.classList.add('is-active');
-					var targetId = btn.getAttribute('data-tab');
-					var targetPane = document.getElementById(targetId);
-					if (targetPane) targetPane.classList.add('is-active');
-				});
-			});
+				window.vmsosSubmitLinkedInLead = function() {
+					var name = document.getElementById('li_import_name').value.trim();
+					var phone = document.getElementById('li_import_phone').value.trim();
+					var email = document.getElementById('li_import_email').value.trim();
+					var company = document.getElementById('li_import_company').value.trim();
+					var headline = document.getElementById('li_import_headline').value.trim();
+					var profile = document.getElementById('li_import_profile').value.trim();
+					var notes = document.getElementById('li_import_notes').value.trim();
+
+					var alertBox = document.getElementById('vmsos-import-alert');
+					var spinner = document.getElementById('vmsos-import-spinner');
+					var btn = document.getElementById('vmsos-btn-submit-import');
+
+					if (!name) {
+						alertBox.style.display = 'block';
+						alertBox.style.background = 'rgba(239, 68, 68, 0.2)';
+						alertBox.style.border = '1px solid #ef4444';
+						alertBox.style.color = '#fca5a5';
+						alertBox.innerText = 'Please enter at least the lead full name.';
+						return;
+					}
+
+					btn.disabled = true;
+					spinner.classList.add('is-active');
+
+					fetch(vmsosAdmin.root + 'linkedin/import', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'X-WP-Nonce': vmsosAdmin.nonce
+						},
+						body: JSON.stringify({
+							name: name,
+							phone: phone,
+							email: email,
+							company: company,
+							headline: headline,
+							profile_url: profile,
+							notes: notes
+						})
+					})
+					.then(function(res) { return res.json(); })
+					.then(function(data) {
+						btn.disabled = false;
+						spinner.classList.remove('is-active');
+
+						if (data.success || data.lead) {
+							alertBox.style.display = 'block';
+							alertBox.style.background = 'rgba(16, 185, 129, 0.2)';
+							alertBox.style.border = '1px solid #10b981';
+							alertBox.style.color = '#6ee7b7';
+							alertBox.innerText = '✓ Lead successfully imported! Pushed to CRM Contacts, Deal Pipeline, Fluent Forms, and Z-Agents mobile bridge.';
+
+							document.getElementById('li_import_name').value = '';
+							document.getElementById('li_import_phone').value = '';
+							document.getElementById('li_import_email').value = '';
+							document.getElementById('li_import_company').value = '';
+							document.getElementById('li_import_headline').value = '';
+							document.getElementById('li_import_profile').value = '';
+							document.getElementById('li_import_notes').value = '';
+
+							vmsosReloadLeadsTable();
+						} else {
+							alertBox.style.display = 'block';
+							alertBox.style.background = 'rgba(239, 68, 68, 0.2)';
+							alertBox.style.border = '1px solid #ef4444';
+							alertBox.style.color = '#fca5a5';
+							alertBox.innerText = data.message || 'Failed to import lead.';
+						}
+					})
+					.catch(function(err) {
+						btn.disabled = false;
+						spinner.classList.remove('is-active');
+						alertBox.style.display = 'block';
+						alertBox.style.background = 'rgba(239, 68, 68, 0.2)';
+						alertBox.style.border = '1px solid #ef4444';
+						alertBox.style.color = '#fca5a5';
+						alertBox.innerText = 'Network error importing lead: ' + err.message;
+					});
+				};
+
+				window.vmsosReloadLeadsTable = function() {
+					fetch(vmsosAdmin.root + 'linkedin/leads', {
+						headers: { 'X-WP-Nonce': vmsosAdmin.nonce }
+					})
+					.then(function(res) { return res.json(); })
+					.then(function(data) {
+						var leads = (data && data.leads) ? data.leads : [];
+						var tbody = document.getElementById('vmsos-linkedin-leads-tbody');
+						if (!tbody) return;
+
+						if (leads.length === 0) {
+							tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--vmsos-muted); padding: 24px;">No LinkedIn leads found.</td></tr>';
+							return;
+						}
+
+						function escapeHtml(text) {
+							if (!text) return '';
+							return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+						}
+
+						var html = '';
+						leads.forEach(function(lead) {
+							var name = lead.name || lead.poster_name || 'LinkedIn Lead';
+							var company = lead.company || 'Direct Lead';
+							var headline = lead.headline || lead.poster_headline || '';
+							var phone = lead.phone || '';
+							var email = lead.email || '';
+							var profile = lead.profile_url || lead.poster_profile_url || '';
+							var score = lead.intent_score || 85;
+							var status = (lead.status || 'new').toUpperCase();
+							var cleanPhone = phone.replace(/[^0-9]/g, '');
+
+							html += '<tr>';
+							html += '<td><strong style="color: #fff; font-size: 14px;">' + escapeHtml(name) + '</strong>';
+							if (profile) {
+								html += '<br><a href="' + escapeHtml(profile) + '" target="_blank" rel="noopener" style="font-size: 11px; color: #38bdf8;">LinkedIn Profile ↗</a>';
+							}
+							html += '</td>';
+
+							html += '<td><strong style="color: #cbd5e1;">' + escapeHtml(company) + '</strong>';
+							if (headline) {
+								html += '<br><span style="font-size: 11px; color: var(--vmsos-muted);">' + escapeHtml(headline) + '</span>';
+							}
+							html += '</td>';
+
+							html += '<td>';
+							if (phone) {
+								html += '<div style="display: flex; gap: 6px; align-items: center; margin-bottom: 4px;">';
+								html += '<span class="dashicons dashicons-phone" style="font-size: 14px; width: 14px; height: 14px; color: #10b981;"></span>';
+								html += '<a href="tel:' + escapeHtml(phone) + '" style="color: #10b981; font-weight: 600; font-size: 13px; text-decoration: none;">' + escapeHtml(phone) + '</a>';
+								html += '</div>';
+							}
+							if (email) {
+								html += '<div style="display: flex; gap: 6px; align-items: center;">';
+								html += '<span class="dashicons dashicons-email" style="font-size: 14px; width: 14px; height: 14px; color: #94a3b8;"></span>';
+								html += '<a href="mailto:' + escapeHtml(email) + '" style="color: #94a3b8; font-size: 12px;">' + escapeHtml(email) + '</a>';
+								html += '</div>';
+							}
+							html += '</td>';
+
+							html += '<td><span class="vmsos-pill vmsos-pill--green" style="font-size: 10px; margin-bottom: 4px; display: inline-block;">' + escapeHtml(status) + '</span>';
+							html += '<br><span style="font-size: 11px; color: var(--vmsos-muted);">Intent: <strong>' + score + '%</strong></span></td>';
+
+							html += '<td><div style="display: flex; gap: 6px; flex-wrap: wrap;">';
+							if (cleanPhone) {
+								html += '<a href="https://wa.me/' + cleanPhone + '" target="_blank" class="button button-small" style="background: #25D366; color: #fff; border-color: #25D366; display: inline-flex; align-items: center; gap: 4px;"><span class="dashicons dashicons-whatsapp" style="font-size: 13px; width: 13px; height: 13px;"></span> WA</a>';
+								html += '<a href="tel:' + escapeHtml(phone) + '" class="button button-small" style="background: #0ea5e9; color: #fff; border-color: #0ea5e9; display: inline-flex; align-items: center; gap: 4px;"><span class="dashicons dashicons-phone" style="font-size: 13px; width: 13px; height: 13px;"></span> Call</a>';
+							}
+							html += '</div></td>';
+							html += '</tr>';
+						});
+
+						tbody.innerHTML = html;
+					});
+				};
 
 			// Failover Preset Buttons
 			document.querySelectorAll('.vmsos-preset-btn').forEach(function(btn) {
@@ -1596,6 +2013,14 @@ final class AdminArea {
 		if ( '' !== $ghToken ) {
 			$this->vault->put( 'github_token', $ghToken );
 		}
+
+		// LinkedIn Page & Leads Hub Settings.
+		update_option( 'vmsos_linkedin_page_url', esc_url_raw( (string) ( $_POST['vmsos_linkedin_page_url'] ?? 'https://www.linkedin.com/company/vmstudio' ) ), false );
+		update_option( 'vmsos_linkedin_webhook_secret', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_linkedin_webhook_secret'] ?? '' ) ), false );
+		update_option( 'vmsos_linkedin_create_deal', ! empty( $_POST['vmsos_linkedin_create_deal'] ), false );
+		update_option( 'vmsos_linkedin_default_deal_value', max( 0, (float) ( $_POST['vmsos_linkedin_default_deal_value'] ?? 25000 ) ), false );
+		update_option( 'vmsos_linkedin_sync_fluentform', ! empty( $_POST['vmsos_linkedin_sync_fluentform'] ), false );
+		update_option( 'vmsos_linkedin_target_form_id', max( 1, (int) ( $_POST['vmsos_linkedin_target_form_id'] ?? 1 ) ), false );
 
 		wp_safe_redirect( add_query_arg( 'vmsos_saved', '1', admin_url( 'admin.php?page=' . self::SLUG . '-settings' ) ) );
 		exit;
