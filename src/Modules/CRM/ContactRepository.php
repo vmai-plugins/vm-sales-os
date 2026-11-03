@@ -54,11 +54,19 @@ final class ContactRepository extends Repository {
 	 * @param array<string, mixed> $input Raw contact fields.
 	 */
 	public function upsert( array $input ): int {
+		if ( empty( $input['first_name'] ) && ! empty( $input['name'] ) ) {
+			$nameParts = preg_split( '/\s+/', trim( (string) $input['name'] ), 2 ) ?: [ (string) $input['name'], '' ];
+			$input['first_name'] = $nameParts[0];
+			$input['last_name']  = $nameParts[1] ?? '';
+		}
+
 		$email = sanitize_email( (string) ( $input['email'] ?? '' ) );
 		$phone = self::normalisePhone( (string) ( $input['phone'] ?? '' ) );
 
 		$existing = ( '' !== $email ? $this->findByEmail( $email ) : null )
 			?? ( '' !== $phone ? $this->findByPhone( $phone ) : null );
+
+		$stage = ! empty( $input['stage'] ) ? sanitize_key( (string) $input['stage'] ) : ( $existing['stage'] ?? 'new' );
 
 		$fields = [
 			'first_name'   => sanitize_text_field( (string) ( $input['first_name'] ?? '' ) ),
@@ -70,30 +78,27 @@ final class ContactRepository extends Repository {
 			'source'       => sanitize_text_field( (string) ( $input['source'] ?? 'web' ) ),
 			'requirements' => mb_substr( wp_strip_all_tags( (string) ( $input['requirements'] ?? '' ) ), 0, 2000 ),
 			'consent'      => ! empty( $input['consent'] ) ? 1 : 0,
+			'stage'        => $stage,
 			'updated_at'   => $this->now(),
 		];
 
-		$formats = [ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s' ];
-
 		if ( isset( $input['score'] ) ) {
 			$fields['score'] = max( 0, min( 100, (int) $input['score'] ) );
-			$formats[]       = '%d';
 		}
 		if ( isset( $input['score_reason'] ) ) {
 			$fields['score_reason'] = mb_substr( sanitize_text_field( (string) $input['score_reason'] ), 0, 255 );
-			$formats[]              = '%s';
 		}
 		if ( isset( $input['company_id'] ) ) {
 			$fields['company_id'] = (int) $input['company_id'];
-			$formats[]            = '%d';
+		}
+		if ( isset( $input['owner_id'] ) ) {
+			$fields['owner_id'] = (int) $input['owner_id'];
 		}
 		if ( isset( $input['tags'] ) ) {
 			$fields['tags'] = is_array( $input['tags'] ) ? implode( ',', array_map( 'sanitize_text_field', $input['tags'] ) ) : sanitize_text_field( (string) $input['tags'] );
-			$formats[]      = '%s';
 		}
 		if ( isset( $input['meta'] ) ) {
 			$fields['meta'] = is_array( $input['meta'] ) ? wp_json_encode( $input['meta'] ) : (string) $input['meta'];
-			$formats[]      = '%s';
 		}
 
 		if ( $existing ) {
@@ -104,7 +109,7 @@ final class ContactRepository extends Repository {
 				}
 			}
 			$fields['updated_at'] = $this->now();
-						$updateFormats = [];
+			$updateFormats = [];
 			foreach ( $fields as $k => $v ) {
 				$updateFormats[] = in_array( $k, [ 'score', 'company_id', 'consent', 'owner_id' ], true ) ? '%d' : '%s';
 			}
@@ -112,12 +117,13 @@ final class ContactRepository extends Repository {
 			return (int) $existing['id'];
 		}
 
-		$fields['stage']      = 'new';
 		$fields['created_at'] = $this->now();
-		$formats[]            = '%s';
-		$formats[]            = '%s';
+		$insertFormats        = [];
+		foreach ( $fields as $k => $v ) {
+			$insertFormats[] = in_array( $k, [ 'score', 'company_id', 'consent', 'owner_id' ], true ) ? '%d' : '%s';
+		}
 
-		return $this->insert( $fields, $formats );
+		return $this->insert( $fields, $insertFormats );
 	}
 
 	public function setScore( int $id, int $score, string $stage, string $reason ): void {
@@ -182,7 +188,7 @@ final class ContactRepository extends Repository {
 		return $out;
 	}
 
-	/** subscribed | unsubscribed | bounced Ã¢â‚¬â€ empty means never asked. */
+	/** subscribed | unsubscribed | bounced — empty means never asked. */
 	public function setMarketingStatus( int $id, string $status ): bool {
 		return $this->update(
 			$id,

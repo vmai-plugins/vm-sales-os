@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace VMStudio\SalesOS\Modules\CRM;
 
 use VMStudio\SalesOS\Modules\Chat\ConversationRepository;
+use VMStudio\SalesOS\Support\BrandContext;
 use VMStudio\SalesOS\Support\IntegrationLog;
 
 final class FluentFormSync {
@@ -129,12 +130,14 @@ final class FluentFormSync {
 		}
 
 		global $wpdb;
+		$brandId = BrandContext::current();
 
 		// Attach Company if provided
 		if ( ! empty( $company ) ) {
 			$companyId = (int) $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT id FROM {$wpdb->prefix}vmsos_companies WHERE name = %s LIMIT 1",
+					"SELECT id FROM {$wpdb->prefix}vmsos_companies WHERE brand_id = %d AND name = %s LIMIT 1",
+					$brandId,
 					$company
 				)
 			);
@@ -142,7 +145,7 @@ final class FluentFormSync {
 				$wpdb->insert(
 					$wpdb->prefix . 'vmsos_companies',
 					[
-						'brand_id'   => 1,
+						'brand_id'   => $brandId,
 						'name'       => $company,
 						'created_at' => $createdAt,
 						'updated_at' => $createdAt,
@@ -180,7 +183,8 @@ final class FluentFormSync {
 		$dealTable = $wpdb->prefix . 'vmsos_deals';
 		$existingDealId = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT id FROM `{$dealTable}` WHERE contact_id = %d LIMIT 1",
+				"SELECT id FROM `{$dealTable}` WHERE brand_id = %d AND contact_id = %d LIMIT 1",
+				$brandId,
 				$contactId
 			)
 		);
@@ -204,7 +208,7 @@ final class FluentFormSync {
 			$wpdb->insert(
 				$dealTable,
 				[
-					'brand_id'    => 1,
+					'brand_id'    => $brandId,
 					'contact_id'  => $contactId,
 					'company_id'  => $companyId ?? 0,
 					'title'       => $dealTitle,
@@ -221,7 +225,8 @@ final class FluentFormSync {
 		// Create/link Conversation in Sales OS Omnichannel Inbox
 		$existingConv = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT id FROM {$wpdb->prefix}vmsos_conversations WHERE contact_id = %d LIMIT 1",
+				"SELECT id FROM {$wpdb->prefix}vmsos_conversations WHERE brand_id = %d AND contact_id = %d LIMIT 1",
+				$brandId,
 				$contactId
 			),
 			ARRAY_A
@@ -251,7 +256,8 @@ final class FluentFormSync {
 		if ( $convId > 0 && ! empty( $message ) ) {
 			$existingMsg = $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT id FROM {$wpdb->prefix}vmsos_messages WHERE conversation_id = %d AND role = 'user' AND content = %s LIMIT 1",
+					"SELECT id FROM {$wpdb->prefix}vmsos_messages WHERE brand_id = %d AND conversation_id = %d AND role = 'user' AND content = %s LIMIT 1",
+					$brandId,
 					$convId,
 					$message
 				)
@@ -261,7 +267,7 @@ final class FluentFormSync {
 				$wpdb->insert(
 					$wpdb->prefix . 'vmsos_messages',
 					[
-						'brand_id'        => 1,
+						'brand_id'        => $brandId,
 						'conversation_id' => $convId,
 						'role'            => 'user',
 						'content'         => $message,

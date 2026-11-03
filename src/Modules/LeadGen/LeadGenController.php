@@ -321,8 +321,14 @@ final class LeadGenController extends AbstractController {
 			$cat     = sanitize_text_field( (string) ( $lead['category'] ?? '' ) );
 			$rating  = isset( $lead['rating'] ) ? (float) $lead['rating'] : null;
 
+			$nameParts = preg_split( '/\s+/', $name, 2 ) ?: [ $name, '' ];
+			$firstName = $nameParts[0];
+			$lastName  = $nameParts[1] ?? '';
+
 			// 1. Upsert into local VM Sales OS contacts
 			$contactId = $this->contacts->upsert( [
+				'first_name'   => $firstName,
+				'last_name'    => $lastName,
 				'name'         => $name,
 				'email'        => $email,
 				'phone'        => $phone,
@@ -378,7 +384,7 @@ final class LeadGenController extends AbstractController {
 				if ( $sequenceId > 0 ) {
 					$sequence = $this->sequences->find( $sequenceId );
 					if ( $sequence ) {
-						$enrollmentId = $this->enrollments->enroll( $contactId, $sequenceId );
+						$enrollmentId = $this->enrollments->enroll( $sequenceId, $contactId );
 						if ( $enrollmentId > 0 ) {
 							$enrolledCampaign++;
 						}

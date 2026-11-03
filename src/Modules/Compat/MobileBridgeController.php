@@ -53,9 +53,6 @@ final class MobileBridgeController extends AbstractController {
 		'/followups'          => 'tasks',
 		'/leaderboard'        => 'gamification',
 		'/checkout/create'    => 'payments',
-		'/call/log'           => 'telephony',
-		'/call/summary'       => 'telephony',
-		'/call/ghost-notes'   => 'telephony',
 		'/push/register'      => 'push-notifications',
 		'/signal/health'      => 'signal-farm',
 		'/internal/chat'      => 'internal-chat',
@@ -151,6 +148,12 @@ final class MobileBridgeController extends AbstractController {
 		$route( '/mobile/call-logs', 'GET', 'getCallLogs' );
 		$route( '/call-dispatch', 'POST', 'handleCallDispatch' );
 		$route( '/mobile/call-dispatch', 'POST', 'handleCallDispatch' );
+		$route( '/call/log', 'POST', 'handleCallDispatch' );
+		$route( '/mobile/call/log', 'POST', 'handleCallDispatch' );
+		$route( '/call/summary', 'POST', 'handleCallDispatch' );
+		$route( '/mobile/call/summary', 'POST', 'handleCallDispatch' );
+		$route( '/call/ghost-notes', 'POST', 'handleCallDispatch' );
+		$route( '/mobile/call/ghost-notes', 'POST', 'handleCallDispatch' );
 
 		// Mobile Common Path Aliases
 		$route( '/mobile/leads', 'GET', 'getLeads' );
@@ -213,6 +216,48 @@ final class MobileBridgeController extends AbstractController {
 		return new WP_REST_Response( [ 'error' => $message ], $status );
 	}
 
+	/** @var array<int, string> In-memory cache for company names to prevent N+1 queries */
+	private array $companyCache = [];
+
+	/** @var array<int, string> In-memory cache for conversation summaries to prevent N+1 queries */
+	private array $summaryCache = [];
+
+	/**
+	 * Pre-fetch companies and latest conversation summaries in bulk to eliminate N+1 queries.
+	 *
+	 * @param array<int, array<string, mixed>> $contacts
+	 */
+	private function primeLeadsCache( array $contacts ): void {
+		global $wpdb;
+		$companyIds = array_filter( array_unique( array_map( fn( $c ) => (int) ( $c['company_id'] ?? 0 ), $contacts ) ) );
+		$contactIds = array_filter( array_unique( array_map( fn( $c ) => (int) ( $c['id'] ?? 0 ), $contacts ) ) );
+
+		if ( ! empty( $companyIds ) ) {
+			$idsStr = implode( ',', array_map( 'intval', $companyIds ) );
+			$rows   = $wpdb->get_results( "SELECT id, name FROM {$wpdb->prefix}vmsos_companies WHERE id IN ($idsStr)", ARRAY_A );
+			foreach ( $rows ?: [] as $r ) {
+				$this->companyCache[ (int) $r['id'] ] = (string) $r['name'];
+			}
+		}
+
+		if ( ! empty( $contactIds ) ) {
+			$idsStr  = implode( ',', array_map( 'intval', $contactIds ) );
+			$brandId = BrandContext::current();
+			$rows    = $wpdb->get_results(
+				"SELECT contact_id, summary FROM {$wpdb->prefix}vmsos_conversations
+				 WHERE contact_id IN ($idsStr) AND brand_id = $brandId AND summary IS NOT NULL AND summary <> ''
+				 ORDER BY last_message_at DESC",
+				ARRAY_A
+			);
+			foreach ( $rows ?: [] as $r ) {
+				$cid = (int) $r['contact_id'];
+				if ( ! isset( $this->summaryCache[ $cid ] ) ) {
+					$this->summaryCache[ $cid ] = (string) $r['summary'];
+				}
+			}
+		}
+	}
+
 	/**
 	 * Reshapes a vmsos contact row into the lead shape the app's screens read
 	 * (`name`, `company`, `ai_summary`, …), which does not match the column
@@ -222,23 +267,50 @@ final class MobileBridgeController extends AbstractController {
 	 * @return array<string, mixed>
 	 */
 	private function asLead( array $contact ): array {
-		$name = trim( ( $contact['first_name'] ?? '' ) . ' ' . ( $contact['last_name'] ?? '' ) );
+		$name        = trim( ( $contact['first_name'] ?? '' ) . ' ' . ( $contact['last_name'] ?? '' ) );
+		$companyId   = (int) ( $contact['company_id'] ?? 0 );
+		$companyName = $this->companyCache[ $companyId ] ?? $this->companyName( $companyId );
+
+		$contactId   = (int) ( $contact['id'] ?? 0 );
+		$summary     = $this->summaryCache[ $contactId ] ?? $this->leadSummary( $contactId );
+
+		$meta = [];
+		if ( ! empty( $contact['meta'] ) ) {
+			$meta = is_array( $contact['meta'] ) ? $contact['meta'] : ( json_decode( (string) $contact['meta'], true ) ?: [] );
+		}
+
+		$rawTags = $contact['tags'] ?? [];
+		$tags    = is_array( $rawTags ) ? $rawTags : array_filter( array_map( 'trim', explode( ',', (string) $rawTags ) ) );
+
+		$notes = (string) ( $contact['requirements'] ?? '' );
+		if ( '' === $notes && ! empty( $contact['score_reason'] ) ) {
+			$notes = (string) $contact['score_reason'];
+		}
 
 		return [
-			'id'         => (int) ( $contact['id'] ?? 0 ),
-			'name'       => '' !== $name ? $name : ( $contact['email'] ?? '' ),
-			'company'    => $this->companyName( (int) ( $contact['company_id'] ?? 0 ) ),
-			'email'      => (string) ( $contact['email'] ?? '' ),
-			'phone'      => (string) ( $contact['phone'] ?? '' ),
-			'score'      => (int) ( $contact['score'] ?? 0 ),
-			'stage'      => (string) ( $contact['stage'] ?? '' ),
-			'source'     => (string) ( $contact['source'] ?? '' ),
-			// The app shows this as the at-a-glance blurb. vmsos keeps the AI
-			// summary on the conversation, not the contact, so fall back to the
-			// scoring rationale when there is no conversation summary.
-			'ai_summary' => $this->leadSummary( (int) ( $contact['id'] ?? 0 ) )
-				?: (string) ( $contact['score_reason'] ?? '' ),
-			'created_at' => (string) ( $contact['created_at'] ?? '' ),
+			'id'                  => $contactId,
+			'name'                => '' !== $name ? $name : ( $contact['email'] ?? 'Lead #' . $contactId ),
+			'first_name'          => (string) ( $contact['first_name'] ?? '' ),
+			'last_name'           => (string) ( $contact['last_name'] ?? '' ),
+			'company'             => $companyName,
+			'email'               => (string) ( $contact['email'] ?? '' ),
+			'phone'               => (string) ( $contact['phone'] ?? '' ),
+			'score'               => (int) ( $contact['score'] ?? 0 ),
+			'lead_score'          => (int) ( $contact['score'] ?? 0 ),
+			'score_reason'        => (string) ( $contact['score_reason'] ?? '' ),
+			'stage'               => (string) ( $contact['stage'] ?? 'new' ),
+			'stage_id'            => (string) ( $contact['stage'] ?? 'new' ),
+			'source'              => (string) ( $contact['source'] ?? 'web' ),
+			'requirements'        => (string) ( $contact['requirements'] ?? '' ),
+			'notes'               => $notes,
+			'tags'                => $tags,
+			'meta'                => $meta,
+			'custom_fields'       => array_merge( $meta, [ 'tags' => $tags, 'requirements' => (string) ( $contact['requirements'] ?? '' ) ] ),
+			'assigned_agent_id'   => (string) ( $contact['owner_id'] ?? '101' ),
+			'assigned_agent_name' => (int) ( $contact['owner_id'] ?? 0 ) > 0 ? 'Assigned Agent' : 'Leo AI',
+			'ai_summary'          => '' !== $summary ? $summary : (string) ( $contact['score_reason'] ?? '' ),
+			'created_at'          => (string) ( $contact['created_at'] ?? '' ),
+			'updated_at'          => (string) ( $contact['updated_at'] ?? '' ),
 		];
 	}
 
@@ -328,9 +400,11 @@ final class MobileBridgeController extends AbstractController {
 		}
 
 		// search() returns a flat list of rows, not a paginated envelope.
-		$rows = array_map(
+		$rawRows = $this->contacts->search( $filters, $perPage, $page );
+		$this->primeLeadsCache( $rawRows );
+		$rows    = array_map(
 			fn( array $c ): array => $this->asLead( $c ),
-			$this->contacts->search( $filters, $perPage, $page )
+			$rawRows
 		);
 
 		// The app reads `data.rows`; anything else renders an empty list.
@@ -784,69 +858,83 @@ final class MobileBridgeController extends AbstractController {
 			],
 			'team' => [
 				[ 'name' => 'Leo AI', 'role' => 'Master Sales Strategist', 'id' => '101' ],
-				[ 'name' => 'Nishkarsh AI', 'role' => 'Operations Lead', 'id' => '102' ],
-				[ 'name' => 'Aditi AI', 'role' => 'Senior Closer', 'id' => '103' ],
+				[ 'name' => 'Victor AI', 'role' => 'Systems & Sovereign Web Architect', 'id' => '102' ],
+				[ 'name' => 'Maya AI', 'role' => 'WhatsApp CRM & Client Closer', 'id' => '103' ],
 			],
 		] );
 	}
 
 	public function getCabs( WP_REST_Request $request ): WP_REST_Response {
-		$cabs = get_option( 'vmsos_cab_tariffs' );
-		if ( ! is_array( $cabs ) || empty( $cabs ) ) {
-			$cabs = [
+		$services = get_option( 'vmsos_core_services' );
+		if ( ! is_array( $services ) || empty( $services ) ) {
+			$services = [
 				[
-					'id' => 'sedan',
-					'name' => 'AC Sedan (Swift Dzire / Etios)',
-					'capacity' => '4 Passengers + Driver',
-					'rate_per_km' => 12.0,
-					'local_8h_80k' => 1800,
-					'airport_transfer' => 1100,
-					'driver_da' => 400,
-					'is_active' => true,
+					'id'          => 'web_architecture',
+					'name'        => 'Sovereign Custom Web Architecture & Next.js Portal',
+					'category'    => 'Engineering & Sovereign Web',
+					'rate'        => 149999,
+					'period'      => 'project',
+					'is_active'   => true,
+					'description' => 'Ultra-fast Next.js / Headless WordPress architecture with sub-second page loads and sovereign security.',
 				],
 				[
-					'id' => 'ertiga',
-					'name' => 'Maruti Ertiga / XL6 (Budget MUV)',
-					'capacity' => '6 Passengers + Driver',
-					'rate_per_km' => 15.0,
-					'local_8h_80k' => 2400,
-					'airport_transfer' => 1400,
-					'driver_da' => 400,
-					'is_active' => true,
+					'id'          => 'ai_telephony',
+					'name'        => 'Autonomous AI Voice Telephony & Calling Agents',
+					'category'    => 'Voice AI & Telephony',
+					'rate'        => 49999,
+					'period'      => 'monthly',
+					'is_active'   => true,
+					'description' => 'Self-hosted inbound & outbound GSM/VoIP telephony agents powered by Gemini 2.5 voice pipeline.',
 				],
 				[
-					'id' => 'innova_crysta',
-					'name' => 'Toyota Innova Crysta (VIP Chauffeur)',
-					'capacity' => '6 Passengers + Driver',
-					'rate_per_km' => 18.0,
-					'local_8h_80k' => 3200,
-					'airport_transfer' => 1800,
-					'driver_da' => 500,
-					'is_active' => true,
+					'id'          => 'whatsapp_crm',
+					'name'        => 'Enterprise Omnichannel WhatsApp CRM & Pipeline Intelligence',
+					'category'    => 'CRM & Automation',
+					'rate'        => 34999,
+					'period'      => 'monthly',
+					'is_active'   => true,
+					'description' => 'Automated Evolution API WhatsApp engine with 2-way CRM synchronization and automated follow-up sequences.',
+				],
+				[
+					'id'          => 'seo_growth',
+					'name'        => 'Autonomous SEO Brain & Organic Growth Retainer',
+					'category'    => 'SEO & Intelligence',
+					'rate'        => 45000,
+					'period'      => 'monthly',
+					'is_active'   => true,
+					'description' => 'Automated keyword intelligence, programmatic content publishing, and Google Search Console growth radar.',
 				],
 			];
 		}
-		return $this->bare( [ 'cabs' => $cabs ] );
+		return $this->bare( [ 'cabs' => $services, 'services' => $services ] );
 	}
 
 	public function saveCabs( WP_REST_Request $request ): WP_REST_Response {
 		$data = $request->get_json_params();
 		if ( isset( $data['cabs'] ) && is_array( $data['cabs'] ) ) {
-			update_option( 'vmsos_cab_tariffs', $data['cabs'], false );
+			update_option( 'vmsos_core_services', $data['cabs'], false );
 			return $this->bare( [ 'success' => true, 'count' => count( $data['cabs'] ) ] );
 		}
-		return $this->error( 'Invalid cabs payload', 400 );
+		return $this->error( 'Invalid services payload', 400 );
 	}
 
 	public function getTariffs( WP_REST_Request $request ): WP_REST_Response {
-		$tariffs = get_option( 'vmsos_ground_tariffs', [] );
-		return $this->bare( [ 'tariffs' => is_array( $tariffs ) ? $tariffs : [] ] );
+		$tariffs = get_option( 'vmsos_service_tariffs', [] );
+		if ( ! is_array( $tariffs ) || empty( $tariffs ) ) {
+			$tariffs = [
+				[ 'title' => 'Web Architecture Discovery & Technical Audit', 'price' => 15000, 'type' => 'one_time' ],
+				[ 'title' => 'Custom AI Voice Agent Scripting & Persona Calibration', 'price' => 25000, 'type' => 'one_time' ],
+				[ 'title' => 'Evolution WhatsApp CRM Dedicated Instance Setup', 'price' => 20000, 'type' => 'one_time' ],
+				[ 'title' => 'Dedicated VPS Sovereign Infrastructure Hardening', 'price' => 30000, 'type' => 'one_time' ],
+			];
+		}
+		return $this->bare( [ 'tariffs' => $tariffs ] );
 	}
 
 	public function saveTariffs( WP_REST_Request $request ): WP_REST_Response {
 		$data = $request->get_json_params();
 		if ( isset( $data['tariffs'] ) && is_array( $data['tariffs'] ) ) {
-			update_option( 'vmsos_ground_tariffs', $data['tariffs'], false );
+			update_option( 'vmsos_service_tariffs', $data['tariffs'], false );
 			return $this->bare( [ 'success' => true ] );
 		}
 		return $this->error( 'Invalid tariffs payload', 400 );
@@ -930,8 +1018,9 @@ final class MobileBridgeController extends AbstractController {
 			'reply'   => "Good morning! Here is your sovereign daily operations briefing:\n\n• Active Inbound Leads: {$contactCount}\n• Omnichannel & Telephony Engines: 100% Operational\n• Autonomous Radars: Active on LinkedIn & Google Maps\n• Financial Margins: 37.3% Net Yield on Closed Invoices.",
 			'suggestions' => [
 				'🔥 Review Hot Leads',
-				'🚗 View Dynamic Cab Fleet Rates',
+				'⚡ Launch AI Voice Telephony Agent',
 				'📈 Check SEO Brain Rankings',
+				'🌐 Audit Web Architecture',
 			],
 		] );
 	}
@@ -1402,7 +1491,34 @@ final class MobileBridgeController extends AbstractController {
 	 * Assign Lead to an agent.
 	 */
 	public function handleAssignLead( WP_REST_Request $request ): WP_REST_Response {
-		return $this->bare( [ 'ok' => true, 'success' => true ] );
+		$params    = $request->get_json_params() ?: $request->get_params();
+		$leadId    = (int) ( $params['lead_id'] ?? ( $params['id'] ?? 0 ) );
+		$agentId   = (int) ( $params['agent_id'] ?? ( $params['user_id'] ?? 1 ) );
+		$agentName = sanitize_text_field( (string) ( $params['agent_name'] ?? 'Assigned Agent' ) );
+
+		if ( $leadId > 0 ) {
+			global $wpdb;
+			$wpdb->update(
+				$wpdb->prefix . 'vmsos_contacts',
+				[
+					'owner_id'   => $agentId,
+					'updated_at' => current_time( 'mysql', true ),
+				],
+				[ 'id' => $leadId ],
+				[ '%d', '%s' ],
+				[ '%d' ]
+			);
+
+			$this->activities->log(
+				'contact',
+				$leadId,
+				'assigned',
+				sprintf( 'Lead assigned to %s (ID #%d) via mobile app.', $agentName, $agentId ),
+				'agent'
+			);
+		}
+
+		return $this->bare( [ 'ok' => true, 'success' => true, 'lead_id' => $leadId ] );
 	}
 
 	/**
@@ -1448,14 +1564,64 @@ final class MobileBridgeController extends AbstractController {
 	 * Call Logs.
 	 */
 	public function getCallLogs( WP_REST_Request $request ): WP_REST_Response {
-		return $this->bare( [ 'ok' => true, 'call_logs' => [] ] );
+		global $wpdb;
+		$brandId = BrandContext::current();
+		$rows    = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM {$wpdb->prefix}vmsos_activities
+				 WHERE brand_id = %d AND type = 'call'
+				 ORDER BY created_at DESC LIMIT 50",
+				$brandId
+			),
+			ARRAY_A
+		);
+
+		$callLogs = [];
+		foreach ( $rows ?: [] as $r ) {
+			$meta = json_decode( (string) ( $r['meta'] ?? '{}' ), true ) ?: [];
+			$callLogs[] = [
+				'id'              => (string) $r['id'],
+				'lead_id'         => (string) $r['subject_id'],
+				'customer_phone'  => (string) ( $meta['phone'] ?? '' ),
+				'duration_seconds'=> (int) ( $meta['duration'] ?? 0 ),
+				'status'          => (string) ( $meta['status'] ?? 'completed' ),
+				'ai_summary'      => (string) ( $meta['notes'] ?? $r['body'] ),
+				'timestamp'       => (string) $r['created_at'],
+				'actor'           => (string) $r['actor'],
+			];
+		}
+
+		return $this->bare( [ 'ok' => true, 'call_logs' => $callLogs ] );
 	}
 
 	/**
 	 * Call Dispatch.
 	 */
 	public function handleCallDispatch( WP_REST_Request $request ): WP_REST_Response {
-		return $this->bare( [ 'ok' => true, 'dispatched' => true ] );
+		$params   = $request->get_json_params() ?: $request->get_params();
+		$leadId   = (int) ( $params['call_id'] ?? ( $params['lead_id'] ?? ( $params['id'] ?? 0 ) ) );
+		$phone    = sanitize_text_field( (string) ( $params['phone'] ?? ( $params['customer_phone'] ?? '' ) ) );
+		$duration = (int) ( $params['duration'] ?? ( $params['duration_seconds'] ?? 0 ) );
+		$status   = sanitize_text_field( (string) ( $params['status'] ?? 'completed' ) );
+		$notes    = sanitize_textarea_field( (string) ( $params['notes'] ?? ( $params['ai_summary'] ?? '' ) ) );
+
+		if ( $leadId > 0 || '' !== $phone ) {
+			$this->activities->log(
+				'contact',
+				$leadId,
+				'call',
+				sprintf( "Call with %s (%ds, %s)\n%s", $phone, $duration, $status, $notes ),
+				'agent',
+				[
+					'phone'    => $phone,
+					'duration' => $duration,
+					'status'   => $status,
+					'notes'    => $notes,
+				]
+			);
+		}
+
+		return $this->bare( [ 'ok' => true, 'dispatched' => true, 'logged' => true ] );
 	}
 
 	public function notImplemented( WP_REST_Request $request ): WP_REST_Response {
