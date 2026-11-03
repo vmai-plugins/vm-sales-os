@@ -1140,7 +1140,11 @@ final class MobileBridgeController extends AbstractController {
 	}
 
 	public function handleGoogleLogin( WP_REST_Request $request ): WP_REST_Response {
-		$params    = $request->get_json_params() ?: [];
+		$params = $request->get_json_params() ?: $request->get_params();
+		if ( empty( $params ) ) {
+			$rawBody = (string) $request->get_body();
+			$params  = json_decode( $rawBody, true ) ?: [];
+		}
 		$email     = sanitize_email( (string) ( $params['email'] ?? '' ) );
 		$name      = sanitize_text_field( (string) ( $params['name'] ?? '' ) );
 		$avatarUrl = esc_url_raw( (string) ( $params['avatar_url'] ?? '' ) );
