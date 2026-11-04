@@ -28,6 +28,7 @@ final class AdminArea {
 		add_action( 'admin_enqueue_scripts', [ $this, 'assets' ] );
 		add_action( 'admin_init', [ $this, 'ensureCapabilities' ] );
 		add_action( 'admin_post_vmsos_save_settings', [ $this, 'saveSettings' ] );
+		add_action( 'wp_ajax_vmsos_save_settings', [ $this, 'saveSettings' ] );
 		add_action( 'wp_ajax_vmsos_sync_models', [ $this, 'ajaxSyncModels' ] );
 		add_action( 'wp_ajax_vmsos_test_ai', [ $this, 'ajaxTestAi' ] );
 		add_action( 'wp_ajax_vmsos_test_whatsapp', [ $this, 'ajaxTestWhatsApp' ] );
@@ -637,8 +638,9 @@ final class AdminArea {
 				</button>
 			</div>
 
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="vmsos-settings-form">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="vmsos-settings-form" novalidate>
 				<input type="hidden" name="action" value="vmsos_save_settings" />
+				<input type="hidden" name="vmsos_active_tab" id="vmsos_active_tab" value="tab-ai-brain" />
 				<?php wp_nonce_field( 'vmsos_settings' ); ?>
 
 				<!-- TAB 1: AI Brain & Failover Pipeline -->
@@ -1271,7 +1273,7 @@ final class AdminArea {
 						<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px;">
 							<div class="vmsos-form-group">
 								<label for="li_import_name"><?php esc_html_e( 'Lead Full Name *', 'vm-sales-os' ); ?></label>
-								<input type="text" id="li_import_name" class="vmsos-input-modern" placeholder="e.g. Vikram Sharma" required />
+								<input type="text" id="li_import_name" class="vmsos-input-modern" placeholder="e.g. Vikram Sharma" />
 							</div>
 							<div class="vmsos-form-group">
 								<label for="li_import_phone"><?php esc_html_e( 'Phone / Mobile (Dialable) *', 'vm-sales-os' ); ?></label>
@@ -1475,13 +1477,17 @@ final class AdminArea {
 
 				<!-- Sticky Floating Save Bar -->
 				<div class="vmsos-sticky-save-bar">
-					<div style="display: flex; align-items: center; gap: 10px;">
+					<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
 						<span class="vmsos-pill-dot" style="background: #c9a227; box-shadow: 0 0 8px #c9a227;"></span>
 						<span style="font-size: 13px; font-weight: 600; color: #fff;"><?php esc_html_e( 'VM Sales OS Configuration Governor', 'vm-sales-os' ); ?></span>
+						<span id="vmsos-save-toast" style="display: none; margin-left: 14px; font-size: 13px; font-weight: 700; color: #34d399; background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; padding: 4px 12px; border-radius: 6px;"></span>
 					</div>
-					<button type="submit" class="vmsos-save-btn-modern">
-						<?php esc_html_e( 'Save All Settings', 'vm-sales-os' ); ?>
-					</button>
+					<div style="display: flex; align-items: center; gap: 12px;">
+						<button type="submit" class="vmsos-save-btn-modern" id="vmsos-save-all-btn" formnovalidate>
+							<span class="dashicons dashicons-saved" style="vertical-align: middle; margin-right: 4px;"></span>
+							<?php esc_html_e( 'Save All Settings', 'vm-sales-os' ); ?>
+						</button>
+					</div>
 				</div>
 			</form>
 		</div>
@@ -1502,6 +1508,11 @@ final class AdminArea {
 					if (!targetId) return;
 					var targetPane = document.getElementById(targetId);
 					if (!targetPane) return;
+
+					var activeTabInput = document.getElementById('vmsos_active_tab');
+					if (activeTabInput) {
+						activeTabInput.value = targetId;
+					}
 
 					tabBtns.forEach(function(b) {
 						b.classList.toggle('is-active', b.getAttribute('data-tab') === targetId);
@@ -1531,6 +1542,54 @@ final class AdminArea {
 				var initialHash = (window.location.hash || '').replace('#', '');
 				if (initialHash && document.getElementById(initialHash)) {
 					switchTab(initialHash);
+				}
+
+				// Enhanced AJAX & Native Save All Settings Handler
+				var settingsForm = document.getElementById('vmsos-settings-form');
+				var saveBtn = document.getElementById('vmsos-save-all-btn');
+				var saveToast = document.getElementById('vmsos-save-toast');
+
+				if (settingsForm && saveBtn) {
+					settingsForm.addEventListener('submit', function(e) {
+						e.preventDefault();
+						var origBtnHtml = saveBtn.innerHTML;
+						saveBtn.disabled = true;
+						saveBtn.innerHTML = '<span class="dashicons dashicons-update" style="animation:vmsosRotate 1s linear infinite; vertical-align:middle; margin-right:4px;"></span> Saving All Settings...';
+
+						var formData = new FormData(settingsForm);
+						formData.append('is_ajax', '1');
+
+						fetch(settingsForm.action, {
+							method: 'POST',
+							body: formData
+						})
+						.then(function(r) { return r.json(); })
+						.then(function(res) {
+							saveBtn.disabled = false;
+							saveBtn.innerHTML = origBtnHtml;
+							if (saveToast) {
+								saveToast.style.display = 'inline-block';
+								if (res && res.success) {
+									saveToast.style.color = '#34d399';
+									saveToast.style.borderColor = '#10b981';
+									saveToast.style.background = 'rgba(16, 185, 129, 0.15)';
+									saveToast.innerHTML = '✓ ' + ((res.data && res.data.message) || 'Settings saved successfully!');
+									setTimeout(function() { saveToast.style.display = 'none'; }, 6000);
+								} else {
+									saveToast.style.color = '#f87171';
+									saveToast.style.borderColor = '#ef4444';
+									saveToast.style.background = 'rgba(239, 68, 68, 0.15)';
+									saveToast.innerHTML = '✗ ' + ((res && res.data && res.data.message) || 'Error saving settings.');
+								}
+							}
+						})
+						.catch(function(err) {
+							// Fallback: submit standard form if AJAX fetch fails
+							saveBtn.disabled = false;
+							saveBtn.innerHTML = origBtnHtml;
+							settingsForm.submit();
+						});
+					});
 				}
 
 				// LinkedIn Helper Handlers with Fallback for Insecure HTTP Contexts
@@ -2226,8 +2285,14 @@ final class AdminArea {
 	}
 
 	public function saveSettings(): void {
-		if ( ! current_user_can( 'vmsos_manage' ) || ! check_admin_referer( 'vmsos_settings' ) ) {
-			wp_die( esc_html__( 'You cannot change these settings.', 'vm-sales-os' ), 403 );
+		$nonce      = isset( $_POST['_wpnonce'] ) ? sanitize_text_field( (string) $_POST['_wpnonce'] ) : '';
+		$validNonce = wp_verify_nonce( $nonce, 'vmsos_settings' );
+
+		if ( ( ! current_user_can( 'vmsos_manage' ) && ! current_user_can( 'manage_options' ) ) || ! $validNonce ) {
+			if ( ! empty( $_POST['is_ajax'] ) ) {
+				wp_send_json_error( [ 'message' => __( 'Permission denied or expired session. Please refresh the page and try again.', 'vm-sales-os' ) ], 403 );
+			}
+			wp_die( esc_html__( 'Permission denied or expired session. Please refresh the page and try again.', 'vm-sales-os' ), 403 );
 		}
 
 		// Apply industry blueprint if requested.
@@ -2254,35 +2319,58 @@ final class AdminArea {
 				$this->vault->put( 'ai.' . $id . '.key', $key );
 			}
 
-			update_option( 'vmsos_ai_' . $id . '_base_url', esc_url_raw( (string) ( $_POST[ 'vmsos_base_' . $id ] ?? '' ) ), false );
-			update_option( 'vmsos_ai_' . $id . '_model', sanitize_text_field( (string) wp_unslash( $_POST[ 'vmsos_model_' . $id ] ?? '' ) ), false );
+			if ( isset( $_POST[ 'vmsos_base_' . $id ] ) ) {
+				update_option( 'vmsos_ai_' . $id . '_base_url', esc_url_raw( (string) $_POST[ 'vmsos_base_' . $id ] ), false );
+			}
+			if ( isset( $_POST[ 'vmsos_model_' . $id ] ) ) {
+				update_option( 'vmsos_ai_' . $id . '_model', sanitize_text_field( (string) wp_unslash( $_POST[ 'vmsos_model_' . $id ] ) ), false );
+			}
 		}
 
-		update_option( 'vmsos_agent_name', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_agent_name'] ?? 'Ava' ) ), false );
-		update_option( 'vmsos_agent_title', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_agent_title'] ?? 'Online â€¢ Live Sales Specialist' ) ), false );
-		update_option( 'vmsos_business_context', sanitize_textarea_field( (string) wp_unslash( $_POST['vmsos_business_context'] ?? '' ) ), false );
-		update_option( 'vmsos_widget_enabled', ! empty( $_POST['vmsos_widget_enabled'] ), false );
-		update_option( 'vmsos_widget_teaser_enabled', ! empty( $_POST['vmsos_widget_teaser_enabled'] ), false );
-		update_option( 'vmsos_widget_teaser_delay', max( 1, min( 60, (int) ( $_POST['vmsos_widget_teaser_delay'] ?? 3 ) ) ), false );
-		update_option( 'vmsos_widget_teaser_text', sanitize_textarea_field( (string) wp_unslash( $_POST['vmsos_widget_teaser_text'] ?? '' ) ), false );
-		update_option( 'vmsos_widget_starter_chips', sanitize_textarea_field( (string) wp_unslash( $_POST['vmsos_widget_starter_chips'] ?? '' ) ), false );
-		update_option( 'vmsos_widget_whatsapp', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_widget_whatsapp'] ?? '' ) ), false );
-		update_option( 'vmsos_widget_phone', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_widget_phone'] ?? '' ) ), false );
-		update_option( 'vmsos_widget_accent', sanitize_hex_color( (string) wp_unslash( $_POST['vmsos_widget_accent'] ?? '#c9a227' ) ) ?: '#c9a227', false );
-		update_option( 'vmsos_widget_position', in_array( $_POST['vmsos_widget_position'] ?? '', [ 'left', 'right' ], true ) ? (string) $_POST['vmsos_widget_position'] : 'right', false );
+		// B2B Lead Gen & Maps.
+		if ( isset( $_POST['vmsos_b2b_import_cities'] ) ) {
+			update_option( 'vmsos_b2b_import_cities', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_b2b_import_cities'] ) ), false );
+		}
+		if ( isset( $_POST['vmsos_leadgen_shadow_email_sync'] ) || isset( $_POST['vmsos_active_tab'] ) ) {
+			update_option( 'vmsos_leadgen_shadow_email_sync', ! empty( $_POST['vmsos_leadgen_shadow_email_sync'] ), false );
+		}
 
-		update_option( 'vmsos_sender_name', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_sender_name'] ?? '' ) ), false );
-		update_option( 'vmsos_sender_email', sanitize_email( (string) wp_unslash( $_POST['vmsos_sender_email'] ?? '' ) ), false );
-		update_option( 'vmsos_notify_email', sanitize_email( (string) wp_unslash( $_POST['vmsos_notify_email'] ?? '' ) ), false );
-		update_option( 'vmsos_require_consent', ! empty( $_POST['vmsos_require_consent'] ), false );
-		update_option( 'vmsos_track_opens', ! empty( $_POST['vmsos_track_opens'] ), false );
-		update_option( 'vmsos_track_clicks', ! empty( $_POST['vmsos_track_clicks'] ), false );
+		// Blueprint & Persona.
+		if ( isset( $_POST['vmsos_agent_name'] ) ) {
+			update_option( 'vmsos_agent_name', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_agent_name'] ) ), false );
+		}
+		if ( isset( $_POST['vmsos_agent_title'] ) ) {
+			update_option( 'vmsos_agent_title', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_agent_title'] ) ), false );
+		}
+		if ( isset( $_POST['vmsos_business_context'] ) ) {
+			update_option( 'vmsos_business_context', sanitize_textarea_field( (string) wp_unslash( $_POST['vmsos_business_context'] ) ), false );
+		}
+		if ( isset( $_POST['vmsos_widget_whatsapp'] ) ) {
+			update_option( 'vmsos_widget_whatsapp', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_widget_whatsapp'] ) ), false );
+		}
+		if ( isset( $_POST['vmsos_widget_phone'] ) ) {
+			update_option( 'vmsos_widget_phone', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_widget_phone'] ) ), false );
+		}
+		if ( isset( $_POST['vmsos_widget_enabled'] ) || isset( $_POST['vmsos_active_tab'] ) ) {
+			update_option( 'vmsos_widget_enabled', ! empty( $_POST['vmsos_widget_enabled'] ), false );
+		}
+		if ( isset( $_POST['vmsos_widget_teaser_enabled'] ) || isset( $_POST['vmsos_active_tab'] ) ) {
+			update_option( 'vmsos_widget_teaser_enabled', ! empty( $_POST['vmsos_widget_teaser_enabled'] ), false );
+		}
 
-		update_option( 'vmsos_send_window_enabled', ! empty( $_POST['vmsos_send_window_enabled'] ), false );
-		update_option( 'vmsos_send_window', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_send_window'] ?? '09:00-21:00' ) ), false );
-		update_option( 'vmsos_daily_cap_email', max( 0, (int) ( $_POST['vmsos_daily_cap_email'] ?? 500 ) ), false );
-		update_option( 'vmsos_daily_cap_whatsapp', max( 0, (int) ( $_POST['vmsos_daily_cap_whatsapp'] ?? 200 ) ), false );
-		update_option( 'vmsos_memory_every', max( 2, min( 20, (int) ( $_POST['vmsos_memory_every'] ?? 4 ) ) ), false );
+		// Delivery Safety & Rules.
+		if ( isset( $_POST['vmsos_send_window_enabled'] ) || isset( $_POST['vmsos_active_tab'] ) ) {
+			update_option( 'vmsos_send_window_enabled', ! empty( $_POST['vmsos_send_window_enabled'] ), false );
+		}
+		if ( isset( $_POST['vmsos_send_window'] ) ) {
+			update_option( 'vmsos_send_window', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_send_window'] ) ), false );
+		}
+		if ( isset( $_POST['vmsos_daily_cap_email'] ) ) {
+			update_option( 'vmsos_daily_cap_email', max( 0, (int) $_POST['vmsos_daily_cap_email'] ), false );
+		}
+		if ( isset( $_POST['vmsos_daily_cap_whatsapp'] ) ) {
+			update_option( 'vmsos_daily_cap_whatsapp', max( 0, (int) $_POST['vmsos_daily_cap_whatsapp'] ), false );
+		}
 
 		// Mobile Bridge Key.
 		$mobileKey = isset( $_POST['vmsos_mobile_api_key'] ) ? trim( (string) wp_unslash( $_POST['vmsos_mobile_api_key'] ) ) : '';
@@ -2291,26 +2379,43 @@ final class AdminArea {
 		}
 
 		// WhatsApp & Evolution API Settings.
-		update_option( 'vmsos_whatsapp_provider', sanitize_key( (string) wp_unslash( $_POST['vmsos_whatsapp_provider'] ?? 'meta' ) ), false );
-		update_option( 'vmsos_evolution_api_url', esc_url_raw( (string) ( $_POST['vmsos_evolution_api_url'] ?? 'http://127.0.0.1:18080' ) ), false );
-		update_option( 'vmsos_evolution_instance', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_evolution_instance'] ?? '' ) ), false );
+		if ( isset( $_POST['vmsos_whatsapp_provider'] ) ) {
+			update_option( 'vmsos_whatsapp_provider', sanitize_key( (string) wp_unslash( $_POST['vmsos_whatsapp_provider'] ) ), false );
+		}
+		if ( isset( $_POST['vmsos_evolution_api_url'] ) ) {
+			update_option( 'vmsos_evolution_api_url', esc_url_raw( (string) $_POST['vmsos_evolution_api_url'] ), false );
+		}
+		if ( isset( $_POST['vmsos_evolution_instance'] ) ) {
+			update_option( 'vmsos_evolution_instance', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_evolution_instance'] ) ), false );
+		}
 
 		$evolutionKey = isset( $_POST['vmsos_evolution_api_key'] ) ? trim( (string) wp_unslash( $_POST['vmsos_evolution_api_key'] ) ) : '';
 		if ( '' !== $evolutionKey ) {
 			$this->vault->put( 'evolution_api_key', $evolutionKey );
 		}
 
-		update_option( 'vmsos_whatsapp_phone_id', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_whatsapp_phone_id'] ?? '' ) ), false );
+		if ( isset( $_POST['vmsos_whatsapp_phone_id'] ) ) {
+			update_option( 'vmsos_whatsapp_phone_id', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_whatsapp_phone_id'] ) ), false );
+		}
 
 		// Voice Telephony Options.
-		update_option( 'vmsos_voice_enabled', ! empty( $_POST['vmsos_voice_enabled'] ), false );
-		update_option( 'vmsos_voice_assistant_id', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_voice_assistant_id'] ?? '' ) ), false );
-		update_option( 'vmsos_voice_phone_number_id', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_voice_phone_number_id'] ?? '' ) ), false );
-		update_option( 'vmsos_voice_webhook_secret', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_voice_webhook_secret'] ?? '' ) ), false );
-		update_option( 'vmsos_voice_disclosure', sanitize_textarea_field( (string) wp_unslash( $_POST['vmsos_voice_disclosure'] ?? '' ) ), false );
+		if ( isset( $_POST['vmsos_voice_enabled'] ) || isset( $_POST['vmsos_active_tab'] ) ) {
+			update_option( 'vmsos_voice_enabled', ! empty( $_POST['vmsos_voice_enabled'] ), false );
+		}
+		if ( isset( $_POST['vmsos_voice_assistant_id'] ) ) {
+			update_option( 'vmsos_voice_assistant_id', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_voice_assistant_id'] ) ), false );
+		}
+		if ( isset( $_POST['vmsos_voice_phone_number_id'] ) ) {
+			update_option( 'vmsos_voice_phone_number_id', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_voice_phone_number_id'] ) ), false );
+		}
+		if ( isset( $_POST['vmsos_voice_webhook_secret'] ) ) {
+			update_option( 'vmsos_voice_webhook_secret', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_voice_webhook_secret'] ) ), false );
+		}
+		if ( isset( $_POST['vmsos_voice_disclosure'] ) ) {
+			update_option( 'vmsos_voice_disclosure', sanitize_textarea_field( (string) wp_unslash( $_POST['vmsos_voice_disclosure'] ) ), false );
+		}
 
-		// Secrets are only written when a new value is typed, so the saved
-		// credential survives a save from a form showing only a hint.
+		// Secrets are only written when a new value is typed.
 		foreach ( [ 'whatsapp_token', 'whatsapp_verify_token', 'whatsapp_app_secret', 'voice_api_key', 'google_places_api_key' ] as $secret ) {
 			$value = isset( $_POST[ 'vmsos_' . $secret ] ) ? trim( (string) wp_unslash( $_POST[ 'vmsos_' . $secret ] ) ) : '';
 			if ( '' !== $value ) {
@@ -2318,43 +2423,79 @@ final class AdminArea {
 			}
 		}
 
-		update_option( 'vmsos_leadgen_shadow_email_sync', ! empty( $_POST['vmsos_leadgen_shadow_email_sync'] ), false );
-
 		// GitHub Repository & Update Settings.
-		update_option( 'vmsos_github_repo', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_github_repo'] ?? 'vmai-plugins/vm-sales-os' ) ), false );
-		update_option( 'vmsos_github_branch', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_github_branch'] ?? 'main' ) ), false );
+		if ( isset( $_POST['vmsos_github_repo'] ) ) {
+			update_option( 'vmsos_github_repo', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_github_repo'] ) ), false );
+		}
+		if ( isset( $_POST['vmsos_github_branch'] ) ) {
+			update_option( 'vmsos_github_branch', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_github_branch'] ) ), false );
+		}
 		$ghToken = isset( $_POST['vmsos_github_token'] ) ? trim( (string) wp_unslash( $_POST['vmsos_github_token'] ) ) : '';
 		if ( '' !== $ghToken ) {
 			$this->vault->put( 'github_token', $ghToken );
 		}
 
 		// LinkedIn Page & Leads Hub Settings.
-		$rawLiUrl = trim( (string) ( $_POST['vmsos_linkedin_page_url'] ?? '' ) );
-		$orgId    = sanitize_text_field( (string) wp_unslash( $_POST['vmsos_linkedin_org_id'] ?? '' ) );
+		if ( isset( $_POST['vmsos_linkedin_page_url'] ) || isset( $_POST['vmsos_linkedin_org_id'] ) ) {
+			$rawLiUrl = trim( (string) ( $_POST['vmsos_linkedin_page_url'] ?? '' ) );
+			$orgId    = sanitize_text_field( (string) wp_unslash( $_POST['vmsos_linkedin_org_id'] ?? '' ) );
 
-		if ( preg_match( '#/company/([0-9a-zA-Z\-_]+)#i', $rawLiUrl, $m ) ) {
-			$slug = $m[1];
-			if ( ctype_digit( $slug ) && empty( $orgId ) ) {
-				$orgId = $slug;
+			if ( preg_match( '#/company/([0-9a-zA-Z\-_]+)#i', $rawLiUrl, $m ) ) {
+				$slug = $m[1];
+				if ( ctype_digit( $slug ) && empty( $orgId ) ) {
+					$orgId = $slug;
+				}
+				$cleanLiUrl = 'https://www.linkedin.com/company/' . $slug . '/';
+			} else {
+				$cleanLiUrl = esc_url_raw( $rawLiUrl );
 			}
-			$cleanLiUrl = 'https://www.linkedin.com/company/' . $slug . '/';
-		} else {
-			$cleanLiUrl = esc_url_raw( $rawLiUrl );
+
+			if ( empty( $orgId ) && preg_match( '#\b(\d{7,10})\b#', $rawLiUrl, $m ) ) {
+				$orgId = $m[1];
+			}
+
+			if ( '' !== $cleanLiUrl ) {
+				update_option( 'vmsos_linkedin_page_url', $cleanLiUrl, false );
+			}
+			if ( '' !== $orgId ) {
+				update_option( 'vmsos_linkedin_org_id', $orgId, false );
+			}
 		}
 
-		if ( empty( $orgId ) && preg_match( '#\b(\d{7,10})\b#', $rawLiUrl, $m ) ) {
-			$orgId = $m[1];
+		if ( isset( $_POST['vmsos_linkedin_webhook_secret'] ) ) {
+			update_option( 'vmsos_linkedin_webhook_secret', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_linkedin_webhook_secret'] ) ), false );
+		}
+		if ( isset( $_POST['vmsos_linkedin_create_deal'] ) || isset( $_POST['vmsos_active_tab'] ) ) {
+			update_option( 'vmsos_linkedin_create_deal', ! empty( $_POST['vmsos_linkedin_create_deal'] ), false );
+		}
+		if ( isset( $_POST['vmsos_linkedin_default_deal_value'] ) ) {
+			update_option( 'vmsos_linkedin_default_deal_value', max( 0, (float) $_POST['vmsos_linkedin_default_deal_value'] ), false );
+		}
+		if ( isset( $_POST['vmsos_linkedin_sync_fluentform'] ) || isset( $_POST['vmsos_active_tab'] ) ) {
+			update_option( 'vmsos_linkedin_sync_fluentform', ! empty( $_POST['vmsos_linkedin_sync_fluentform'] ), false );
+		}
+		if ( isset( $_POST['vmsos_linkedin_target_form_id'] ) ) {
+			update_option( 'vmsos_linkedin_target_form_id', max( 1, (int) $_POST['vmsos_linkedin_target_form_id'] ), false );
 		}
 
-		update_option( 'vmsos_linkedin_page_url', $cleanLiUrl ?: 'https://www.linkedin.com/company/13230968/', false );
-		update_option( 'vmsos_linkedin_org_id', $orgId ?: '13230968', false );
-		update_option( 'vmsos_linkedin_webhook_secret', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_linkedin_webhook_secret'] ?? '' ) ), false );
-		update_option( 'vmsos_linkedin_create_deal', ! empty( $_POST['vmsos_linkedin_create_deal'] ), false );
-		update_option( 'vmsos_linkedin_default_deal_value', max( 0, (float) ( $_POST['vmsos_linkedin_default_deal_value'] ?? 25000 ) ), false );
-		update_option( 'vmsos_linkedin_sync_fluentform', ! empty( $_POST['vmsos_linkedin_sync_fluentform'] ), false );
-		update_option( 'vmsos_linkedin_target_form_id', max( 1, (int) ( $_POST['vmsos_linkedin_target_form_id'] ?? 1 ) ), false );
+		// Flush cached connection states so badges update immediately.
+		delete_transient( 'vmsos_wa_status_evolution' );
+		delete_transient( 'vmsos_wa_status_meta' );
 
-		wp_safe_redirect( add_query_arg( 'vmsos_saved', '1', admin_url( 'admin.php?page=' . self::SLUG . '-settings' ) ) );
+		$activeTab = isset( $_POST['vmsos_active_tab'] ) ? sanitize_key( (string) $_POST['vmsos_active_tab'] ) : 'tab-ai-brain';
+		if ( ! in_array( $activeTab, [ 'tab-ai-brain', 'tab-lead-gen', 'tab-blueprint', 'tab-omnichannel', 'tab-linkedin', 'tab-mobile-sync' ], true ) ) {
+			$activeTab = 'tab-ai-brain';
+		}
+
+		// Handle AJAX submission.
+		if ( ! empty( $_POST['is_ajax'] ) ) {
+			wp_send_json_success( [
+				'message'   => __( 'VM Sales OS settings saved successfully.', 'vm-sales-os' ),
+				'activeTab' => $activeTab,
+			] );
+		}
+
+		wp_safe_redirect( add_query_arg( 'vmsos_saved', '1', admin_url( 'admin.php?page=' . self::SLUG . '-settings#' . $activeTab ) ) );
 		exit;
 	}
 
