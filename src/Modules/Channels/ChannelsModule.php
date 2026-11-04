@@ -41,6 +41,15 @@ final class ChannelsModule extends Module {
 		);
 
 		$container->singleton(
+			EvolutionClient::class,
+			static fn( Container $c ) => new EvolutionClient(
+				$c->get( Vault::class ),
+				$c->get( IntegrationLog::class ),
+				$c->get( Logger::class )
+			)
+		);
+
+		$container->singleton(
 			VoiceClient::class,
 			static fn( Container $c ) => new VoiceClient(
 				$c->get( Vault::class ),
@@ -52,6 +61,7 @@ final class ChannelsModule extends Module {
 
 	public function boot( Container $container ): void {
 		$container->get( RestRouter::class )->add( WhatsAppWebhookController::class );
+		$container->get( RestRouter::class )->add( EvolutionWebhookController::class );
 		$container->get( RestRouter::class )->add( VoiceWebhookController::class );
 
 		// Deliver human replies from the inbox back to WhatsApp.
@@ -69,7 +79,12 @@ final class ChannelsModule extends Module {
 					return;
 				}
 
-				$container->get( WhatsAppClient::class )->send( $phone, $body );
+				$provider = (string) get_option( 'vmsos_whatsapp_provider', 'evolution' );
+				if ( 'evolution' === $provider ) {
+					$container->get( EvolutionClient::class )->send( $phone, $body );
+				} else {
+					$container->get( WhatsAppClient::class )->send( $phone, $body );
+				}
 			},
 			10,
 			2

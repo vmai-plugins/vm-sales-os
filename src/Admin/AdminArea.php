@@ -30,6 +30,7 @@ final class AdminArea {
 		add_action( 'admin_post_vmsos_save_settings', [ $this, 'saveSettings' ] );
 		add_action( 'wp_ajax_vmsos_sync_models', [ $this, 'ajaxSyncModels' ] );
 		add_action( 'wp_ajax_vmsos_test_ai', [ $this, 'ajaxTestAi' ] );
+		add_action( 'wp_ajax_vmsos_test_whatsapp', [ $this, 'ajaxTestWhatsApp' ] );
 		add_action( 'wp_ajax_vmsos_run_daily_leadgen', [ $this, 'ajaxRunDailyLeadgen' ] );
 		add_filter( 'plugin_action_links_' . VMSOS_BASENAME, [ $this, 'actionLinks' ] );
 	}
@@ -106,6 +107,7 @@ final class AdminArea {
 		$cronNextHuman   = $cronNext ? human_time_diff( time(), $cronNext ) : 'Not scheduled';
 		$placesKeyHint   = $this->vault->hint( 'google_places_api_key' );
 		$primaryProvider = $this->providers->chain()[0] ?? 'aipuffer';
+		$waStatus        = $this->getWhatsAppStatus();
 		?>
 				<style id="vmsos-modern-settings-inline-css">
 			/* Dark theme canvas override for settings screen */
@@ -581,6 +583,17 @@ final class AdminArea {
 						<span class="vmsos-pill-dot"></span>
 						<?php echo esc_html( sprintf( __( 'B2B Daily Cron: Active (in %s)', 'vm-sales-os' ), $cronNextHuman ) ); ?>
 					</span>
+					<?php if ( ! empty( $waStatus['connected'] ) ) : ?>
+						<span class="vmsos-pill vmsos-pill--emerald" id="vmsos-hero-wa-pill" title="<?php echo esc_attr( $waStatus['message'] ?? '' ); ?>">
+							<span class="vmsos-pill-dot" style="background: #25D366; box-shadow: 0 0 8px #25D366;"></span>
+							<?php echo esc_html( sprintf( __( 'WhatsApp: Connected (%s)', 'vm-sales-os' ), ucfirst( $waStatus['provider'] ?? 'Live' ) ) ); ?>
+						</span>
+					<?php else : ?>
+						<span class="vmsos-pill" id="vmsos-hero-wa-pill" style="opacity: 0.85;">
+							<span class="vmsos-pill-dot" style="background: #f59e0b; box-shadow: 0 0 6px #f59e0b;"></span>
+							<?php esc_html_e( 'WhatsApp: Disconnected', 'vm-sales-os' ); ?>
+						</span>
+					<?php endif; ?>
 				</div>
 			</div>
 
@@ -607,6 +620,12 @@ final class AdminArea {
 				<button type="button" class="vmsos-tab-btn" data-tab="tab-omnichannel">
 					<span class="dashicons dashicons-format-chat"></span>
 					<?php esc_html_e( 'WhatsApp & Voice Telephony', 'vm-sales-os' ); ?>
+					<?php if ( ! empty( $waStatus['connected'] ) ) : ?>
+						<span class="vmsos-wa-badge" style="background: #25D366; color: #070d1e; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 10px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; gap: 4px; margin-left: 4px;">
+							<span style="width: 5px; height: 5px; border-radius: 50%; background: #070d1e; display: inline-block;"></span>
+							LIVE
+						</span>
+					<?php endif; ?>
 				</button>
 				<button type="button" class="vmsos-tab-btn" data-tab="tab-linkedin">
 					<span class="dashicons dashicons-networking"></span>
@@ -965,6 +984,59 @@ final class AdminArea {
 
 				<!-- TAB 4: WhatsApp & Voice Telephony -->
 				<div class="vmsos-tab-content" id="tab-omnichannel">
+					<!-- WhatsApp Live Connection HUD Banner -->
+					<div class="vmsos-card" id="vmsos-wa-status-card" style="border: 1px solid <?php echo ! empty( $waStatus['connected'] ) ? '#25D366' : 'rgba(239, 68, 68, 0.4)'; ?>; background: <?php echo ! empty( $waStatus['connected'] ) ? 'linear-gradient(135deg, rgba(37, 211, 102, 0.12) 0%, rgba(6, 182, 212, 0.06) 100%)' : 'linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(15, 23, 42, 0.8) 100%)'; ?>; border-radius: 12px; padding: 22px 26px; margin-bottom: 22px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);">
+						<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+							<div style="display: flex; align-items: center; gap: 16px;">
+								<div id="vmsos-wa-icon-box" style="width: 50px; height: 50px; border-radius: 12px; background: <?php echo ! empty( $waStatus['connected'] ) ? '#25D366' : '#ef4444'; ?>; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px <?php echo ! empty( $waStatus['connected'] ) ? 'rgba(37, 211, 102, 0.4)' : 'rgba(239, 68, 68, 0.3)'; ?>; flex-shrink: 0;">
+									<span class="dashicons dashicons-whatsapp" style="font-size: 30px; width: 30px; height: 30px; color: #fff;"></span>
+								</div>
+								<div>
+									<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+										<h2 id="vmsos-wa-status-headline" style="margin: 0; font-size: 19px; font-weight: 700; color: #fff;">
+											<?php echo ! empty( $waStatus['connected'] ) ? esc_html__( '✓ WhatsApp Connected & Online', 'vm-sales-os' ) : esc_html__( 'WhatsApp Gateway Offline / Disconnected', 'vm-sales-os' ); ?>
+										</h2>
+										<span class="vmsos-pill <?php echo ! empty( $waStatus['connected'] ) ? 'vmsos-pill--emerald' : 'vmsos-pill--rose'; ?>" id="vmsos-wa-state-badge" style="padding: 3px 10px; font-size: 11px;">
+											<span class="vmsos-pill-dot" style="background: <?php echo ! empty( $waStatus['connected'] ) ? '#25D366' : '#ef4444'; ?>;"></span>
+											<span id="vmsos-wa-state-text"><?php echo esc_html( strtoupper( $waStatus['state'] ?? ( ! empty( $waStatus['connected'] ) ? 'OPEN' : 'DISCONNECTED' ) ) ); ?></span>
+										</span>
+									</div>
+									<p style="margin: 6px 0 0 0; font-size: 13px; color: var(--vmsos-muted);">
+										<strong><?php esc_html_e( 'Provider:', 'vm-sales-os' ); ?></strong> <span id="vmsos-wa-provider-text"><?php echo esc_html( 'evolution' === ( $waStatus['provider'] ?? '' ) ? 'Evolution API (Self-Hosted on VPS)' : 'Meta WhatsApp Cloud API' ); ?></span> &bull; 
+										<strong><?php esc_html_e( 'Instance:', 'vm-sales-os' ); ?></strong> <code><?php echo esc_html( $waStatus['instance'] ?? 'vmstudio' ); ?></code> &bull;
+										<strong><?php esc_html_e( 'Connected Number:', 'vm-sales-os' ); ?></strong> <code id="vmsos-wa-phone-text" style="color: #25D366; font-weight: bold;">+<?php echo esc_html( ltrim( (string) ( $waStatus['phone'] ?? get_option( 'vmsos_widget_whatsapp', '918368316403' ) ), '+' ) ); ?></code>
+									</p>
+								</div>
+							</div>
+
+							<!-- Action Buttons -->
+							<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+								<?php
+								$cleanWaNum = ltrim( (string) ( $waStatus['phone'] ?? get_option( 'vmsos_widget_whatsapp', '918368316403' ) ), '+' );
+								?>
+								<!-- Prominent Green Button -->
+								<a href="https://wa.me/<?php echo esc_attr( $cleanWaNum ); ?>" target="_blank" id="vmsos-btn-open-wa-chat" class="button" style="background: #25D366 !important; color: #fff !important; border: 1px solid #20ba5a !important; font-weight: 700 !important; font-size: 13px !important; padding: 7px 18px !important; border-radius: 6px !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; box-shadow: 0 4px 14px rgba(37, 211, 102, 0.35) !important; text-decoration: none !important;">
+									<span class="dashicons dashicons-whatsapp" style="font-size: 16px; width: 16px; height: 16px; margin-top: -1px;"></span>
+									<?php esc_html_e( 'Open WhatsApp Chat', 'vm-sales-os' ); ?>
+								</a>
+
+								<!-- Ping / Test Live Connection Button -->
+								<button type="button" class="vmsos-btn-action" id="vmsos-btn-test-wa" onclick="vmsosTestWhatsApp(this)" style="padding: 7px 14px; font-size: 12px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.2); color: #e2e8f0;">
+									<span class="dashicons dashicons-update" style="vertical-align: middle;"></span>
+									<span><?php esc_html_e( 'Test Live Connection', 'vm-sales-os' ); ?></span>
+								</button>
+
+								<!-- Direct Live Inbox Shortcut -->
+								<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::SLUG . '&tab=inbox' ) ); ?>" class="vmsos-btn-action" style="padding: 7px 14px; font-size: 12px; text-decoration: none;">
+									<span class="dashicons dashicons-email-alt" style="vertical-align: middle;"></span>
+									<span><?php esc_html_e( 'View Inbox', 'vm-sales-os' ); ?></span>
+								</a>
+							</div>
+						</div>
+
+						<div id="vmsos-wa-test-result" style="display: none; margin-top: 14px; padding: 10px 14px; border-radius: 6px; font-size: 12px; font-family: monospace;"></div>
+					</div>
+
 					<!-- WhatsApp Suite -->
 					<div class="vmsos-card">
 						<div class="vmsos-card-header">
@@ -1706,6 +1778,86 @@ final class AdminArea {
 				});
 			}
 
+			// WhatsApp Live Connection Test Handler
+			window.vmsosTestWhatsApp = function(btn) {
+				var originalHtml = btn.innerHTML;
+				btn.disabled = true;
+				btn.innerHTML = '<span class="dashicons dashicons-update" style="animation:vmsosRotate 1s linear infinite;"></span> Pinging WhatsApp...';
+				var resultBox = document.getElementById('vmsos-wa-test-result');
+
+				var data = new FormData();
+				data.append('action', 'vmsos_test_whatsapp');
+				data.append('_wpnonce', '<?php echo esc_js( wp_create_nonce( 'vmsos_settings' ) ); ?>');
+
+				fetch(ajaxurl, { method: 'POST', body: data })
+					.then(function(r) { return r.json(); })
+					.then(function(res) {
+						btn.disabled = false;
+						btn.innerHTML = originalHtml;
+						if (resultBox) {
+							resultBox.style.display = 'block';
+							if (res.success && res.data) {
+								var d = res.data;
+								if (d.connected) {
+									resultBox.style.background = 'rgba(37, 211, 102, 0.15)';
+									resultBox.style.border = '1px solid #25D366';
+									resultBox.style.color = '#86efac';
+									resultBox.innerHTML = '✓ <strong>' + (d.message || 'WhatsApp Gateway is live and operating normal.') + '</strong> (State: ' + (d.state || 'open') + ')';
+
+									var badge = document.getElementById('vmsos-wa-state-badge');
+									if (badge) {
+										badge.className = 'vmsos-pill vmsos-pill--emerald';
+										var stateText = document.getElementById('vmsos-wa-state-text');
+										if (stateText) stateText.textContent = (d.state || 'OPEN').toUpperCase();
+									}
+
+									var heroPill = document.getElementById('vmsos-hero-wa-pill');
+									if (heroPill) {
+										heroPill.className = 'vmsos-pill vmsos-pill--emerald';
+										heroPill.innerHTML = '<span class="vmsos-pill-dot" style="background:#25D366; box-shadow:0 0 8px #25D366;"></span> WhatsApp: Connected (Live)';
+									}
+
+									var headline = document.getElementById('vmsos-wa-status-headline');
+									if (headline) headline.textContent = '✓ WhatsApp Connected & Online';
+
+									var iconBox = document.getElementById('vmsos-wa-icon-box');
+									if (iconBox) {
+										iconBox.style.background = '#25D366';
+										iconBox.style.boxShadow = '0 4px 16px rgba(37, 211, 102, 0.4)';
+									}
+
+									var statusCard = document.getElementById('vmsos-wa-status-card');
+									if (statusCard) {
+										statusCard.style.borderColor = '#25D366';
+										statusCard.style.background = 'linear-gradient(135deg, rgba(37, 211, 102, 0.12) 0%, rgba(6, 182, 212, 0.06) 100%)';
+									}
+								} else {
+									resultBox.style.background = 'rgba(239, 68, 68, 0.15)';
+									resultBox.style.border = '1px solid #ef4444';
+									resultBox.style.color = '#fca5a5';
+									resultBox.innerHTML = '✗ <strong>' + (d.message || 'WhatsApp Gateway returned disconnected state.') + '</strong>';
+								}
+							} else {
+								resultBox.style.background = 'rgba(239, 68, 68, 0.15)';
+								resultBox.style.border = '1px solid #ef4444';
+								resultBox.style.color = '#fca5a5';
+								resultBox.innerHTML = '✗ ' + ((res.data && res.data.message) || 'WhatsApp connection test failed');
+							}
+						}
+					})
+					.catch(function(err) {
+						btn.disabled = false;
+						btn.innerHTML = originalHtml;
+						if (resultBox) {
+							resultBox.style.display = 'block';
+							resultBox.style.background = 'rgba(239, 68, 68, 0.15)';
+							resultBox.style.border = '1px solid #ef4444';
+							resultBox.style.color = '#fca5a5';
+							resultBox.innerHTML = 'Network error while testing WhatsApp connection.';
+						}
+					});
+			};
+
 			// B2B Lead Gen Daily Batch Trigger
 			var runLeadgenBtn = document.getElementById('vmsos-btn-run-leadgen-batch');
 			var leadgenStatusBox = document.getElementById('vmsos-leadgen-batch-status');
@@ -1993,6 +2145,83 @@ final class AdminArea {
 			wp_send_json_error( [
 				'message' => $e->getMessage(),
 			], 500 );
+		}
+	}
+
+	/**
+	 * Retrieve live or cached WhatsApp connection status.
+	 *
+	 * @param bool $fresh Whether to bypass cache.
+	 * @return array{provider: string, connected: bool, state: string, phone: string, instance?: string, message: string}
+	 */
+	public function getWhatsAppStatus( bool $fresh = false ): array {
+		$provider = (string) get_option( 'vmsos_whatsapp_provider', 'evolution' );
+		$cacheKey = 'vmsos_wa_status_' . $provider;
+
+		if ( ! $fresh ) {
+			$cached = get_transient( $cacheKey );
+			if ( is_array( $cached ) && isset( $cached['connected'] ) ) {
+				return $cached;
+			}
+		}
+
+		$status = [
+			'provider'  => $provider,
+			'connected' => false,
+			'state'     => 'unknown',
+			'phone'     => (string) get_option( 'vmsos_widget_whatsapp', '918368316403' ),
+			'instance'  => 'evolution' === $provider ? (string) get_option( 'vmsos_evolution_instance', 'vmstudio' ) : (string) get_option( 'vmsos_whatsapp_phone_id', '' ),
+			'message'   => __( 'Not tested yet.', 'vm-sales-os' ),
+		];
+
+		try {
+			if ( 'evolution' === $provider ) {
+				$client = $this->container ? $this->container->get( \VMStudio\SalesOS\Modules\Channels\EvolutionClient::class ) : null;
+				if ( ! $client && function_exists( 'vmsos' ) ) {
+					$client = vmsos()->container()->get( \VMStudio\SalesOS\Modules\Channels\EvolutionClient::class );
+				}
+				if ( $client ) {
+					$res = $client->checkConnection();
+					$status = array_merge( $status, $res, [ 'provider' => 'evolution' ] );
+				}
+			} else {
+				$client = $this->container ? $this->container->get( \VMStudio\SalesOS\Modules\Channels\WhatsAppClient::class ) : null;
+				if ( ! $client && function_exists( 'vmsos' ) ) {
+					$client = vmsos()->container()->get( \VMStudio\SalesOS\Modules\Channels\WhatsAppClient::class );
+				}
+				if ( $client ) {
+					$res = $client->checkConnection();
+					$status = array_merge( $status, $res, [ 'provider' => 'meta' ] );
+				}
+			}
+		} catch ( \Throwable $e ) {
+			$status['message'] = $e->getMessage();
+			$status['state']   = 'error';
+		}
+
+		set_transient( $cacheKey, $status, 60 );
+		return $status;
+	}
+
+	public function ajaxTestWhatsApp(): void {
+		$nonce = isset( $_POST['_wpnonce'] ) ? sanitize_text_field( (string) $_POST['_wpnonce'] ) : '';
+		if ( ! current_user_can( 'vmsos_manage' ) || ! wp_verify_nonce( $nonce, 'vmsos_settings' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Permission denied or expired session.', 'vm-sales-os' ) ], 403 );
+		}
+
+		$status = $this->getWhatsAppStatus( true );
+		if ( ! empty( $status['connected'] ) ) {
+			wp_send_json_success( array_merge( $status, [
+				'message' => sprintf(
+					__( 'WhatsApp gateway is LIVE and verified! Provider: %1$s, State: %2$s', 'vm-sales-os' ),
+					strtoupper( $status['provider'] ?? 'evolution' ),
+					strtoupper( $status['state'] ?? 'open' )
+				),
+			] ) );
+		} else {
+			wp_send_json_error( array_merge( $status, [
+				'message' => $status['message'] ?: __( 'WhatsApp instance is unreachable or disconnected.', 'vm-sales-os' ),
+			] ), 400 );
 		}
 	}
 

@@ -97,4 +97,56 @@ final class WhatsAppClient {
 
 		return true;
 	}
+
+	/**
+	 * Check live connection status of Meta WhatsApp Cloud API.
+	 *
+	 * @return array{connected: bool, state: string, message: string, phone?: string}
+	 */
+	public function checkConnection(): array {
+		if ( ! $this->configured() ) {
+			return [
+				'connected' => false,
+				'state'     => 'unconfigured',
+				'message'   => 'WhatsApp Phone Number ID or Token not configured.',
+			];
+		}
+
+		$endpoint = self::GRAPH . rawurlencode( $this->phoneNumberId() );
+		$response = wp_remote_get(
+			$endpoint,
+			[
+				'timeout' => 8,
+				'headers' => [
+					'Authorization' => 'Bearer ' . $this->token(),
+				],
+			]
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return [
+				'connected' => false,
+				'state'     => 'error',
+				'message'   => $response->get_error_message(),
+			];
+		}
+
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		$data = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+
+		if ( 200 === $code && ! empty( $data['id'] ) ) {
+			return [
+				'connected' => true,
+				'state'     => 'open',
+				'phone'     => (string) ( $data['display_phone_number'] ?? '' ),
+				'message'   => 'Meta WhatsApp Cloud API verified and active.',
+			];
+		}
+
+		return [
+			'connected' => false,
+			'state'     => 'error',
+			'message'   => (string) ( $data['error']['message'] ?? ( 'HTTP ' . $code ) ),
+		];
+	}
 }

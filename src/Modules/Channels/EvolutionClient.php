@@ -92,4 +92,60 @@ final class EvolutionClient {
 		$this->integrations->success( 'evolution', 'send', $trace );
 		return true;
 	}
+
+	/**
+	 * Check live connection status of Evolution API instance.
+	 *
+	 * @return array{connected: bool, state: string, instance: string, message: string}
+	 */
+	public function checkConnection(): array {
+		if ( ! $this->configured() ) {
+			return [
+				'connected' => false,
+				'state'     => 'unconfigured',
+				'instance'  => $this->instance(),
+				'message'   => 'Evolution API key or instance name not configured.',
+			];
+		}
+
+		$endpoint = sprintf( '%s/instance/connectionState/%s', $this->apiUrl(), rawurlencode( $this->instance() ) );
+		$response = wp_remote_get(
+			$endpoint,
+			[
+				'timeout' => 8,
+				'headers' => [
+					'apikey' => $this->apiKey(),
+				],
+			]
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return [
+				'connected' => false,
+				'state'     => 'error',
+				'instance'  => $this->instance(),
+				'message'   => $response->get_error_message(),
+			];
+		}
+
+		$code  = (int) wp_remote_retrieve_response_code( $response );
+		$data  = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+		$state = strtolower( (string) ( $data['instance']['state'] ?? $data['state'] ?? '' ) );
+
+		if ( 200 === $code && 'open' === $state ) {
+			return [
+				'connected' => true,
+				'state'     => 'open',
+				'instance'  => $this->instance(),
+				'message'   => 'WhatsApp instance is connected and live.',
+			];
+		}
+
+		return [
+			'connected' => false,
+			'state'     => $state ?: 'closed',
+			'instance'  => $this->instance(),
+			'message'   => sprintf( 'Instance state: %s (HTTP %d)', $state ?: 'disconnected', $code ),
+		];
+	}
 }
