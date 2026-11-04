@@ -1086,23 +1086,35 @@ final class AdminArea {
 							</div>
 						</div>
 
-						<div style="margin-bottom: 20px; padding: 16px; background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.25); border-radius: 8px;">
-							<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
-								<div>
-									<span style="font-size: 13px; font-weight: 700; color: #38bdf8; display: block; margin-bottom: 4px;">
-										<?php esc_html_e( 'Your Live Inbound LinkedIn Webhook URL:', 'vm-sales-os' ); ?>
+						<?php
+						$currentSecret = (string) get_option( 'vmsos_linkedin_webhook_secret', '' );
+						$baseWebhookUrl = rest_url( 'vmsos/v1/webhook/linkedin' );
+						$fullWebhookUrl = '' !== $currentSecret ? add_query_arg( 'token', $currentSecret, $baseWebhookUrl ) : $baseWebhookUrl;
+						?>
+						<div style="margin-bottom: 20px; padding: 18px; background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.28); border-radius: 10px;">
+							<div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-wrap: wrap;">
+								<div style="flex: 1; min-width: 320px;">
+									<span style="font-size: 13.5px; font-weight: 700; color: #38bdf8; display: block; margin-bottom: 6px;">
+										⚡ <?php esc_html_e( 'Your Live Authenticated Inbound LinkedIn Webhook URL:', 'vm-sales-os' ); ?>
 									</span>
-									<code id="vmsos-linkedin-webhook-display" style="font-size: 13px; color: #fff; background: rgba(0,0,0,0.4); padding: 6px 10px; border-radius: 4px; display: inline-block;">
-										<?php echo esc_html( rest_url( 'vmsos/v1/webhook/linkedin' ) ); ?>
+									<code id="vmsos-linkedin-webhook-display" style="font-size: 13px; color: #fff; background: rgba(0,0,0,0.5); padding: 8px 12px; border-radius: 6px; display: inline-block; word-break: break-all; border: 1px solid rgba(255,255,255,0.1);">
+										<?php echo esc_html( $fullWebhookUrl ); ?>
 									</code>
 								</div>
-								<button type="button" class="button button-secondary" id="vmsos-btn-copy-linkedin-webhook" onclick="vmsosCopyWebhook()">
-									<span class="dashicons dashicons-clipboard" style="vertical-align: middle;"></span>
-									<span id="vmsos-copy-status"><?php esc_html_e( 'Copy Webhook URL', 'vm-sales-os' ); ?></span>
-								</button>
+								<div style="display: flex; gap: 8px; flex-wrap: wrap;">
+									<button type="button" class="button button-primary" id="vmsos-btn-copy-linkedin-webhook" onclick="vmsosCopyWebhook()">
+										<span class="dashicons dashicons-clipboard" style="vertical-align: middle;"></span>
+										<span id="vmsos-copy-status"><?php esc_html_e( 'Copy Webhook URL', 'vm-sales-os' ); ?></span>
+									</button>
+								</div>
 							</div>
-							<p style="font-size: 12px; color: var(--vmsos-muted); margin: 8px 0 0 0;">
-								<?php esc_html_e( 'Point your LinkedIn Lead Gen Form webhook, Zapier/Make scenario, or scraper to this URL. All incoming leads instantly ingest into CRM Contacts, create a Sales OS Deal, mirror to Fluent Forms, and trigger 1-tap call/WhatsApp inside the Z-Agents mobile app.', 'vm-sales-os' ); ?>
+							<div style="margin-top: 12px; display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--vmsos-muted);">
+								<span><strong>HTTP Method:</strong> <code style="color: #10b981;">POST</code></span>
+								<span><strong>Format:</strong> <code style="color: #10b981;">application/json</code></span>
+								<span><strong>Active Auth Token:</strong> <code style="color: #f59e0b;"><?php echo esc_html( $currentSecret ?: 'None (Open)' ); ?></code></span>
+							</div>
+							<p style="font-size: 12px; color: #94a3b8; margin: 10px 0 0 0; line-height: 1.5;">
+								<?php esc_html_e( 'Paste this Webhook URL into LinkedIn Lead Gen Forms, Zapier, Make.com, n8n, or your scraping relays. Every inbound lead instantly syncs to Sales OS CRM Contacts, opens a pipeline Deal, mirrors into Fluent Forms, and triggers 1-tap call/WhatsApp inside the Z-Agents mobile client.', 'vm-sales-os' ); ?>
 							</p>
 						</div>
 
