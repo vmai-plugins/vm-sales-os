@@ -19,7 +19,8 @@ final class AdminArea {
 	public function __construct(
 		private ProviderManager $providers,
 		private PromptRegistry $prompts,
-		private Vault $vault
+		private Vault $vault,
+		private ?\VMStudio\SalesOS\Core\Container $container = null
 	) {}
 
 	public function boot(): void {
@@ -1241,9 +1242,15 @@ final class AdminArea {
 						</div>
 
 						<?php
-						$repoInstance = $this->container->has( \VMStudio\SalesOS\Modules\LinkedInRadar\LinkedInRadarRepository::class )
-							? $this->container->get( \VMStudio\SalesOS\Modules\LinkedInRadar\LinkedInRadarRepository::class )
-							: null;
+						$repoInstance = null;
+						if ( $this->container && $this->container->has( \VMStudio\SalesOS\Modules\LinkedInRadar\LinkedInRadarRepository::class ) ) {
+							$repoInstance = $this->container->get( \VMStudio\SalesOS\Modules\LinkedInRadar\LinkedInRadarRepository::class );
+						} elseif ( class_exists( \VMStudio\SalesOS\Core\Plugin::class ) ) {
+							$appContainer = \VMStudio\SalesOS\Core\Plugin::instance()->container();
+							if ( $appContainer && $appContainer->has( \VMStudio\SalesOS\Modules\LinkedInRadar\LinkedInRadarRepository::class ) ) {
+								$repoInstance = $appContainer->get( \VMStudio\SalesOS\Modules\LinkedInRadar\LinkedInRadarRepository::class );
+							}
+						}
 						$liLeads = $repoInstance ? $repoInstance->list() : [];
 						?>
 
@@ -1397,26 +1404,50 @@ final class AdminArea {
 
 		<script>
 		(function() {
+			window.vmsosAdmin = window.vmsosAdmin || {
+				root: '<?php echo esc_js( rest_url( 'vmsos/v1/' ) ); ?>',
+				nonce: '<?php echo esc_js( wp_create_nonce( 'wp_rest' ) ); ?>'
+			};
+
 			function initVmsosSettings() {
 				// Tab Navigation Logic
 				var tabBtns = document.querySelectorAll('#vmsos-settings-tabs .vmsos-tab-btn');
 				var tabPanes = document.querySelectorAll('.vmsos-tab-content');
 
+				function switchTab(targetId) {
+					if (!targetId) return;
+					var targetPane = document.getElementById(targetId);
+					if (!targetPane) return;
+
+					tabBtns.forEach(function(b) {
+						b.classList.toggle('is-active', b.getAttribute('data-tab') === targetId);
+					});
+					tabPanes.forEach(function(p) {
+						var isTarget = p.id === targetId;
+						p.classList.toggle('is-active', isTarget);
+						p.style.display = isTarget ? 'block' : 'none';
+					});
+
+					try {
+						if (history.replaceState) {
+							history.replaceState(null, null, '#' + targetId);
+						}
+					} catch (_) {}
+				}
+
 				tabBtns.forEach(function(btn) {
 					btn.addEventListener('click', function(e) {
 						e.preventDefault();
-						tabBtns.forEach(function(b) { b.classList.remove('is-active'); });
-						tabPanes.forEach(function(p) { p.classList.remove('is-active'); p.style.display = 'none'; });
-
-						btn.classList.add('is-active');
 						var targetId = btn.getAttribute('data-tab');
-						var targetPane = document.getElementById(targetId);
-						if (targetPane) {
-							targetPane.classList.add('is-active');
-							targetPane.style.display = 'block';
-						}
+						switchTab(targetId);
 					});
 				});
+
+				// Auto-open tab from URL hash (e.g. #tab-linkedin)
+				var initialHash = (window.location.hash || '').replace('#', '');
+				if (initialHash && document.getElementById(initialHash)) {
+					switchTab(initialHash);
+				}
 
 				// LinkedIn Helper Handlers with Fallback for Insecure HTTP Contexts
 				function vmsosFallbackCopy(text, cb) {
