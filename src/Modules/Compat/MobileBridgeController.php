@@ -58,6 +58,10 @@ final class MobileBridgeController extends AbstractController {
 		'/internal/chat'      => 'internal-chat',
 	];
 
+	private const PAPERCLIP_BASE_URL   = 'https://agents.vmstudio.digital/api';
+	private const PAPERCLIP_COMPANY_ID = 'fb04286e-c64e-45da-b050-5491282f4965';
+	private const PAPERCLIP_TOKEN      = 'pcp_board_vmstudio_7c8d19a11451e09643b0eab79a6253551e1a87eb';
+
 	public function __construct(
 		private ApiKeyGuard $guard,
 		private ContactRepository $contacts,
@@ -118,6 +122,16 @@ final class MobileBridgeController extends AbstractController {
 		$route( '/mobile/master-assistant/chat', 'POST', 'masterAssistantChat' );
 		$route( '/zoho/summary', 'GET', 'getZohoSummary' );
 		$route( '/zoho/config', 'GET', 'getZohoConfig' );
+
+		// Paperclip Business Power Suite Routes
+		$route( '/paperclip/overview', 'GET', 'getPaperclipOverview' );
+		$route( '/mobile/paperclip/overview', 'GET', 'getPaperclipOverview' );
+		$route( '/paperclip/agents', 'GET', 'getPaperclipAgents' );
+		$route( '/mobile/paperclip/agents', 'GET', 'getPaperclipAgents' );
+		$route( '/paperclip/issues', 'GET', 'getPaperclipIssues' );
+		$route( '/mobile/paperclip/issues', 'GET', 'getPaperclipIssues' );
+		$route( '/paperclip/dispatch-task', 'POST', 'handlePaperclipDispatchTask' );
+		$route( '/mobile/paperclip/dispatch-task', 'POST', 'handlePaperclipDispatchTask' );
 
 		// WhatsApp & Evolution Gateway Mobile Routes
 		$route( '/send-whatsapp', 'POST', 'sendWhatsApp' );
@@ -1198,6 +1212,148 @@ final class MobileBridgeController extends AbstractController {
 			'configured' => true,
 			'mode'       => 'auto_token',
 		] );
+	}
+
+	/**
+	 * Proxy helper for Paperclip Autonomous Business Power Suite API
+	 */
+	private function paperclipRequest( string $endpoint, string $method = 'GET', ?array $body = null ): ?array {
+		$url = self::PAPERCLIP_BASE_URL . '/companies/' . self::PAPERCLIP_COMPANY_ID . $endpoint;
+		$args = [
+			'method'    => $method,
+			'timeout'   => 15,
+			'sslverify' => false,
+			'headers'   => [
+				'Authorization' => 'Bearer ' . self::PAPERCLIP_TOKEN,
+				'Content-Type'  => 'application/json',
+			],
+		];
+		if ( $body !== null && ( $method === 'POST' || $method === 'PATCH' ) ) {
+			$args['body'] = wp_json_encode( $body );
+		}
+		$response = wp_remote_request( $url, $args );
+		if ( is_wp_error( $response ) ) {
+			$localUrl = 'http://127.0.0.1:3300/api/companies/' . self::PAPERCLIP_COMPANY_ID . $endpoint;
+			$args['headers']['Host'] = 'agents.vmstudio.digital';
+			$response = wp_remote_request( $localUrl, $args );
+			if ( is_wp_error( $response ) ) {
+				return null;
+			}
+		}
+		$code = wp_remote_retrieve_response_code( $response );
+		$rawBody = wp_remote_retrieve_body( $response );
+		$data = json_decode( $rawBody, true );
+		if ( $code >= 200 && $code < 300 && is_array( $data ) ) {
+			return $data;
+		}
+		return null;
+	}
+
+	public function getPaperclipOverview( WP_REST_Request $request ): WP_REST_Response {
+		$agents = $this->paperclipRequest( '/agents' ) ?? [];
+		$issues = $this->paperclipRequest( '/issues' ) ?? [];
+
+		$todoCount = 0;
+		$inProgressCount = 0;
+		$doneCount = 0;
+		$blockedCount = 0;
+
+		foreach ( $issues as $issue ) {
+			$status = strtolower( (string) ( $issue['status'] ?? 'todo' ) );
+			if ( $status === 'done' || $status === 'completed' ) {
+				$doneCount++;
+			} elseif ( $status === 'in_progress' || $status === 'running' ) {
+				$inProgressCount++;
+			} elseif ( $status === 'blocked' ) {
+				$blockedCount++;
+			} else {
+				$todoCount++;
+			}
+		}
+
+		return $this->bare( [
+			'ok'            => true,
+			'company'       => [
+				'id'          => self::PAPERCLIP_COMPANY_ID,
+				'name'        => 'VM Studio',
+				'prefix'      => 'VMS',
+				'portalUrl'   => 'https://agents.vmstudio.digital/VMS/agents/chief-of-staff/overview',
+			],
+			'metrics'       => [
+				'totalAgents'       => count( $agents ),
+				'activeMissions'    => $inProgressCount + $todoCount,
+				'completedMissions' => $doneCount,
+				'blockedMissions'   => $blockedCount,
+				'totalIssues'       => count( $issues ),
+			],
+			'chiefOfStaff'  => [
+				'id'          => '70d6fd5d-36f8-4871-9d5b-587131c9f4e6',
+				'name'        => 'Chief of staff',
+				'role'        => 'Autonomous Business Orchestrator',
+				'status'      => 'active',
+				'overviewUrl' => 'https://agents.vmstudio.digital/VMS/agents/chief-of-staff/overview',
+			],
+			'agents'        => $agents,
+			'recentIssues'  => array_slice( $issues, 0, 10 ),
+		] );
+	}
+
+	public function getPaperclipAgents( WP_REST_Request $request ): WP_REST_Response {
+		$agents = $this->paperclipRequest( '/agents' ) ?? [];
+		return $this->bare( [
+			'ok'     => true,
+			'count'  => count( $agents ),
+			'agents' => $agents,
+		] );
+	}
+
+	public function getPaperclipIssues( WP_REST_Request $request ): WP_REST_Response {
+		$issues = $this->paperclipRequest( '/issues' ) ?? [];
+		return $this->bare( [
+			'ok'     => true,
+			'count'  => count( $issues ),
+			'issues' => $issues,
+		] );
+	}
+
+	public function handlePaperclipDispatchTask( WP_REST_Request $request ): WP_REST_Response {
+		$params = $request->get_json_params() ?: [];
+		$title = sanitize_text_field( $params['title'] ?? '' );
+		$description = sanitize_textarea_field( $params['description'] ?? '' );
+		$priority = sanitize_text_field( $params['priority'] ?? 'medium' );
+		$assigneeId = sanitize_text_field( $params['assigneeId'] ?? '70d6fd5d-36f8-4871-9d5b-587131c9f4e6' );
+
+		if ( empty( $title ) ) {
+			return $this->bare( [
+				'ok'    => false,
+				'error' => 'Mission title is required',
+			], 400 );
+		}
+
+		$payload = [
+			'title'       => $title,
+			'description' => $description,
+			'priority'    => $priority,
+			'status'      => 'todo',
+		];
+		if ( ! empty( $assigneeId ) ) {
+			$payload['assigneeId'] = $assigneeId;
+		}
+
+		$result = $this->paperclipRequest( '/issues', 'POST', $payload );
+
+		if ( ! $result || empty( $result['id'] ) ) {
+			return $this->bare( [
+				'ok'    => false,
+				'error' => 'Failed to dispatch mission to Paperclip',
+			], 502 );
+		}
+
+		return $this->bare( [
+			'ok'      => true,
+			'message' => 'Mission dispatched successfully to Chief of Staff autonomous queue.',
+			'issue'   => $result,
+		], 201 );
 	}
 
 	public function handleLogin( WP_REST_Request $request ): WP_REST_Response {
