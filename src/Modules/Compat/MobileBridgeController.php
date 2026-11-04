@@ -128,6 +128,10 @@ final class MobileBridgeController extends AbstractController {
 		$route( '/mobile/whatsapp-leads', 'GET', 'getWhatsAppLeads' );
 		$route( '/whatsapp-messages', 'GET', 'getWhatsAppMessages' );
 		$route( '/mobile/whatsapp-messages', 'GET', 'getWhatsAppMessages' );
+		$route( '/automation-settings', 'GET', 'handleGetAutomationSettings' );
+		$route( '/mobile/automation-settings', 'GET', 'handleGetAutomationSettings' );
+		$route( '/automation-settings', 'POST', 'handleUpdateAutomationSettings' );
+		$route( '/mobile/automation-settings', 'POST', 'handleUpdateAutomationSettings' );
 
 		// Mobile Lead Operations
 		$route( '/update-lead', 'POST', 'handleUpdateLead' );
@@ -1480,6 +1484,55 @@ final class MobileBridgeController extends AbstractController {
 			'ok'       => true,
 			'success'  => true,
 			'messages' => $messages,
+		] );
+	}
+
+	/**
+	 * Get Automation Settings (Kill Switch and Sub-Toggles)
+	 */
+	public function handleGetAutomationSettings( WP_REST_Request $request ): WP_REST_Response {
+		return $this->bare( [
+			'ok'                         => true,
+			'all_automations_disabled'   => (bool) get_option( 'vmsos_disable_all_automations', false ),
+			'first_greeting_enabled'     => (bool) get_option( 'vmsos_whatsapp_first_greeting', true ),
+			'auto_reply_enabled'         => (bool) get_option( 'vmsos_whatsapp_auto_reply', false ),
+			'missed_call_reply_enabled'  => (bool) get_option( 'vmsos_missed_call_auto_reply', true ),
+		] );
+	}
+
+	/**
+	 * Update Automation Settings (Kill Switch and Sub-Toggles)
+	 */
+	public function handleUpdateAutomationSettings( WP_REST_Request $request ): WP_REST_Response {
+		$params = $request->get_json_params() ?: $request->get_params();
+		if ( isset( $params['disable_all_automations'] ) || isset( $params['all_automations_disabled'] ) ) {
+			$val = $params['disable_all_automations'] ?? $params['all_automations_disabled'];
+			$boolVal = '1' === (string) $val || true === $val;
+			update_option( 'vmsos_disable_all_automations', $boolVal, false );
+		}
+		if ( isset( $params['whatsapp_first_greeting_enabled'] ) || isset( $params['first_greeting_enabled'] ) ) {
+			$val = $params['whatsapp_first_greeting_enabled'] ?? $params['first_greeting_enabled'];
+			$boolVal = '1' === (string) $val || true === $val;
+			update_option( 'vmsos_whatsapp_first_greeting', $boolVal, false );
+		}
+		if ( isset( $params['whatsapp_auto_reply'] ) || isset( $params['auto_reply_enabled'] ) ) {
+			$val = $params['whatsapp_auto_reply'] ?? $params['auto_reply_enabled'];
+			$boolVal = '1' === (string) $val || true === $val;
+			update_option( 'vmsos_whatsapp_auto_reply', $boolVal, false );
+		}
+		if ( isset( $params['missed_call_auto_reply'] ) || isset( $params['missed_call_reply_enabled'] ) ) {
+			$val = $params['missed_call_auto_reply'] ?? $params['missed_call_reply_enabled'];
+			$boolVal = '1' === (string) $val || true === $val;
+			update_option( 'vmsos_missed_call_auto_reply', $boolVal, false );
+		}
+
+		return $this->bare( [
+			'ok'                         => true,
+			'success'                    => true,
+			'all_automations_disabled'   => (bool) get_option( 'vmsos_disable_all_automations', false ),
+			'first_greeting_enabled'     => (bool) get_option( 'vmsos_whatsapp_first_greeting', true ),
+			'auto_reply_enabled'         => (bool) get_option( 'vmsos_whatsapp_auto_reply', false ),
+			'missed_call_reply_enabled'  => (bool) get_option( 'vmsos_missed_call_auto_reply', true ),
 		] );
 	}
 
