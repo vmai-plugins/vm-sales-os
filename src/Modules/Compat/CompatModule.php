@@ -71,16 +71,16 @@ final class CompatModule extends Module {
 		// Connect with Google Site Kit One-Click Login for PWA / Web redirect
 		add_filter(
 			'login_redirect',
-			static function( string $redirectTo, string $requestedRedirectTo, $user ): string {
+			static function( $redirectTo, $requestedRedirectTo = null, $user = null ) {
 				if ( ! $user instanceof \WP_User ) {
 					return $redirectTo;
 				}
 
-				$target = ! empty( $requestedRedirectTo ) ? $requestedRedirectTo : $redirectTo;
+				$target = ! empty( $requestedRedirectTo ) ? (string) $requestedRedirectTo : (string) $redirectTo;
 				if ( str_contains( $target, 'z-agents' ) ) {
 					$token = get_user_meta( $user->ID, 'vmai_mobile_token', true );
 					if ( ! $token ) {
-						$token = wp_generate_password( 32, false );
+						$token = 'za_live_' . wp_generate_password( 32, false );
 						update_user_meta( $user->ID, 'vmai_mobile_token', $token );
 					}
 
@@ -95,7 +95,7 @@ final class CompatModule extends Module {
 
 				return $redirectTo;
 			},
-			10,
+			99,
 			3
 		);
 	}

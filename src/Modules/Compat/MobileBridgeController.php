@@ -909,8 +909,15 @@ final class MobileBridgeController extends AbstractController {
 		$userName    = $currentUser->display_name ?: 'Executive Admin';
 		$profile     = $this->resolveUserRoleProfile( $currentUser->exists() ? $currentUser : null );
 
+		$token = get_user_meta( $userId, 'vmai_mobile_token', true );
+		if ( ! $token ) {
+			$token = 'za_live_' . wp_generate_password( 32, false );
+			update_user_meta( $userId, 'vmai_mobile_token', $token );
+		}
+
 		return $this->bare( [
 			'authenticated' => true,
+			'token'         => $token,
 			'user' => [
 				'id'          => $userId,
 				'name'        => $userName,
