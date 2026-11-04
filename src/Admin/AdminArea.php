@@ -1064,14 +1064,25 @@ final class AdminArea {
 				<div class="vmsos-tab-content" id="tab-linkedin">
 					<!-- Hero & Inbound Webhook Gateway -->
 					<div class="vmsos-card">
+						<?php
+						$currentLiUrl = (string) get_option( 'vmsos_linkedin_page_url', 'https://www.linkedin.com/company/13230968/' );
+						$currentLiOrgId = (string) get_option( 'vmsos_linkedin_org_id', '13230968' );
+						$currentLiAdminUrl = 'https://www.linkedin.com/company/' . $currentLiOrgId . '/admin/dashboard/';
+						?>
 						<div class="vmsos-card-header">
 							<div>
-								<h2><?php esc_html_e( 'LinkedIn Inbound Leads Gateway & Webhook', 'vm-sales-os' ); ?></h2>
-								<p><?php esc_html_e( 'Real-time webhook receiver for LinkedIn Lead Gen Forms, Zapier, Make, n8n, PhantomBuster, and page inquiries.', 'vm-sales-os' ); ?></p>
+								<h2><?php esc_html_e( 'LinkedIn Company Page & Leads Gateway', 'vm-sales-os' ); ?></h2>
+								<p><?php esc_html_e( 'Direct integration for your LinkedIn Company Page, Lead Gen Forms, webhooks, and Z-Agents mobile radar.', 'vm-sales-os' ); ?></p>
 							</div>
-							<span class="vmsos-pill vmsos-pill--cyan">
-								<?php esc_html_e( 'Z-Agents Sync Active', 'vm-sales-os' ); ?>
-							</span>
+							<div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+								<span class="vmsos-pill" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
+									<span class="vmsos-pill-dot" style="background: #10b981;"></span>
+									<?php echo esc_html( 'Company ID: #' . $currentLiOrgId ); ?>
+								</span>
+								<a href="<?php echo esc_url( $currentLiAdminUrl ); ?>" target="_blank" rel="noopener" class="button button-secondary" style="font-size: 11px;">
+									<?php esc_html_e( 'Open LinkedIn Admin â†—', 'vm-sales-os' ); ?>
+								</a>
+							</div>
 						</div>
 
 						<div style="margin-bottom: 20px; padding: 16px; background: rgba(6, 182, 212, 0.08); border: 1px solid rgba(6, 182, 212, 0.25); border-radius: 8px;">
@@ -1094,19 +1105,26 @@ final class AdminArea {
 							</p>
 						</div>
 
-						<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+						<div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;">
 							<div class="vmsos-form-group">
-								<label for="vmsos_linkedin_page_url"><?php esc_html_e( 'LinkedIn Company / Personal Page URL', 'vm-sales-os' ); ?></label>
-								<input type="url" name="vmsos_linkedin_page_url" id="vmsos_linkedin_page_url" class="vmsos-input-modern" value="<?php echo esc_attr( (string) get_option( 'vmsos_linkedin_page_url', 'https://www.linkedin.com/company/vmstudio' ) ); ?>" placeholder="https://www.linkedin.com/company/your-company" />
+								<label for="vmsos_linkedin_page_url"><?php esc_html_e( 'LinkedIn Company / Admin Page URL', 'vm-sales-os' ); ?></label>
+								<input type="url" name="vmsos_linkedin_page_url" id="vmsos_linkedin_page_url" class="vmsos-input-modern" value="<?php echo esc_attr( $currentLiUrl ); ?>" placeholder="https://www.linkedin.com/company/13230968/admin/dashboard/" />
 								<span style="font-size: 11px; color: var(--vmsos-muted); margin-top: 4px;">
-									<?php esc_html_e( 'Official LinkedIn page used for brand reference and attribution.', 'vm-sales-os' ); ?>
+									<?php esc_html_e( 'Official company URL or admin dashboard URL.', 'vm-sales-os' ); ?>
+								</span>
+							</div>
+							<div class="vmsos-form-group">
+								<label for="vmsos_linkedin_org_id"><?php esc_html_e( 'Company Organization ID (URN)', 'vm-sales-os' ); ?></label>
+								<input type="text" name="vmsos_linkedin_org_id" id="vmsos_linkedin_org_id" class="vmsos-input-modern" value="<?php echo esc_attr( $currentLiOrgId ); ?>" placeholder="13230968" />
+								<span style="font-size: 11px; color: var(--vmsos-muted); margin-top: 4px;">
+									<?php esc_html_e( 'LinkedIn Organization ID (e.g. 13230968 for urn:li:organization:13230968)', 'vm-sales-os' ); ?>
 								</span>
 							</div>
 							<div class="vmsos-form-group">
 								<label for="vmsos_linkedin_webhook_secret"><?php esc_html_e( 'Webhook Security Secret / Token (Optional)', 'vm-sales-os' ); ?></label>
 								<input type="text" name="vmsos_linkedin_webhook_secret" id="vmsos_linkedin_webhook_secret" class="vmsos-input-modern" value="<?php echo esc_attr( (string) get_option( 'vmsos_linkedin_webhook_secret', '' ) ); ?>" placeholder="Leave blank or set custom secret..." />
 								<span style="font-size: 11px; color: var(--vmsos-muted); margin-top: 4px;">
-									<?php esc_html_e( 'If set, incoming webhooks must provide header X-LinkedIn-Token: <secret> or query param ?token=<secret>', 'vm-sales-os' ); ?>
+									<?php esc_html_e( 'If set, incoming webhooks must provide header X-LinkedIn-Token: <secret> or ?token=<secret>', 'vm-sales-os' ); ?>
 								</span>
 							</div>
 						</div>
@@ -2039,7 +2057,25 @@ final class AdminArea {
 		}
 
 		// LinkedIn Page & Leads Hub Settings.
-		update_option( 'vmsos_linkedin_page_url', esc_url_raw( (string) ( $_POST['vmsos_linkedin_page_url'] ?? 'https://www.linkedin.com/company/vmstudio' ) ), false );
+		$rawLiUrl = trim( (string) ( $_POST['vmsos_linkedin_page_url'] ?? '' ) );
+		$orgId    = sanitize_text_field( (string) wp_unslash( $_POST['vmsos_linkedin_org_id'] ?? '' ) );
+
+		if ( preg_match( '#/company/([0-9a-zA-Z\-_]+)#i', $rawLiUrl, $m ) ) {
+			$slug = $m[1];
+			if ( ctype_digit( $slug ) && empty( $orgId ) ) {
+				$orgId = $slug;
+			}
+			$cleanLiUrl = 'https://www.linkedin.com/company/' . $slug . '/';
+		} else {
+			$cleanLiUrl = esc_url_raw( $rawLiUrl );
+		}
+
+		if ( empty( $orgId ) && preg_match( '#\b(\d{7,10})\b#', $rawLiUrl, $m ) ) {
+			$orgId = $m[1];
+		}
+
+		update_option( 'vmsos_linkedin_page_url', $cleanLiUrl ?: 'https://www.linkedin.com/company/13230968/', false );
+		update_option( 'vmsos_linkedin_org_id', $orgId ?: '13230968', false );
 		update_option( 'vmsos_linkedin_webhook_secret', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_linkedin_webhook_secret'] ?? '' ) ), false );
 		update_option( 'vmsos_linkedin_create_deal', ! empty( $_POST['vmsos_linkedin_create_deal'] ), false );
 		update_option( 'vmsos_linkedin_default_deal_value', max( 0, (float) ( $_POST['vmsos_linkedin_default_deal_value'] ?? 25000 ) ), false );

@@ -1014,13 +1014,23 @@ final class MobileBridgeController extends AbstractController {
 	}
 
 	public function getSocialAiOverview( WP_REST_Request $request ): WP_REST_Response {
+		$liUrl = (string) get_option( 'vmsos_linkedin_page_url', 'https://www.linkedin.com/company/13230968/' );
+		$liOrgId = (string) get_option( 'vmsos_linkedin_org_id', '13230968' );
+		$liAdminUrl = 'https://www.linkedin.com/company/' . $liOrgId . '/admin/dashboard/';
+
 		return $this->bare( [
 			'plan'             => 'Pro Enterprise Sovereign',
 			'models_available' => 3658,
 			'ai_engine'        => 'OmniRoute + Gemini 2.0 + Pollinations FLUX',
+			'linkedin'         => [
+				'page_url'     => $liUrl,
+				'org_id'       => $liOrgId,
+				'admin_url'    => $liAdminUrl,
+				'is_connected' => true,
+			],
 			'channels'         => [
 				[ 'name' => 'WhatsApp Broadcast', 'status' => 'connected', 'subscribers' => 1240 ],
-				[ 'name' => 'LinkedIn Company Page', 'status' => 'connected', 'followers' => 450 ],
+				[ 'name' => 'LinkedIn Company Page', 'status' => 'connected', 'followers' => 450, 'url' => $liUrl, 'org_id' => $liOrgId, 'admin_url' => $liAdminUrl ],
 				[ 'name' => 'Instagram Business', 'status' => 'active', 'reach_30d' => 18900 ],
 			],
 			'queue'            => [],
