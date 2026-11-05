@@ -89,7 +89,11 @@ final class PaperclipBridge {
 	 * Perform an authenticated request against the Paperclip API.
 	 */
 	public static function request( string $endpoint, string $method = 'GET', ?array $body = null ): ?array {
-		$url = self::BASE_URL . '/companies/' . self::COMPANY_ID . $endpoint;
+		if ( preg_match( '#^/heartbeat-runs/[a-f0-9-]+#i', $endpoint ) ) {
+			$url = self::BASE_URL . $endpoint;
+		} else {
+			$url = self::BASE_URL . '/companies/' . self::COMPANY_ID . $endpoint;
+		}
 		$args = [
 			'method'    => $method,
 			'timeout'   => 10,
@@ -107,7 +111,9 @@ final class PaperclipBridge {
 
 		// Local loopback fallback if external hairpin NAT or public DNS fails
 		if ( is_wp_error( $response ) ) {
-			$localUrl = self::LOCAL_URL . '/companies/' . self::COMPANY_ID . $endpoint;
+			$localUrl = preg_match( '#^/heartbeat-runs/[a-f0-9-]+#i', $endpoint )
+				? self::LOCAL_URL . $endpoint
+				: self::LOCAL_URL . '/companies/' . self::COMPANY_ID . $endpoint;
 			$args['headers']['Host'] = 'agents.vmstudio.digital';
 			$response = wp_remote_request( $localUrl, $args );
 			if ( is_wp_error( $response ) ) {

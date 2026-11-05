@@ -148,6 +148,12 @@ final class MobileBridgeController extends AbstractController {
 		$route( '/mobile/paperclip/dispatch-task', 'POST', 'handlePaperclipDispatchTask' );
 		$route( '/paperclip/agent-chat', 'POST', 'handlePaperclipAgentChat' );
 		$route( '/mobile/paperclip/agent-chat', 'POST', 'handlePaperclipAgentChat' );
+		$route( '/paperclip/activity', 'GET', 'getPaperclipActivity' );
+		$route( '/mobile/paperclip/activity', 'GET', 'getPaperclipActivity' );
+		$route( '/paperclip/heartbeat-runs', 'GET', 'getPaperclipHeartbeatRuns' );
+		$route( '/mobile/paperclip/heartbeat-runs', 'GET', 'getPaperclipHeartbeatRuns' );
+		$route( '/paperclip/run-log', 'GET', 'getPaperclipRunLog' );
+		$route( '/mobile/paperclip/run-log', 'GET', 'getPaperclipRunLog' );
 
 		// WhatsApp & Evolution Gateway Mobile Routes
 		$route( '/send-whatsapp', 'POST', 'sendWhatsApp' );
@@ -1533,6 +1539,38 @@ final class MobileBridgeController extends AbstractController {
 			'ok'     => true,
 			'count'  => count( $issues ),
 			'issues' => $issues,
+		] );
+	}
+
+	public function getPaperclipActivity( WP_REST_Request $request ): WP_REST_Response {
+		$activity = $this->paperclipRequest( '/activity' ) ?? [];
+		return $this->bare( [
+			'ok'       => true,
+			'count'    => count( $activity ),
+			'activity' => array_slice( $activity, 0, 50 ),
+		] );
+	}
+
+	public function getPaperclipHeartbeatRuns( WP_REST_Request $request ): WP_REST_Response {
+		$limit = (int) ( $request->get_param( 'limit' ) ?: 30 );
+		$runs = $this->paperclipRequest( '/heartbeat-runs?limit=' . $limit ) ?? [];
+		return $this->bare( [
+			'ok'    => true,
+			'count' => count( $runs ),
+			'runs'  => $runs,
+		] );
+	}
+
+	public function getPaperclipRunLog( WP_REST_Request $request ): WP_REST_Response {
+		$runId = sanitize_text_field( $request->get_param( 'runId' ) ?: '' );
+		if ( empty( $runId ) ) {
+			return $this->bare( [ 'ok' => false, 'error' => 'runId parameter is required' ], 400 );
+		}
+		$logData = $this->paperclipRequest( '/heartbeat-runs/' . rawurlencode( $runId ) . '/log' );
+		return $this->bare( [
+			'ok'      => true,
+			'runId'   => $runId,
+			'logData' => $logData,
 		] );
 	}
 
