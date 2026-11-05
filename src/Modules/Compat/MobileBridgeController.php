@@ -63,6 +63,8 @@ final class MobileBridgeController extends AbstractController {
 	private const PAPERCLIP_COMPANY_ID = 'fb04286e-c64e-45da-b050-5491282f4965';
 	private const PAPERCLIP_TOKEN      = 'pcp_board_vmstudio_7c8d19a11451e09643b0eab79a6253551e1a87eb';
 
+	private ?\VMStudio\SalesOS\AI\ProviderManager $providers = null;
+
 	public function __construct(
 		private ApiKeyGuard $guard,
 		private ContactRepository $contacts,
@@ -1642,7 +1644,41 @@ final class MobileBridgeController extends AbstractController {
 
 		$messages[] = [ 'role' => 'user', 'content' => $message ];
 
-		// Query OmniRoute
+		// Primary: Route through ProviderManager (OpenAI / Gemini prioritized sovereign chain)
+		try {
+			if ( null === $this->providers ) {
+				$this->providers = \VMStudio\SalesOS\Core\Plugin::instance()->make( \VMStudio\SalesOS\AI\ProviderManager::class );
+			}
+			$chatMessages = [
+				\VMStudio\SalesOS\AI\DTO\Message::system( $systemPrompt ),
+			];
+			$recent = array_slice( $history, -6 );
+			foreach ( $recent as $h ) {
+				if ( isset( $h['role'], $h['content'] ) ) {
+					$role = ( 'user' === $h['role'] ) ? 'user' : 'assistant';
+					$chatMessages[] = new \VMStudio\SalesOS\AI\DTO\Message( $role, mb_substr( (string) $h['content'], 0, 1500 ) );
+				}
+			}
+			$chatMessages[] = \VMStudio\SalesOS\AI\DTO\Message::user( $message );
+
+			$chatReq = new \VMStudio\SalesOS\AI\DTO\ChatRequest( $chatMessages );
+			$chatRes = $this->providers->chat( $chatReq );
+
+			if ( ! empty( $chatRes->content ) ) {
+				return $this->bare( [
+					'ok'        => true,
+					'agentId'   => $agentId,
+					'agentName' => $agentName,
+					'reply'     => $chatRes->content,
+					'model'     => $chatRes->model ?: 'gpt-4o',
+					'provider'  => $chatRes->provider ?: 'openai',
+				] );
+			}
+		} catch ( \Throwable $e ) {
+			// Failover to secondary OmniRoute / local rule engine below
+		}
+
+		// Secondary Failover: Query OmniRoute
 		$omniUrl = 'https://ai.vmstudio.digital/api/v1/chat/completions';
 		$omniKey = 'sk-fdcfc87a62a78521-a3cc2b-917e354e';
 		$payload = [
@@ -1653,7 +1689,7 @@ final class MobileBridgeController extends AbstractController {
 		];
 
 		$res = wp_remote_post( $omniUrl, [
-			'timeout'   => 25,
+			'timeout'   => 15,
 			'sslverify' => false,
 			'headers'   => [
 				'Authorization' => 'Bearer ' . $omniKey,
