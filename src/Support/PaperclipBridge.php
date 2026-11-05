@@ -23,24 +23,66 @@ final class PaperclipBridge {
 	/**
 	 * Dispatch a high-priority mission / issue to Paperclip.
 	 *
-	 * @param string      $title       Short summary of mission.
-	 * @param string      $description Full context, contact details, requirements.
-	 * @param string      $agentId     Target agent UUID. Defaults to Leo (Growth).
-	 * @param string      $priority    'low' | 'medium' | 'high' | 'urgent'.
+	 * @param string      $title         Short summary of mission.
+	 * @param string      $description   Full context, contact details, requirements.
+	 * @param string      $agentId       Target agent UUID. Defaults to Leo (Growth).
+	 * @param string      $priority      'low' | 'medium' | 'high' | 'urgent'.
+	 * @param bool        $notifyFounder Whether to trigger an instant WhatsApp alert to Founder.
 	 * @return array<string, mixed>|null Issue object from Paperclip or null on failure.
 	 */
 	public static function dispatchIssue(
 		string $title,
 		string $description,
 		string $agentId = self::AGENT_LEO_GROWTH,
-		string $priority = 'high'
+		string $priority = 'high',
+		bool $notifyFounder = true
 	): ?array {
-		return self::request( '/issues', 'POST', [
+		$res = self::request( '/issues', 'POST', [
 			'title'           => $title,
 			'description'     => $description,
 			'priority'        => $priority,
 			'assigneeAgentId' => $agentId,
 		] );
+
+		if ( $notifyFounder && $res && ! empty( $res['identifier'] ) ) {
+			$waMessage = sprintf(
+				"🎯 *New Lead Dispatched to Paperclip (%s)*\n\n" .
+				"• *Task*: %s\n" .
+				"• *Priority*: %s\n" .
+				"• *Assigned Agent*: Leo (Growth Strategist)\n\n" .
+				"Leo is analyzing client intent and drafting your tailored proposal.",
+				$res['identifier'],
+				$title,
+				strtoupper( $priority )
+			);
+			self::notifyFounderWhatsApp( $waMessage );
+		}
+
+		return $res;
+	}
+
+	/**
+	 * Send an instant WhatsApp notification to the Founder via Evolution API.
+	 */
+	public static function notifyFounderWhatsApp( string $message ): bool {
+		$evoUrl = 'http://127.0.0.1:18080/message/sendText/vmstudio';
+		$apiKey = 'bebf8554b69b4eff665465956069890dadeb84547a964ba0ac129e43e98576a2';
+		$founderPhone = get_option( 'vmsos_widget_whatsapp', '918368316403' );
+
+		$res = wp_remote_post( $evoUrl, [
+			'timeout'   => 8,
+			'sslverify' => false,
+			'headers'   => [
+				'apikey'       => $apiKey,
+				'Content-Type' => 'application/json',
+			],
+			'body'      => wp_json_encode( [
+				'number' => preg_replace( '/[^0-9]/', '', (string) $founderPhone ),
+				'text'   => $message,
+			] ),
+		] );
+
+		return ! is_wp_error( $res ) && wp_remote_retrieve_response_code( $res ) >= 200 && wp_remote_retrieve_response_code( $res ) < 300;
 	}
 
 	/**
