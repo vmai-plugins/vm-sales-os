@@ -89,7 +89,7 @@ final class PaperclipBridge {
 	 * Perform an authenticated request against the Paperclip API.
 	 */
 	public static function request( string $endpoint, string $method = 'GET', ?array $body = null ): ?array {
-		if ( preg_match( '#^/(heartbeat-runs|agents)/[a-f0-9-]+#i', $endpoint ) ) {
+		if ( preg_match( '#^/(heartbeat-runs|agents/[a-f0-9-]+)#i', $endpoint ) ) {
 			$url = self::BASE_URL . $endpoint;
 		} else {
 			$url = self::BASE_URL . '/companies/' . self::COMPANY_ID . $endpoint;
@@ -111,7 +111,7 @@ final class PaperclipBridge {
 
 		// Local loopback fallback if external hairpin NAT or public DNS fails
 		if ( is_wp_error( $response ) ) {
-			$localUrl = preg_match( '#^/(heartbeat-runs|agents)/[a-f0-9-]+#i', $endpoint )
+			$localUrl = preg_match( '#^/(heartbeat-runs|agents/[a-f0-9-]+)#i', $endpoint )
 				? self::LOCAL_URL . $endpoint
 				: self::LOCAL_URL . '/companies/' . self::COMPANY_ID . $endpoint;
 			$args['headers']['Host'] = 'agents.vmstudio.digital';
@@ -135,9 +135,8 @@ final class PaperclipBridge {
 	 * Pause a specific agent by ID.
 	 */
 	public static function pauseAgent( string $agentId, string $reason = 'manual' ): ?array {
-		return self::request( '/agents/' . rawurlencode( $agentId ), 'PATCH', [
-			'status'      => 'paused',
-			'pauseReason' => $reason,
+		return self::request( '/agents/' . rawurlencode( $agentId ) . '/pause', 'POST', [
+			'reason' => $reason,
 		] );
 	}
 
@@ -145,9 +144,7 @@ final class PaperclipBridge {
 	 * Resume a specific agent by ID.
 	 */
 	public static function resumeAgent( string $agentId ): ?array {
-		return self::request( '/agents/' . rawurlencode( $agentId ), 'PATCH', [
-			'status' => 'active',
-		] );
+		return self::request( '/agents/' . rawurlencode( $agentId ) . '/resume', 'POST' );
 	}
 
 	/**
