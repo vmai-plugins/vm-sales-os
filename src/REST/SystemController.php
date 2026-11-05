@@ -184,14 +184,15 @@ If the commander asks for a briefing, summarize operational metrics, hot inquiri
 Always maintain high confidence, clarity, and precision.";
 
 		try {
-			$response = $this->providers->complete( [
-				[ 'role' => 'system', 'content' => $systemPrompt ],
-				[ 'role' => 'user', 'content' => $message ],
+			$chatReq = new \VMStudio\SalesOS\AI\DTO\ChatRequest( [
+				\VMStudio\SalesOS\AI\DTO\Message::system( $systemPrompt ),
+				\VMStudio\SalesOS\AI\DTO\Message::user( $message ),
 			] );
+			$chatRes = $this->providers->chat( $chatReq );
 
-			$text     = $response['text'] ?? 'Commander, directives received.';
-			$provider = $response['provider'] ?? 'aipuffer';
-			$model    = $response['model'] ?? '1169';
+			$text     = $chatRes->content ?: 'Commander, directives received.';
+			$provider = $chatRes->provider ?: 'aipuffer';
+			$model    = $chatRes->model ?: 'default';
 
 			// Generate contextual action chips based on message
 			$actions = [];

@@ -100,7 +100,7 @@ final class ProviderManager {
 		}
 
 		if ( empty( $flat ) ) {
-			$flat = [ 'aipuffer', 'openai', 'gemini', 'anthropic' ];
+			$flat = [ 'openai', 'aipuffer', 'gemini', 'anthropic' ];
 		}
 
 		return array_values( array_unique( (array) apply_filters( 'vmsos_ai_chain', $flat ) ) );
