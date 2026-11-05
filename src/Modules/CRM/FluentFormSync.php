@@ -296,9 +296,10 @@ final class FluentFormSync {
 				$leadName = ! empty( $email ) ? $email : 'New Website Prospect';
 			}
 
+			$siteHost = (string) ( wp_parse_url( home_url(), PHP_URL_HOST ) ?: 'our website' );
 			$desc = sprintf(
 				"### 🎯 Inbound Lead Alert: %s\n\n" .
-				"A new prospective client submitted the **%s** form on vmstudio.digital.\n\n" .
+				"A new prospective client submitted the **%s** form on %s.\n\n" .
 				"* **Contact Name**: %s\n" .
 				"* **Email**: %s\n" .
 				"* **Phone**: %s\n" .
@@ -311,6 +312,7 @@ final class FluentFormSync {
 				"3. Draft high-converting personalized WhatsApp / Email opener.",
 				$leadName,
 				$formTitle,
+				$siteHost,
 				$leadName,
 				$email ?: 'N/A',
 				$phone ?: 'N/A',

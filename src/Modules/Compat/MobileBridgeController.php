@@ -1596,7 +1596,9 @@ final class MobileBridgeController extends AbstractController {
 		$contactCount = $this->contacts->count();
 
 		// Construct high-fidelity persona prompt
-		$systemPrompt = "You are {$agentName}, an executive autonomous AI department head for VM Studio (https://vmstudio.digital).\n";
+		$businessName = (string) get_option( 'vmsos_business_name', get_bloginfo( 'name' ) ?: 'Enterprise Workspace' );
+		$siteUrl      = home_url();
+		$systemPrompt = "You are {$agentName}, an executive autonomous AI department head for {$businessName} ({$siteUrl}).\n";
 		$roleLower    = strtolower( $agentName );
 
 		if ( str_contains( $roleLower, 'leo' ) || str_contains( $roleLower, 'growth' ) || $agentId === PaperclipBridge::AGENT_LEO_GROWTH ) {
