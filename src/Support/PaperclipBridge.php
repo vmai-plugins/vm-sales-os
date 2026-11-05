@@ -89,7 +89,7 @@ final class PaperclipBridge {
 	 * Perform an authenticated request against the Paperclip API.
 	 */
 	public static function request( string $endpoint, string $method = 'GET', ?array $body = null ): ?array {
-		if ( preg_match( '#^/heartbeat-runs/[a-f0-9-]+#i', $endpoint ) ) {
+		if ( preg_match( '#^/(heartbeat-runs|agents)/[a-f0-9-]+#i', $endpoint ) ) {
 			$url = self::BASE_URL . $endpoint;
 		} else {
 			$url = self::BASE_URL . '/companies/' . self::COMPANY_ID . $endpoint;
@@ -111,7 +111,7 @@ final class PaperclipBridge {
 
 		// Local loopback fallback if external hairpin NAT or public DNS fails
 		if ( is_wp_error( $response ) ) {
-			$localUrl = preg_match( '#^/heartbeat-runs/[a-f0-9-]+#i', $endpoint )
+			$localUrl = preg_match( '#^/(heartbeat-runs|agents)/[a-f0-9-]+#i', $endpoint )
 				? self::LOCAL_URL . $endpoint
 				: self::LOCAL_URL . '/companies/' . self::COMPANY_ID . $endpoint;
 			$args['headers']['Host'] = 'agents.vmstudio.digital';
@@ -129,5 +129,60 @@ final class PaperclipBridge {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Pause a specific agent by ID.
+	 */
+	public static function pauseAgent( string $agentId, string $reason = 'manual' ): ?array {
+		return self::request( '/agents/' . rawurlencode( $agentId ), 'PATCH', [
+			'status'      => 'paused',
+			'pauseReason' => $reason,
+		] );
+	}
+
+	/**
+	 * Resume a specific agent by ID.
+	 */
+	public static function resumeAgent( string $agentId ): ?array {
+		return self::request( '/agents/' . rawurlencode( $agentId ), 'PATCH', [
+			'status' => 'active',
+		] );
+	}
+
+	/**
+	 * Freeze all agents across the company immediately.
+	 */
+	public static function emergencyHalt( string $reason = 'Emergency halt triggered from Z-Agents' ): array {
+		$agents = self::request( '/agents' ) ?? [];
+		$halted = [];
+		foreach ( $agents as $agent ) {
+			$id = $agent['id'] ?? '';
+			if ( ! empty( $id ) && ( $agent['status'] ?? '' ) !== 'paused' ) {
+				$res = self::pauseAgent( $id, $reason );
+				if ( $res ) {
+					$halted[] = $agent['name'] ?? $id;
+				}
+			}
+		}
+		return $halted;
+	}
+
+	/**
+	 * Resume all paused agents across the company.
+	 */
+	public static function emergencyResume(): array {
+		$agents = self::request( '/agents' ) ?? [];
+		$resumed = [];
+		foreach ( $agents as $agent ) {
+			$id = $agent['id'] ?? '';
+			if ( ! empty( $id ) && ( $agent['status'] ?? '' ) === 'paused' ) {
+				$res = self::resumeAgent( $id );
+				if ( $res ) {
+					$resumed[] = $agent['name'] ?? $id;
+				}
+			}
+		}
+		return $resumed;
 	}
 }

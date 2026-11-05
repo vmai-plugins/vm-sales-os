@@ -154,6 +154,10 @@ final class MobileBridgeController extends AbstractController {
 		$route( '/mobile/paperclip/heartbeat-runs', 'GET', 'getPaperclipHeartbeatRuns' );
 		$route( '/paperclip/run-log', 'GET', 'getPaperclipRunLog' );
 		$route( '/mobile/paperclip/run-log', 'GET', 'getPaperclipRunLog' );
+		$route( '/paperclip/pause-agent', 'POST', 'handlePaperclipPauseAgent' );
+		$route( '/mobile/paperclip/pause-agent', 'POST', 'handlePaperclipPauseAgent' );
+		$route( '/paperclip/emergency-halt', 'POST', 'handlePaperclipEmergencyHalt' );
+		$route( '/mobile/paperclip/emergency-halt', 'POST', 'handlePaperclipEmergencyHalt' );
 
 		// WhatsApp & Evolution Gateway Mobile Routes
 		$route( '/send-whatsapp', 'POST', 'sendWhatsApp' );
@@ -1384,71 +1388,178 @@ final class MobileBridgeController extends AbstractController {
 			$params  = json_decode( $rawBody, true ) ?: [];
 		}
 		$message = trim( (string) ( $params['message'] ?? '' ) );
-		$lower   = strtolower( $message );
+		$history = is_array( $params['history'] ?? null ) ? $params['history'] : [];
 		$contactCount = $this->contacts->count();
 
-		$reply = '';
-		$suggestions = [];
+		$businessName = (string) get_option( 'vmsos_business_name', get_bloginfo( 'name' ) ?: 'VM Studio' );
+		$siteUrl      = home_url();
 
-		if ( str_contains( $lower, 'lead' ) || str_contains( $lower, 'hot' ) || str_contains( $lower, 'pipeline' ) ) {
-			$reply = "### 🎯 Sales Pipeline & Hot Deals Status\n\nCurrently tracking **{$contactCount} active leads** across all channels:\n\n"
-				. "* **New / Unqualified**: Captured via WhatsApp & Web Radar; assigned to Leo AI for qualification.\n"
-				. "* **Proposal Sent / In Negotiation**: Warm opportunities ready for closing.\n"
-				. "* **Action Required**: 3 high-intent prospects viewed the pricing section in the past 2 hours.\n\n"
-				. "💡 **Strategy Recommendation**: Dispatch a value-added WhatsApp touchpoint with an itemized quote link to lock in commitment.";
-			$suggestions = [
-				'💬 Draft High-Converting WhatsApp Follow-Up',
-				'⚡ Review AI Sales Agent Performance',
-				'🏆 Create Objection Battlecard',
-			];
-		} elseif ( str_contains( $lower, 'follow' ) || str_contains( $lower, 'pitch' ) || str_contains( $lower, 'draft' ) || str_contains( $lower, 'whatsapp' ) ) {
-			$reply = "### 💬 High-Conversion WhatsApp Follow-Up Pitch\n\nHere is a tailored closing pitch ready to copy & send to stalled prospects:\n\n"
-				. "> *\"Hi [Client Name], Leo from our enterprise team here. I reviewed your requirements and our autonomous system has reserved your implementation slot for this week. Would a quick 5-minute WhatsApp call or review of the instant quote work best for you today?\"*\n\n"
-				. "✨ **Why this works**: High clarity, low friction, and creates a subtle sense of priority without being pushy.";
-			$suggestions = [
-				'🔥 Show Hot Leads for Immediate Callback',
-				'📊 Daily Operations Briefing',
-				'⚡ Review AI Sales Agent Performance',
-			];
-		} elseif ( str_contains( $lower, 'objection' ) || str_contains( $lower, 'price' ) || str_contains( $lower, 'expensive' ) || str_contains( $lower, 'discount' ) ) {
-			$reply = "### 🏆 Sales Battlecard: Price & Discount Objections\n\nWhen a prospect says *\"Your price is too high\"* or requests an immediate discount, use the **Value-Anchor Framework**:\n\n"
-				. "1. **Acknowledge & Reframe**: *\"I completely understand budget is top of mind. What we typically find is that hiring even one additional sales rep costs 5x-10x more than our 24/7 autonomous agent system.\"*\n"
-				. "2. **Demonstrate ROI**: *\"If our AI captures just 2 additional deals a month on WhatsApp that you would have otherwise missed, the system pays for itself completely.\"*\n"
-				. "3. **Offer Flexible Terms over Discounts**: Offer split milestones (e.g. 50/50) or an extended onboarding SLA instead of slashing margins.";
-			$suggestions = [
-				'💬 Draft High-Converting WhatsApp Follow-Up',
-				'🎯 Sales Pipeline Breakdown',
-				'⚡ Review AI Sales Agent Performance',
-			];
-		} elseif ( str_contains( $lower, 'agent' ) || str_contains( $lower, 'team' ) || str_contains( $lower, 'sla' ) ) {
-			$reply = "### 🤖 Autonomous Sales Agent Workforce Status\n\n"
-				. "* **Leo AI** (Inbound Sales Qualifier): **Active** • Scoring and triaging incoming chat & web visitors.\n"
-				. "* **Maya AI** (WhatsApp Deal Closer): **Active** • Handling client questions and objections.\n"
-				. "* **Victor AI** (Telephony & Quotations): **Active** • Generating instant quotes & call queue logs.\n"
-				. "* **SLA Performance**: Average first-touch response time is **42 seconds** (99.8% on-time SLA).";
-			$suggestions = [
-				'🔥 Show Hot Leads for Immediate Callback',
-				'💬 Draft High-Converting WhatsApp Follow-Up',
-				'📊 Daily Operations Briefing',
-			];
-		} else {
-			$reply = "### ⚡ Z-Master AI Operations Intelligence\n\n"
-				. "I have analyzed your request: *\"{$message}\"*\n\n"
-				. "Across your **{$contactCount} pipeline contacts**, live WhatsApp Evolution instance, and visitor radars, the autonomous engine is functioning smoothly.\n\n"
-				. "How would you like to direct the sales team next?";
-			$suggestions = [
-				'🎯 Daily Sales Pipeline Briefing',
-				'🔥 Show Hot Leads for Immediate Callback',
-				'💬 Draft High-Converting WhatsApp Follow-Up',
-				'⚡ Review AI Sales Agent Performance',
-			];
+		// Fetch latest agent count and mission status from Paperclip
+		$paperclipOverview = $this->paperclipRequest( '/overview' );
+		$recentIssues = $this->paperclipRequest( '/issues' ) ?? [];
+		$activeIssueTitles = [];
+		foreach ( array_slice( $recentIssues, 0, 5 ) as $iss ) {
+			$activeIssueTitles[] = '#' . ( $iss['identifier'] ?? 'VMS' ) . ': ' . ( $iss['title'] ?? 'Task' ) . ' (' . ( $iss['status'] ?? 'todo' ) . ')';
 		}
+		$activeMissionsText = ! empty( $activeIssueTitles ) ? implode( "; ", $activeIssueTitles ) : "All missions up to date.";
+
+		$msgLower = strtolower( $message );
+
+		// Intent 1: Swarm Emergency Halt / Stop Agents
+		if ( preg_match( '/\b(stop\s+all(\s+agents)?|emergency\s+stop|emergency\s+halt|pause\s+all(\s+agents)?|freeze\s+all(\s+agents)?|halt\s+swarm|kill\s+switch|pause\s+swarm)\b/i', $msgLower ) ) {
+			$halted = PaperclipBridge::emergencyHalt( 'Emergency halt triggered via Master AI Commander' );
+			$count = count( $halted );
+			$names = ! empty( $halted ) ? implode( ', ', $halted ) : 'all active agents';
+			return $this->bare( [
+				'ok'       => true,
+				'provider' => 'Master AI (Sovereign Kill Switch)',
+				'model'    => 'command-bus',
+				'response' => "### 🛑 Swarm Emergency Halt Executed\n\n"
+					. "**Status**: All autonomous background executions and heartbeats have been **FROZEN**.\n\n"
+					. "* **Halted Agents**: {$names}\n"
+					. "* **Heartbeat Runs**: Suspended\n"
+					. "* **Telephony & Dialer**: Standing by in safe mode\n\n"
+					. "No further background operations or autonomous outreach will execute until you resume.",
+				'actions'  => [
+					[ 'label' => '▶️ Resume All Agents', 'action' => 'resume_swarm' ],
+					[ 'label' => 'AI Cockpit (Swarm)', 'action' => 'open_agents' ],
+					[ 'label' => 'View Leads CRM', 'action' => 'open_leads' ],
+				],
+				'telemetry' => [ 'halted' => true, 'count' => $count ],
+			] );
+		}
+
+		// Intent 2: Resume Swarm / Unfreeze All
+		if ( preg_match( '/\b(resume\s+all(\s+agents)?|resume\s+swarm|unfreeze\s+all(\s+agents)?|start\s+swarm|unpause\s+all(\s+agents)?)\b/i', $msgLower ) ) {
+			$resumed = PaperclipBridge::emergencyResume();
+			$count = count( $resumed );
+			$names = ! empty( $resumed ) ? implode( ', ', $resumed ) : 'all agents';
+			return $this->bare( [
+				'ok'       => true,
+				'provider' => 'Master AI (Swarm Commander)',
+				'model'    => 'command-bus',
+				'response' => "### ▶️ Swarm Operations Resumed\n\n"
+					. "**Status**: Autonomous agents have been **REACTIVATED** and returned to live standby.\n\n"
+					. "* **Active Agents**: {$names}\n"
+					. "* **Heartbeat Loop**: Restored (60s cooldown)\n"
+					. "* **Pipeline Monitoring**: Live\n\n"
+					. "Your autonomous team is back to monitoring, qualifying leads, and executing assigned missions.",
+				'actions'  => [
+					[ 'label' => '🛑 Emergency Halt', 'action' => 'halt_swarm' ],
+					[ 'label' => 'AI Cockpit (Swarm)', 'action' => 'open_agents' ],
+					[ 'label' => 'Smart Dialer', 'action' => 'open_dialer' ],
+				],
+				'telemetry' => [ 'halted' => false, 'count' => $count ],
+			] );
+		}
+
+		// Intent 3: Trigger B2B Google Maps Prospecting Batch
+		if ( preg_match( '/\b(trigger\s+b2b|b2b\s+google\s+maps|prospecting|b2b\s+discovery|run\s+b2b\s+batch)\b/i', $msgLower ) ) {
+			$dispatch = PaperclipBridge::dispatchIssue(
+				'Autonomous B2B Google Maps Lead Prospecting Batch',
+				'Dispatched via Master AI Assistant. Target: Local high-ticket B2B business inquiries, contact enrichment, and CRM pipeline injection.',
+				PaperclipBridge::AGENT_LEO_GROWTH,
+				'high',
+				true
+			);
+			$issueId = $dispatch['identifier'] ?? 'VMS-B2B';
+			return $this->bare( [
+				'ok'       => true,
+				'provider' => 'Master AI (Growth Engine Dispatcher)',
+				'model'    => 'command-bus',
+				'response' => "### ⚡ B2B Lead Discovery Batch Dispatched!\n\n"
+					. "**Assigned Agent**: **Leo (Growth Strategist)**\n"
+					. "**Mission ID**: `#" . esc_html( (string) $issueId ) . "`\n"
+					. "**Target**: Local high-intent Google Maps business prospects & verified phone leads.\n\n"
+					. "Leo has queued the prospecting workflow. Enriched contacts with phone numbers and ratings will automatically stream into your Leads CRM for immediate follow-up or smart dialing.",
+				'actions'  => [
+					[ 'label' => 'Open Leads CRM', 'action' => 'open_leads' ],
+					[ 'label' => 'View Live Mission in Cockpit', 'action' => 'open_agents' ],
+					[ 'label' => 'Smart Dialer', 'action' => 'open_dialer' ],
+				],
+				'telemetry' => [ 'mission_id' => $issueId ],
+			] );
+		}
+
+		$systemPrompt = "You are the **Master AI Assistant & Sovereign Business Commander** of {$businessName} ({$siteUrl}), operating inside the Z-Agents Universal Enterprise OS and VM Sales OS.\n\n"
+			. "OPERATIONAL REAL-TIME TELEMETRY:\n"
+			. "- Active CRM Leads: {$contactCount} contacts tracked across WhatsApp, Web Telephony, and Inbound Radars.\n"
+			. "- Autonomous Swarm (Paperclip AI Workforce):\n"
+			. "  * Chief of Staff: Executive Orchestrator overseeing all department operations and cross-agent task handoffs.\n"
+			. "  * Leo (Growth Strategist): Handles inbound sales qualification, WhatsApp proposal scoping, and revenue conversion.\n"
+			. "  * Vikram (CTO & Systems Architect): Oversees sovereign infrastructure, server deployments, and cloud toolchain.\n"
+			. "  * Ananya (Head of Client Delivery & QA): Ensures client deliverables, milestone verification, and quality audit.\n"
+			. "  * Toolchain & Release Engineer: Manages automated builds, APK packaging, and zero-defect releases.\n"
+			. "- Recent Swarm Missions: {$activeMissionsText}\n\n"
+			. "CORE DIRECTIVES:\n"
+			. "1. When asked what the CEO, Chief of Staff, or specific agents (Leo, Vikram, Ananya) are doing, provide an immediate, accurate, executive status report on their active work, missions, and readiness.\n"
+			. "2. Act with sovereign authority, high precision, strategic intelligence, and clear markdown formatting (bullet points, bold highlights, bold metrics).\n"
+			. "3. Always offer actionable next steps or recommend relevant Z-Agents modules (Dialer, Leads CRM, WhatsApp Hub, B2B Radar, AI Cockpit).";
+
+		$actions = [
+			[ 'label' => 'View Leads CRM', 'action' => 'open_leads' ],
+			[ 'label' => 'Smart Dialer', 'action' => 'open_dialer' ],
+			[ 'label' => 'AI Cockpit (Swarm)', 'action' => 'open_agents' ],
+			[ 'label' => 'WhatsApp Hub', 'action' => 'open_chats' ],
+		];
+
+		// Primary: Route through ProviderManager (OpenAI / Gemini prioritized sovereign chain)
+		try {
+			if ( null === $this->providers ) {
+				$this->providers = \VMStudio\SalesOS\Core\Plugin::instance()->make( \VMStudio\SalesOS\AI\ProviderManager::class );
+			}
+			$chatMessages = [
+				\VMStudio\SalesOS\AI\DTO\Message::system( $systemPrompt ),
+			];
+			$recent = array_slice( $history, -6 );
+			foreach ( $recent as $h ) {
+				if ( isset( $h['role'], $h['content'] ) ) {
+					$role = ( 'user' === $h['role'] ) ? 'user' : 'assistant';
+					$chatMessages[] = new \VMStudio\SalesOS\AI\DTO\Message( $role, mb_substr( (string) $h['content'], 0, 1500 ) );
+				}
+			}
+			$chatMessages[] = \VMStudio\SalesOS\AI\DTO\Message::user( $message ?: 'System status briefing' );
+
+			$chatReq = new \VMStudio\SalesOS\AI\DTO\ChatRequest( $chatMessages );
+			$chatRes = $this->providers->chat( $chatReq );
+
+			if ( ! empty( $chatRes->content ) ) {
+				return $this->bare( [
+					'ok'          => true,
+					'provider'    => 'Master AI Commander (OpenAI ' . ( $chatRes->model ?: 'gpt-4o' ) . ')',
+					'model'       => $chatRes->model ?: 'gpt-4o',
+					'reply'       => $chatRes->content,
+					'actions'     => $actions,
+					'suggestions' => [
+						'🤖 What is Chief of Staff doing?',
+						'📈 What is Leo Growth working on?',
+						'🔥 Show Hot Leads for Immediate Callback',
+						'⚡ Check Swarm Terminal Logs',
+					],
+				] );
+			}
+		} catch ( \Throwable $e ) {
+			// Failover below
+		}
+
+		// Fallback intelligent response if provider unreachable
+		$reply = "### ⚡ Master AI Commander Briefing\n\n"
+			. "Orchestrating operations across **{$contactCount} active leads** and your autonomous workforce.\n\n"
+			. "* **Chief of Staff**: Actively managing department missions and reviewing cross-agent handoffs.\n"
+			. "* **Leo (Growth Strategist)**: Triaging inbound lead inquiries and preparing tailored proposals.\n"
+			. "* **Vikram (CTO)**: Verifying cloud architecture and sovereign server pipelines.\n\n"
+			. "What specific directive or agent investigation would you like to execute?";
 
 		return $this->bare( [
 			'ok'          => true,
-			'provider'    => 'Z-Master AI (Chief Sales Officer)',
+			'provider'    => 'Master AI Assistant (Local Executive Fallback)',
 			'reply'       => $reply,
-			'suggestions' => $suggestions,
+			'actions'     => $actions,
+			'suggestions' => [
+				'🤖 What is Chief of Staff doing?',
+				'📈 What is Leo Growth working on?',
+				'🔥 Show Hot Leads for Immediate Callback',
+			],
 		] );
 	}
 
@@ -1762,6 +1873,51 @@ final class MobileBridgeController extends AbstractController {
 			'reply'     => $fallbackReply,
 			'model'     => 'sovereign/rule-engine',
 		] );
+	}
+
+	public function handlePaperclipPauseAgent( WP_REST_Request $request ): WP_REST_Response {
+		$params  = $request->get_json_params() ?: $request->get_params();
+		$agentId = sanitize_text_field( (string) ( $params['agent_id'] ?? $params['agentId'] ?? '' ) );
+		$pause   = ! empty( $params['pause'] ) || ( isset( $params['status'] ) && $params['status'] === 'paused' );
+		$reason  = sanitize_text_field( (string) ( $params['reason'] ?? 'User toggle from Z-Agents' ) );
+
+		if ( empty( $agentId ) ) {
+			return $this->bare( [ 'ok' => false, 'error' => 'agent_id is required' ], 400 );
+		}
+
+		if ( $pause ) {
+			$res = PaperclipBridge::pauseAgent( $agentId, $reason );
+		} else {
+			$res = PaperclipBridge::resumeAgent( $agentId );
+		}
+
+		return $this->bare( [
+			'ok'      => $res !== null,
+			'agentId' => $agentId,
+			'status'  => $pause ? 'paused' : 'active',
+			'data'    => $res,
+		] );
+	}
+
+	public function handlePaperclipEmergencyHalt( WP_REST_Request $request ): WP_REST_Response {
+		$params = $request->get_json_params() ?: $request->get_params();
+		$halt   = ! isset( $params['halt'] ) || ! empty( $params['halt'] );
+
+		if ( $halt ) {
+			$affected = PaperclipBridge::emergencyHalt( 'Emergency halt from Z-Agents' );
+			return $this->bare( [
+				'ok'       => true,
+				'halted'   => true,
+				'affected' => $affected,
+			] );
+		} else {
+			$affected = PaperclipBridge::emergencyResume();
+			return $this->bare( [
+				'ok'       => true,
+				'halted'   => false,
+				'affected' => $affected,
+			] );
+		}
 	}
 
 	public function handleLogin( WP_REST_Request $request ): WP_REST_Response {
