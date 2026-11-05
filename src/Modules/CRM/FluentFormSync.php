@@ -6,6 +6,7 @@ namespace VMStudio\SalesOS\Modules\CRM;
 use VMStudio\SalesOS\Modules\Chat\ConversationRepository;
 use VMStudio\SalesOS\Support\BrandContext;
 use VMStudio\SalesOS\Support\IntegrationLog;
+use VMStudio\SalesOS\Support\PaperclipBridge;
 
 final class FluentFormSync {
 
@@ -287,6 +288,46 @@ final class FluentFormSync {
 			sprintf( 'Inquiry submitted on "%s": %s', $formTitle, mb_substr( $message, 0, 120 ) ),
 			'fluentform'
 		);
+
+		// Dispatch Autonomous Inbound Mission to Leo in Paperclip
+		try {
+			$leadName = trim( $firstName . ' ' . $lastName );
+			if ( empty( $leadName ) ) {
+				$leadName = ! empty( $email ) ? $email : 'New Website Prospect';
+			}
+
+			$desc = sprintf(
+				"### 🎯 Inbound Lead Alert: %s\n\n" .
+				"A new prospective client submitted the **%s** form on vmstudio.digital.\n\n" .
+				"* **Contact Name**: %s\n" .
+				"* **Email**: %s\n" .
+				"* **Phone**: %s\n" .
+				"* **Company / Project**: %s\n" .
+				"* **Client Message**: %s\n" .
+				"* **Timestamp**: %s\n\n" .
+				"**Next Autonomous Actions (Leo)**:\n" .
+				"1. Analyze client intent & service package fit.\n" .
+				"2. Research company domain / digital presence.\n" .
+				"3. Draft high-converting personalized WhatsApp / Email opener.",
+				$leadName,
+				$formTitle,
+				$leadName,
+				$email ?: 'N/A',
+				$phone ?: 'N/A',
+				$company ?: 'N/A',
+				$message ?: '(No message provided)',
+				$createdAt
+			);
+
+			PaperclipBridge::dispatchIssue(
+				sprintf( 'Inbound Lead: %s (%s)', $leadName, $formTitle ),
+				$desc,
+				PaperclipBridge::AGENT_LEO_GROWTH,
+				'high'
+			);
+		} catch ( \Throwable $t ) {
+			// Fail-safe: form submission must never break if Paperclip is temporarily unreachable
+		}
 
 		return $contactId;
 	}

@@ -11,6 +11,7 @@ use VMStudio\SalesOS\Modules\Inbox\InboxService;
 use VMStudio\SalesOS\Modules\Sequences\EnrollmentRepository;
 use VMStudio\SalesOS\REST\AbstractController;
 use VMStudio\SalesOS\Support\BrandContext;
+use VMStudio\SalesOS\Support\PaperclipBridge;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -1461,35 +1462,7 @@ final class MobileBridgeController extends AbstractController {
 	 * Proxy helper for Paperclip Autonomous Business Power Suite API
 	 */
 	private function paperclipRequest( string $endpoint, string $method = 'GET', ?array $body = null ): ?array {
-		$url = self::PAPERCLIP_BASE_URL . '/companies/' . self::PAPERCLIP_COMPANY_ID . $endpoint;
-		$args = [
-			'method'    => $method,
-			'timeout'   => 15,
-			'sslverify' => false,
-			'headers'   => [
-				'Authorization' => 'Bearer ' . self::PAPERCLIP_TOKEN,
-				'Content-Type'  => 'application/json',
-			],
-		];
-		if ( $body !== null && ( $method === 'POST' || $method === 'PATCH' ) ) {
-			$args['body'] = wp_json_encode( $body );
-		}
-		$response = wp_remote_request( $url, $args );
-		if ( is_wp_error( $response ) ) {
-			$localUrl = 'http://127.0.0.1:3300/api/companies/' . self::PAPERCLIP_COMPANY_ID . $endpoint;
-			$args['headers']['Host'] = 'agents.vmstudio.digital';
-			$response = wp_remote_request( $localUrl, $args );
-			if ( is_wp_error( $response ) ) {
-				return null;
-			}
-		}
-		$code = wp_remote_retrieve_response_code( $response );
-		$rawBody = wp_remote_retrieve_body( $response );
-		$data = json_decode( $rawBody, true );
-		if ( $code >= 200 && $code < 300 && is_array( $data ) ) {
-			return $data;
-		}
-		return null;
+		return PaperclipBridge::request( $endpoint, $method, $body );
 	}
 
 	public function getPaperclipOverview( WP_REST_Request $request ): WP_REST_Response {
