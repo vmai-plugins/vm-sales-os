@@ -89,33 +89,34 @@ final class PaperclipBridge {
 	 * Perform an authenticated request against the Paperclip API.
 	 */
 	public static function request( string $endpoint, string $method = 'GET', ?array $body = null ): ?array {
-		if ( preg_match( '#^/(heartbeat-runs|agents/[a-f0-9-]+)#i', $endpoint ) ) {
-			$url = self::BASE_URL . $endpoint;
-		} else {
-			$url = self::BASE_URL . '/companies/' . self::COMPANY_ID . $endpoint;
-		}
+		$path = preg_match( '#^/(heartbeat-runs|agents/[a-f0-9-]+)#i', $endpoint )
+			? $endpoint
+			: '/companies/' . self::COMPANY_ID . $endpoint;
+
+		// Prioritize high-speed localhost loopback (sub-50ms latency)
+		$localUrl = self::LOCAL_URL . $path;
 		$args = [
 			'method'    => $method,
-			'timeout'   => 10,
+			'timeout'   => 5,
 			'sslverify' => false,
 			'headers'   => [
 				'Authorization' => 'Bearer ' . self::TOKEN,
 				'Content-Type'  => 'application/json',
+				'Host'          => 'agents.vmstudio.digital',
 			],
 		];
 		if ( $body !== null && in_array( $method, [ 'POST', 'PATCH', 'PUT' ], true ) ) {
 			$args['body'] = wp_json_encode( $body );
 		}
 
-		$response = wp_remote_request( $url, $args );
+		$response = wp_remote_request( $localUrl, $args );
 
-		// Local loopback fallback if external hairpin NAT or public DNS fails
+		// Fallback to external public URL if local port 3300 unreachable
 		if ( is_wp_error( $response ) ) {
-			$localUrl = preg_match( '#^/(heartbeat-runs|agents/[a-f0-9-]+)#i', $endpoint )
-				? self::LOCAL_URL . $endpoint
-				: self::LOCAL_URL . '/companies/' . self::COMPANY_ID . $endpoint;
-			$args['headers']['Host'] = 'agents.vmstudio.digital';
-			$response = wp_remote_request( $localUrl, $args );
+			$externalUrl = self::BASE_URL . $path;
+			unset( $args['headers']['Host'] );
+			$args['timeout'] = 8;
+			$response = wp_remote_request( $externalUrl, $args );
 			if ( is_wp_error( $response ) ) {
 				return null;
 			}
