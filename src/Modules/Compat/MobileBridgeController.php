@@ -2768,14 +2768,28 @@ final class MobileBridgeController extends AbstractController {
 		$firstName = $nameParts[0] ?? '';
 		$lastName  = $nameParts[1] ?? '';
 
+		$notes       = sanitize_textarea_field( (string) ( $params['notes'] ?? ( $params['note'] ?? '' ) ) );
+		$destination = sanitize_text_field( (string) ( $params['destination'] ?? '' ) );
+		$budget      = sanitize_text_field( (string) ( $params['budget'] ?? '' ) );
+		$company     = sanitize_text_field( (string) ( $params['company'] ?? '' ) );
+
+		$reqParts = array_filter( [
+			$notes,
+			$destination ? "Destination: $destination" : '',
+			$budget ? "Budget: $budget" : '',
+			$company ? "Company: $company" : '',
+		] );
+		$requirements = implode( ' | ', $reqParts );
+
 		$contactId = $this->contacts->upsert( [
-			'first_name' => $firstName,
-			'last_name'  => $lastName,
-			'email'      => $email,
-			'phone'      => $phone,
-			'source'     => $source,
-			'stage'      => $stage,
-			'score'      => 50,
+			'first_name'   => $firstName,
+			'last_name'    => $lastName,
+			'email'        => $email,
+			'phone'        => $phone,
+			'source'       => $source,
+			'stage'        => $stage,
+			'score'        => 50,
+			'requirements' => $requirements,
 		] );
 
 		if ( $contactId <= 0 ) {
@@ -2783,6 +2797,9 @@ final class MobileBridgeController extends AbstractController {
 		}
 
 		$this->activities->log( 'contact', $contactId, 'created', 'Lead created via Z-Agents Mobile OS.', 'agent' );
+		if ( '' !== $notes ) {
+			$this->activities->log( 'contact', $contactId, 'note', $notes, 'agent' );
+		}
 
 		return $this->bare( [ 'ok' => true, 'success' => true, 'id' => $contactId ] );
 	}
