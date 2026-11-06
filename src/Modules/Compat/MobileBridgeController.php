@@ -2715,6 +2715,23 @@ final class MobileBridgeController extends AbstractController {
 		if ( isset( $params['score'] ) ) {
 			$updateData['score'] = (int) $params['score'];
 		}
+		if ( ! empty( $params['name'] ) ) {
+			$nameParts = explode( ' ', sanitize_text_field( (string) $params['name'] ), 2 );
+			$updateData['first_name'] = $nameParts[0] ?? '';
+			$updateData['last_name']  = $nameParts[1] ?? '';
+		}
+		if ( ! empty( $params['first_name'] ) ) {
+			$updateData['first_name'] = sanitize_text_field( (string) $params['first_name'] );
+		}
+		if ( ! empty( $params['last_name'] ) ) {
+			$updateData['last_name'] = sanitize_text_field( (string) $params['last_name'] );
+		}
+		if ( ! empty( $params['phone'] ) ) {
+			$updateData['phone'] = preg_replace( '/[^0-9]/', '', (string) $params['phone'] );
+		}
+		if ( ! empty( $params['email'] ) ) {
+			$updateData['email'] = sanitize_email( (string) $params['email'] );
+		}
 		if ( ! empty( $updateData ) ) {
 			$this->contacts->edit( $leadId, $updateData );
 		}
