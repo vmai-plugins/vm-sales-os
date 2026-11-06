@@ -156,7 +156,8 @@ final class PaperclipBridge {
 		$halted = [];
 		foreach ( $agents as $agent ) {
 			$id = $agent['id'] ?? '';
-			if ( ! empty( $id ) && ( $agent['status'] ?? '' ) !== 'paused' ) {
+			$isPaused = ! empty( $agent['pausedAt'] ) || ( $agent['status'] ?? '' ) === 'paused' || ( $agent['lifecycleState'] ?? '' ) === 'paused';
+			if ( ! empty( $id ) && ! $isPaused ) {
 				$res = self::pauseAgent( $id, $reason );
 				if ( $res ) {
 					$halted[] = $agent['name'] ?? $id;
@@ -174,7 +175,8 @@ final class PaperclipBridge {
 		$resumed = [];
 		foreach ( $agents as $agent ) {
 			$id = $agent['id'] ?? '';
-			if ( ! empty( $id ) && ( $agent['status'] ?? '' ) === 'paused' ) {
+			$isPaused = ! empty( $agent['pausedAt'] ) || ( $agent['status'] ?? '' ) === 'paused' || ( $agent['lifecycleState'] ?? '' ) === 'paused';
+			if ( ! empty( $id ) && $isPaused ) {
 				$res = self::resumeAgent( $id );
 				if ( $res ) {
 					$resumed[] = $agent['name'] ?? $id;
