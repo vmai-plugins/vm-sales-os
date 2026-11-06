@@ -2468,30 +2468,39 @@ final class MobileBridgeController extends AbstractController {
 			$rawBody = (string) $request->get_body();
 			$params  = json_decode( $rawBody, true ) ?: [];
 		}
-		$email     = sanitize_email( (string) ( $params['email'] ?? '' ) );
 		$name      = sanitize_text_field( (string) ( $params['name'] ?? '' ) );
 		$avatarUrl = esc_url_raw( (string) ( $params['avatar_url'] ?? '' ) );
-		$idToken   = (string) ( $params['id_token'] ?? $params['idToken'] ?? $params['credential'] ?? '' );
+		$idToken   = trim( (string) ( $params['id_token'] ?? $params['idToken'] ?? $params['credential'] ?? '' ) );
 
-		// If email is empty but id_token is provided, attempt decoding claims from JWT payload
-		if ( empty( $email ) && ! empty( $idToken ) ) {
-			$parts = explode( '.', $idToken );
-			if ( count( $parts ) >= 2 ) {
-				$decodedPayload = json_decode( (string) base64_decode( str_replace( [ '-', '_' ], [ '+', '/' ], $parts[1] ) ), true );
-				if ( is_array( $decodedPayload ) ) {
-					$email     = sanitize_email( (string) ( $decodedPayload['email'] ?? '' ) );
-					$name      = $name ?: sanitize_text_field( (string) ( $decodedPayload['name'] ?? '' ) );
-					$avatarUrl = $avatarUrl ?: esc_url_raw( (string) ( $decodedPayload['picture'] ?? '' ) );
-				}
-			}
-		}
-
-		if ( empty( $email ) ) {
+		if ( empty( $idToken ) ) {
 			return $this->bare( [
 				'ok'    => false,
-				'error' => 'Email is required for Google sign-in.',
-			], 400 );
+				'error' => 'A valid Google id_token is required for Google Sign-In verification.',
+			], 401 );
 		}
+
+		// Cryptographic token verification via Google OAuth2 tokeninfo API
+		$verifyUrl = 'https://oauth2.googleapis.com/tokeninfo?id_token=' . urlencode( $idToken );
+		$resp      = wp_remote_get( $verifyUrl, [ 'timeout' => 8, 'sslverify' => true ] );
+
+		if ( is_wp_error( $resp ) || 200 !== wp_remote_retrieve_response_code( $resp ) ) {
+			return $this->bare( [
+				'ok'    => false,
+				'error' => 'Invalid, forged, or expired Google OAuth signature.',
+			], 401 );
+		}
+
+		$claims = json_decode( wp_remote_retrieve_body( $resp ), true );
+		if ( ! is_array( $claims ) || empty( $claims['email'] ) || empty( $claims['email_verified'] ) ) {
+			return $this->bare( [
+				'ok'    => false,
+				'error' => 'Google identity unverified or unconfirmed email address.',
+			], 401 );
+		}
+
+		$email     = sanitize_email( (string) $claims['email'] );
+		$name      = $name ?: sanitize_text_field( (string) ( $claims['name'] ?? '' ) );
+		$avatarUrl = $avatarUrl ?: esc_url_raw( (string) ( $claims['picture'] ?? '' ) );
 
 		$user = get_user_by( 'email', $email );
 
