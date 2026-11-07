@@ -11,6 +11,7 @@ use VMStudio\SalesOS\Modules\Automation\AutomationModule;
 use VMStudio\SalesOS\Modules\Channels\ChannelsModule;
 use VMStudio\SalesOS\Modules\Chat\ChatModule;
 use VMStudio\SalesOS\Modules\Compat\CompatModule;
+use VMStudio\SalesOS\Modules\Catalog\CatalogModule;
 use VMStudio\SalesOS\Modules\CRM\CrmModule;
 use VMStudio\SalesOS\Modules\Inbox\InboxModule;
 use VMStudio\SalesOS\Modules\Knowledge\KnowledgeModule;
@@ -18,6 +19,7 @@ use VMStudio\SalesOS\Modules\LeadGen\LeadGenModule;
 use VMStudio\SalesOS\Modules\LinkedInRadar\LinkedInRadarModule;
 use VMStudio\SalesOS\Modules\Memory\MemoryModule;
 use VMStudio\SalesOS\Modules\Sequences\SequencesModule;
+use VMStudio\SalesOS\Modules\Workspace\WorkspaceModule;
 use VMStudio\SalesOS\Queue\QueueManager;
 use VMStudio\SalesOS\REST\RestRouter;
 
@@ -64,6 +66,7 @@ final class Plugin {
 
 		$registry->discover(
 			[
+				CatalogModule::class,
 				CrmModule::class,
 				ChatModule::class,
 				InboxModule::class,
@@ -76,6 +79,7 @@ final class Plugin {
 				LeadGenModule::class,
 				AutomationModule::class,
 				AnalyticsModule::class,
+				WorkspaceModule::class,
 				// Last: it only re-exposes what the modules above provide.
 				CompatModule::class,
 			]
