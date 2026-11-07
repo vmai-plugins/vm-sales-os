@@ -949,6 +949,25 @@ final class MobileBridgeController extends AbstractController {
 		$userId      = $currentUser->ID ?: 1;
 		$userEmail   = $currentUser->user_email ?: 'admin@' . ( $_SERVER['HTTP_HOST'] ?? 'vmstudio.digital' );
 		$userName    = $currentUser->display_name ?: 'Executive Admin';
+
+		if ( $currentUser->exists() ) {
+			$isAdmin = user_can( $currentUser, 'manage_options' ) || in_array( 'administrator', (array) $currentUser->roles, true );
+			$isSales = in_array( 'editor', (array) $currentUser->roles, true ) ||
+			           in_array( 'author', (array) $currentUser->roles, true ) ||
+			           in_array( 'tc_sales_agent', (array) $currentUser->roles, true ) ||
+			           in_array( 'tc_sales_manager', (array) $currentUser->roles, true ) ||
+			           in_array( 'sales', (array) $currentUser->roles, true ) ||
+			           user_can( $currentUser, 'edit_posts' );
+
+			if ( ! $isAdmin && ! $isSales ) {
+				$primaryRole = ! empty( $currentUser->roles ) ? $currentUser->roles[0] : 'subscriber';
+				return $this->bare( [
+					'authenticated' => false,
+					'error'         => "Access Denied: Z-Agents is strictly reserved for Administrator and Sales roles. Your account currently has the '{$primaryRole}' role.",
+				], 403 );
+			}
+		}
+
 		$profile     = $this->resolveUserRoleProfile( $currentUser->exists() ? $currentUser : null );
 
 		$token = get_user_meta( $userId, 'vmai_mobile_token', true );
@@ -2445,42 +2464,71 @@ final class MobileBridgeController extends AbstractController {
 			], 400 );
 		}
 
-		// Intelligent typo correction & email normalization
+		// Universal WordPress Account Resolution (Login or Email)
 		$cleanUsername = strtolower( trim( $username ) );
 		if ( str_ends_with( $cleanUsername, '@gmail' ) ) {
 			$cleanUsername .= '.com';
 		}
+		// Tolerance for common keystroke typos in official domain email
 		if ( str_contains( $cleanUsername, 'visualls' ) || str_contains( $cleanUsername, 'studiomaketing' ) || str_contains( $cleanUsername, 'visualsstudio' ) ) {
 			if ( str_ends_with( $cleanUsername, '@gmail.com' ) || ! str_contains( $cleanUsername, '@' ) ) {
 				$cleanUsername = 'visualsstudiomarketing@gmail.com';
 			}
 		}
 
-		$user = null;
-		$candidates = array_unique( array_filter( [ $username, $cleanUsername ] ) );
-		foreach ( $candidates as $c ) {
-			$cand = get_user_by( 'login', $c );
+		$cand = get_user_by( 'login', $username );
+		if ( ! $cand ) {
+			$cand = get_user_by( 'email', $username );
+		}
+		if ( ! $cand && $cleanUsername !== $username ) {
+			$cand = get_user_by( 'email', $cleanUsername );
 			if ( ! $cand ) {
-				$cand = get_user_by( 'email', $c );
-			}
-			if ( $cand ) {
-				if ( wp_check_password( $password, $cand->user_pass, $cand->ID ) ) {
-					$user = $cand;
-					break;
-				}
-				$authAttempt = wp_authenticate( $cand->user_login, $password );
-				if ( ! is_wp_error( $authAttempt ) ) {
-					$user = $authAttempt;
-					break;
-				}
+				$cand = get_user_by( 'login', $cleanUsername );
 			}
 		}
 
-		if ( ! $user ) {
+		if ( ! $cand ) {
 			return $this->bare( [
 				'ok'    => false,
-				'error' => 'Invalid email/username or password. Note: Your administrative username is "vmstudio" and email is "visualsstudiomarketing@gmail.com".',
+				'error' => 'No WordPress account found matching "' . $username . '". Please check your username or email.',
+			], 404 );
+		}
+
+		// Password Verification
+		$passwordValid = false;
+		if ( wp_check_password( $password, $cand->user_pass, $cand->ID ) ) {
+			$passwordValid = true;
+		} else {
+			$authAttempt = wp_authenticate( $cand->user_login, $password );
+			if ( ! is_wp_error( $authAttempt ) ) {
+				$passwordValid = true;
+			}
+		}
+
+		if ( ! $passwordValid ) {
+			return $this->bare( [
+				'ok'    => false,
+				'error' => 'Incorrect password for "' . $cand->user_login . '". Please try again.',
 			], 401 );
+		}
+
+		$user = $cand;
+
+		// STRICT TWO-ROLE POLICY: Administrator & Sales Roles ONLY
+		$isAdmin = user_can( $user, 'manage_options' ) || in_array( 'administrator', (array) $user->roles, true );
+		$isSales = in_array( 'editor', (array) $user->roles, true ) ||
+		           in_array( 'author', (array) $user->roles, true ) ||
+		           in_array( 'tc_sales_agent', (array) $user->roles, true ) ||
+		           in_array( 'tc_sales_manager', (array) $user->roles, true ) ||
+		           in_array( 'sales', (array) $user->roles, true ) ||
+		           user_can( $user, 'edit_posts' );
+
+		if ( ! $isAdmin && ! $isSales ) {
+			$primaryRole = ! empty( $user->roles ) ? $user->roles[0] : 'subscriber';
+			return $this->bare( [
+				'ok'    => false,
+				'error' => "Access Denied: Z-Agents is strictly reserved for Administrator and Sales roles. Your account currently has the '{$primaryRole}' role. Please contact your workspace administrator.",
+			], 403 );
 		}
 
 		wp_set_current_user( $user->ID );
@@ -2612,7 +2660,6 @@ final class MobileBridgeController extends AbstractController {
 				], 404 );
 			}
 
-		if ( ! $user ) {
 			$username = sanitize_user( current( explode( '@', $email ) ), true );
 			$uniqueUsername = $username;
 			$counter = 1;
@@ -2631,6 +2678,23 @@ final class MobileBridgeController extends AbstractController {
 			if ( ! empty( $name ) ) {
 				wp_update_user( [ 'ID' => $userId, 'display_name' => $name ] );
 			}
+		}
+
+		// STRICT TWO-ROLE POLICY: Administrator & Sales Roles ONLY
+		$isAdmin = user_can( $user, 'manage_options' ) || in_array( 'administrator', (array) $user->roles, true );
+		$isSales = in_array( 'editor', (array) $user->roles, true ) ||
+		           in_array( 'author', (array) $user->roles, true ) ||
+		           in_array( 'tc_sales_agent', (array) $user->roles, true ) ||
+		           in_array( 'tc_sales_manager', (array) $user->roles, true ) ||
+		           in_array( 'sales', (array) $user->roles, true ) ||
+		           user_can( $user, 'edit_posts' );
+
+		if ( ! $isAdmin && ! $isSales ) {
+			$primaryRole = ! empty( $user->roles ) ? $user->roles[0] : 'subscriber';
+			return $this->bare( [
+				'ok'    => false,
+				'error' => "Access Denied: Z-Agents is strictly reserved for Administrator and Sales roles. Your account currently has the '{$primaryRole}' role. Please contact your workspace administrator.",
+			], 403 );
 		}
 
 		wp_set_current_user( $user->ID );
