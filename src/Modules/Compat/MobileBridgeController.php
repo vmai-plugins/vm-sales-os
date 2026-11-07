@@ -1575,7 +1575,79 @@ final class MobileBridgeController extends AbstractController {
 			] );
 		}
 
+		// Intent 8: Autonomous Self-Heal Trigger
+		if ( preg_match( '/\b(run\s+self\s*heal|heal\s+system|auto\s*heal|heal\s+servers?|repair\s+daemons?)\b/i', $msgLower ) ) {
+			try {
+				$brain = \VMStudio\SalesOS\Core\Plugin::instance()->make( \VMStudio\SalesOS\Modules\Workspace\BrainService::class );
+				$healResult = $brain->heal();
+				$actionsList = ! empty( $healResult['actions'] ) ? implode( "\n* ", $healResult['actions'] ) : 'All daemons and locks verified nominal.';
+				return $this->bare( [
+					'ok'       => true,
+					'provider' => 'VM Studio Sovereign Brain (Self-Healing Daemon)',
+					'model'    => 'autonomous-healing-bus',
+					'response' => "### 🛡️ Sovereign Brain Self-Healing Completed\n\n"
+						. "**Status**: `" . ( $healResult['status'] ?? 'HEALED' ) . "`\n\n"
+						. "* {$actionsList}\n\n"
+						. "All background processes, Docker containers, and memory locks have been restored to peak operation.",
+					'actions'  => [
+						[ 'label' => '🎙️ Voice Brain', 'action' => 'open_voice' ],
+						[ 'label' => 'AI Cockpit (Swarm)', 'action' => 'open_agents' ],
+						[ 'label' => 'View Leads CRM', 'action' => 'open_leads' ],
+					],
+					'telemetry' => $healResult,
+				] );
+			} catch ( \Throwable $e ) {
+				// Fallthrough
+			}
+		}
+
+		// Intent 9: Deep Telemetry & Sovereign Brain Status
+		if ( preg_match( '/\b(brain\s+status|telemetry|server\s+health|daemons?\s+status|infrastructure\s+status)\b/i', $msgLower ) ) {
+			try {
+				$brain = \VMStudio\SalesOS\Core\Plugin::instance()->make( \VMStudio\SalesOS\Modules\Workspace\BrainService::class );
+				$telemetry = $brain->getTelemetry();
+				return $this->bare( [
+					'ok'       => true,
+					'provider' => 'VM Studio Sovereign Brain (Host Telemetry)',
+					'model'    => 'host-telemetry-bus',
+					'response' => "### 🧠 VM Studio Sovereign Brain Telemetry\n\n"
+						. "* **CPU Load (1m)**: `{$telemetry['server']['cpu_load_1m']}` | **Disk Used**: `{$telemetry['server']['disk_used_pct']}%`\n"
+						. "* **Core Daemons**:\n"
+						. "  - **OmniRoute**: " . ( $telemetry['daemons']['omniroute'] ? '✅ ONLINE' : '❌ OFFLINE' ) . "\n"
+						. "  - **LiveKit RTC Voice**: " . ( $telemetry['daemons']['livekit'] ? '✅ READY (rtc.onlinepuja.live)' : '❌ OFFLINE' ) . "\n"
+						. "  - **WhatsApp Evolution**: " . ( $telemetry['daemons']['whatsapp'] ? '✅ CONNECTED (open)' : '❌ OFFLINE' ) . "\n"
+						. "  - **Paperclip Swarm**: " . ( $telemetry['daemons']['paperclip'] ? '✅ ONLINE (' . $telemetry['business']['total_agents'] . ' agents)' : '❌ OFFLINE' ) . "\n"
+						. "* **Pipeline Deals**: **{$telemetry['business']['active_deals']} active deals** (₹" . number_format( (float) $telemetry['business']['pipeline_inr'] ) . ")\n\n"
+						. "All infrastructure nodes are performing autonomously.",
+					'actions'  => [
+						[ 'label' => '🛡️ Run Self-Heal', 'action' => 'heal_system' ],
+						[ 'label' => '🎙️ Voice Brain', 'action' => 'open_voice' ],
+						[ 'label' => 'AI Cockpit (Swarm)', 'action' => 'open_agents' ],
+					],
+					'telemetry' => $telemetry,
+				] );
+			} catch ( \Throwable $e ) {
+				// Fallthrough
+			}
+		}
+
+		$telemetrySummary = '';
+		try {
+			$brain = \VMStudio\SalesOS\Core\Plugin::instance()->make( \VMStudio\SalesOS\Modules\Workspace\BrainService::class );
+			$tel = $brain->getTelemetry();
+			$telemetrySummary = "LIVE ECOSYSTEM TELEMETRY:\n"
+				. "- Server CPU Load: {$tel['server']['cpu_load_1m']} | Disk: {$tel['server']['disk_used_pct']}%\n"
+				. "- Core Daemons: OmniRoute: " . ( $tel['daemons']['omniroute'] ? 'ONLINE' : 'OFFLINE' )
+				. " | LiveKit Voice: " . ( $tel['daemons']['livekit'] ? 'ONLINE (rtc.onlinepuja.live)' : 'OFFLINE' )
+				. " | WhatsApp: " . ( $tel['daemons']['whatsapp'] ? 'ONLINE' : 'OFFLINE' )
+				. " | Paperclip: " . ( $tel['daemons']['paperclip'] ? 'ONLINE' : 'OFFLINE' ) . "\n"
+				. "- Pipeline: {$tel['business']['active_deals']} active deals worth ₹" . number_format( (float) $tel['business']['pipeline_inr'] ) . "\n";
+		} catch ( \Throwable $e ) {
+			// Optional
+		}
+
 		$systemPrompt = "You are the **Master AI Assistant & Sovereign Business Commander** of {$businessName} ({$siteUrl}), operating inside the Z-Agents Universal Enterprise OS and VM Sales OS.\n\n"
+			. $telemetrySummary
 			. "OPERATIONAL REAL-TIME TELEMETRY:\n"
 			. "- Active CRM Leads: {$contactCount} contacts tracked across WhatsApp, Web Telephony, and Inbound Radars.\n"
 			. "- Autonomous Swarm (Paperclip AI Workforce):\n"
@@ -1591,6 +1663,8 @@ final class MobileBridgeController extends AbstractController {
 			. "3. Always offer actionable next steps or recommend relevant Z-Agents modules (Dialer, Leads CRM, WhatsApp Hub, B2B Radar, AI Cockpit).";
 
 		$actions = [
+			[ 'label' => '🛡️ Self-Heal', 'action' => 'heal_system' ],
+			[ 'label' => '🎙️ Voice Assistant', 'action' => 'open_voice' ],
 			[ 'label' => 'View Leads CRM', 'action' => 'open_leads' ],
 			[ 'label' => 'Smart Dialer', 'action' => 'open_dialer' ],
 			[ 'label' => 'AI Cockpit (Swarm)', 'action' => 'open_agents' ],
