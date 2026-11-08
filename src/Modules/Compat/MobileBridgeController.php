@@ -109,6 +109,12 @@ final class MobileBridgeController extends AbstractController {
 		$route( '/me', 'GET', 'getMe' );
 		$route( '/auth/me', 'GET', 'getMe' );
 		$route( '/business-profile', 'GET', 'getMe' );
+		$route( '/deals', 'GET', 'getDeals' );
+		$route( '/deals', 'POST', 'createDeal' );
+		$route( '/deals/(?P<id>\d+)/stage', 'POST', 'moveDealStage' );
+		$route( '/mobile/deals', 'GET', 'getDeals' );
+		$route( '/mobile/deals', 'POST', 'createDeal' );
+		$route( '/mobile/deals/(?P<id>\d+)/stage', 'POST', 'moveDealStage' );
 		$route( '/cabs', 'GET', 'getCabs' );
 		$route( '/cabs', 'POST', 'saveCabs' );
 		$route( '/tariffs', 'GET', 'getTariffs' );
@@ -1073,6 +1079,139 @@ final class MobileBridgeController extends AbstractController {
 		return $this->error( 'Invalid tariffs payload', 400 );
 	}
 
+	public function getDeals( WP_REST_Request $request ): WP_REST_Response {
+		global $wpdb;
+		$table = $wpdb->prefix . 'vmsos_deals';
+		if ( $wpdb->get_var( "SHOW TABLES LIKE '$table'" ) !== $table ) {
+			return $this->bare( [ 'ok' => true, 'deals' => [], 'total' => 0 ] );
+		}
+
+		$stage = sanitize_text_field( (string) $request->get_param( 'stage' ) );
+		$limit = min( 100, max( 1, (int) ( $request->get_param( 'limit' ) ?: 50 ) ) );
+		$offset = max( 0, (int) $request->get_param( 'offset' ) );
+
+		$where = '1=1';
+		if ( ! empty( $stage ) ) {
+			$where .= $wpdb->prepare( ' AND stage = %s', $stage );
+		}
+
+		$total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM $table WHERE $where" );
+		$rows = $wpdb->get_results( "SELECT * FROM $table WHERE $where ORDER BY id DESC LIMIT $limit OFFSET $offset", ARRAY_A );
+
+		$deals = array_map( function ( $r ) {
+			if ( ! empty( $r['meta'] ) && is_string( $r['meta'] ) ) {
+				$r['meta'] = json_decode( $r['meta'], true ) ?: $r['meta'];
+			}
+			$r['id'] = (int) $r['id'];
+			$r['value'] = (float) $r['value'];
+			$r['probability'] = (int) $r['probability'];
+			return $r;
+		}, $rows ?: [] );
+
+		return $this->bare( [
+			'ok'    => true,
+			'deals' => $deals,
+			'total' => $total,
+		] );
+	}
+
+	public function createDeal( WP_REST_Request $request ): WP_REST_Response {
+		global $wpdb;
+		$table = $wpdb->prefix . 'vmsos_deals';
+		if ( $wpdb->get_var( "SHOW TABLES LIKE '$table'" ) !== $table ) {
+			return $this->error( 'Deals table does not exist', 500 );
+		}
+
+		$data = $request->get_json_params() ?: $request->get_params();
+		$title = sanitize_text_field( (string) ( $data['title'] ?? 'Untitled Proposal' ) );
+		$value = (float) ( $data['value'] ?? 0.0 );
+		$stage = sanitize_key( (string) ( $data['stage'] ?? 'proposal_sent' ) );
+		$contactId = (int) ( $data['contact_id'] ?? $data['lead_id'] ?? 0 );
+		$currency = strtoupper( substr( sanitize_text_field( (string) ( $data['currency'] ?? 'INR' ) ), 0, 3 ) );
+		$probability = isset( $data['probability'] ) ? (int) $data['probability'] : ( $stage === 'won' ? 100 : 60 );
+		$expectedClose = ! empty( $data['expected_close'] ) ? gmdate( 'Y-m-d', strtotime( (string) $data['expected_close'] ) ) : null;
+
+		$meta = [
+			'customer_name'  => sanitize_text_field( (string) ( $data['customer_name'] ?? '' ) ),
+			'customer_phone' => sanitize_text_field( (string) ( $data['customer_phone'] ?? '' ) ),
+			'customer_email' => sanitize_email( (string) ( $data['customer_email'] ?? '' ) ),
+			'items'          => is_array( $data['items'] ?? null ) ? $data['items'] : [],
+			'discount'       => (float) ( $data['discount'] ?? 0.0 ),
+			'notes'          => sanitize_textarea_field( (string) ( $data['notes'] ?? '' ) ),
+			'source'         => 'z_agents_mobile',
+		];
+
+		$now = current_time( 'mysql', true );
+		$inserted = $wpdb->insert(
+			$table,
+			[
+				'brand_id'       => 1,
+				'pipeline_id'    => (int) ( $data['pipeline_id'] ?? 1 ),
+				'contact_id'     => $contactId,
+				'company_id'     => (int) ( $data['company_id'] ?? 0 ),
+				'title'          => $title,
+				'stage'          => $stage,
+				'value'          => $value,
+				'currency'       => $currency,
+				'probability'    => $probability,
+				'expected_close' => $expectedClose,
+				'meta'           => wp_json_encode( $meta ),
+				'created_at'     => $now,
+				'updated_at'     => $now,
+			],
+			[ '%d', '%d', '%d', '%d', '%s', '%s', '%f', '%s', '%d', '%s', '%s', '%s', '%s' ]
+		);
+
+		if ( ! $inserted ) {
+			return $this->error( 'Failed to persist deal in database: ' . $wpdb->last_error, 500 );
+		}
+
+		$dealId = (int) $wpdb->insert_id;
+
+		return $this->bare( [
+			'ok'      => true,
+			'deal_id' => $dealId,
+			'deal'    => [
+				'id'          => $dealId,
+				'title'       => $title,
+				'value'       => $value,
+				'stage'       => $stage,
+				'currency'    => $currency,
+				'meta'        => $meta,
+				'created_at'  => $now,
+			],
+		], 201 );
+	}
+
+	public function moveDealStage( WP_REST_Request $request ): WP_REST_Response {
+		global $wpdb;
+		$table = $wpdb->prefix . 'vmsos_deals';
+		$id = (int) $request->get_param( 'id' );
+		$data = $request->get_json_params() ?: $request->get_params();
+		$stage = sanitize_key( (string) ( $data['stage'] ?? '' ) );
+
+		if ( ! $id || empty( $stage ) ) {
+			return $this->error( 'Invalid deal ID or stage', 400 );
+		}
+
+		$prob = isset( $data['probability'] ) ? (int) $data['probability'] : ( $stage === 'won' ? 100 : ( $stage === 'lost' ? 0 : 50 ) );
+		$now = current_time( 'mysql', true );
+		$update = [
+			'stage'       => $stage,
+			'probability' => $prob,
+			'updated_at'  => $now,
+		];
+		$formats = [ '%s', '%d', '%s' ];
+		if ( in_array( $stage, [ 'won', 'lost' ], true ) ) {
+			$update['closed_at'] = $now;
+			$formats[] = '%s';
+		}
+
+		$wpdb->update( $table, $update, [ 'id' => $id ], $formats, [ '%d' ] );
+
+		return $this->bare( [ 'ok' => true, 'deal_id' => $id, 'stage' => $stage ] );
+	}
+
 	public function getSeoBrainOverview( WP_REST_Request $request ): WP_REST_Response {
 		global $wpdb;
 		$count = wp_count_posts( 'post' );
@@ -1342,12 +1481,41 @@ final class MobileBridgeController extends AbstractController {
 	}
 
 	public function getCustomerMargins( WP_REST_Request $request ): WP_REST_Response {
+		global $wpdb;
+		$dealsTable = $wpdb->prefix . 'vmsos_deals';
+		$totalRevenue = 0.0;
+		$netProfit = 0.0;
+		$margins = [];
+
+		if ( $wpdb->get_var( "SHOW TABLES LIKE '$dealsTable'" ) === $dealsTable ) {
+			$wonRow = $wpdb->get_row( "SELECT COUNT(*) as cnt, COALESCE(SUM(value), 0) as total_val FROM $dealsTable WHERE stage = 'won'" );
+			if ( $wonRow ) {
+				$totalRevenue = (float) $wonRow->total_val;
+			}
+			$wonDeals = $wpdb->get_results( "SELECT id, title, value, stage FROM $dealsTable WHERE stage = 'won' ORDER BY id DESC LIMIT 10", ARRAY_A );
+			foreach ( (array) $wonDeals as $d ) {
+				$val = (float) ( $d['value'] ?? 0 );
+				$estCost = $val * 0.40;
+				$margins[] = [
+					'deal_id'    => (int) $d['id'],
+					'title'      => (string) $d['title'],
+					'revenue'    => $val,
+					'cost'       => $estCost,
+					'margin_pct' => 60.0,
+				];
+			}
+		}
+
+		$estExpenses = $totalRevenue * 0.40;
+		$netProfit   = $totalRevenue - $estExpenses;
+		$marginPct   = $totalRevenue > 0 ? round( ( $netProfit / $totalRevenue ) * 100, 1 ) : 0.0;
+
 		return $this->bare( [
-			'total_revenue'  => 1420000,
-			'total_expenses' => 890000,
-			'net_profit'     => 530000,
-			'margin_pct'     => 37.3,
-			'margins'        => [],
+			'total_revenue'  => $totalRevenue,
+			'total_expenses' => $estExpenses,
+			'net_profit'     => $netProfit,
+			'margin_pct'     => $marginPct,
+			'margins'        => $margins,
 		] );
 	}
 
@@ -1751,11 +1919,23 @@ final class MobileBridgeController extends AbstractController {
 	}
 
 	public function getZohoSummary( WP_REST_Request $request ): WP_REST_Response {
+		global $wpdb;
+		$dealsTable = $wpdb->prefix . 'vmsos_deals';
+		$totalWon = 0.0;
+		$totalPipeline = 0.0;
+
+		if ( $wpdb->get_var( "SHOW TABLES LIKE '$dealsTable'" ) === $dealsTable ) {
+			$wonVal = $wpdb->get_var( "SELECT COALESCE(SUM(value), 0) FROM $dealsTable WHERE stage = 'won'" );
+			$totalWon = (float) $wonVal;
+			$pipeVal = $wpdb->get_var( "SELECT COALESCE(SUM(value), 0) FROM $dealsTable WHERE stage NOT IN ('won', 'lost')" );
+			$totalPipeline = (float) $pipeVal;
+		}
+
 		return $this->bare( [
 			'connected'        => true,
 			'sync_status'      => 'synchronized',
-			'total_invoiced'   => 1420000,
-			'total_receivable' => 125000,
+			'total_invoiced'   => $totalWon,
+			'total_receivable' => $totalPipeline,
 		] );
 	}
 

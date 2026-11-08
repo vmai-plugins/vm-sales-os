@@ -319,5 +319,62 @@ final class UniversalTools {
 			},
 			'public'
 		);
+	
+
+		// 7. GitHub Repository & Release Integration Tool
+		$tools->register(
+			[
+				'name'        => 'github_release_status',
+				'description' => 'Check the latest official GitHub release, update availability, and changelog for VM Sales OS.',
+				'parameters'  => [
+					'type'       => 'object',
+					'properties' => [
+						'repo' => [ 'type' => 'string', 'description' => 'Target repository (defaults to vmai-plugins/vm-sales-os).' ],
+					],
+					'required'   => [],
+				],
+			],
+			static function ( array $args, array $context ) use ( $container ): array {
+				$repo  = sanitize_text_field( (string) ( $args['repo'] ?? get_option( 'vmsos_github_repo', 'vmai-plugins/vm-sales-os' ) ) );
+				$token = (string) get_option( 'vmsos_github_token', '' );
+
+				$headers = [
+					'Accept'     => 'application/vnd.github+json',
+					'User-Agent' => 'VM-Sales-OS-Tool/' . ( defined( 'VMSOS_VERSION' ) ? VMSOS_VERSION : '2.3.0' ),
+				];
+				if ( '' !== $token ) {
+					$headers['Authorization'] = 'Bearer ' . trim( $token );
+				}
+
+				$res = wp_remote_get(
+					"https://api.github.com/repos/{$repo}/releases/latest",
+					[
+						'timeout' => 10,
+						'headers' => $headers,
+					]
+				);
+
+				if ( is_wp_error( $res ) ) {
+					return [ 'ok' => false, 'error' => $res->get_error_message() ];
+				}
+
+				$code = wp_remote_retrieve_response_code( $res );
+				if ( 200 !== $code ) {
+					return [ 'ok' => false, 'status_code' => $code, 'error' => 'No published release found or repository is private.' ];
+				}
+
+				$data = json_decode( (string) wp_remote_retrieve_body( $res ), true );
+				return [
+					'ok'           => true,
+					'repository'   => $repo,
+					'tag'          => $data['tag_name'] ?? 'latest',
+					'name'         => $data['name'] ?? '',
+					'published_at' => $data['published_at'] ?? '',
+					'html_url'     => $data['html_url'] ?? '',
+					'notes'        => mb_substr( (string) ( $data['body'] ?? '' ), 0, 500 ),
+				];
+			},
+			'public'
+		);
 	}
 }

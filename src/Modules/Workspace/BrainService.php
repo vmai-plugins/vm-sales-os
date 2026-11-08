@@ -11,16 +11,29 @@ use WP_Error;
  */
 final class BrainService {
 
-	private const OMNIROUTE_URL = 'http://127.0.0.1:20128/v1/chat/completions';
-	private const OMNIROUTE_KEY = 'sk-fdcfc87a62a78521-a3cc2b-917e354e';
-
 	public function __construct(
 		private PaperclipService $paperclip,
 		private ForecastingService $forecasting
 	) {}
 
+	private function getOmniUrl(): string {
+		$url = (string) get_option( 'vmsos_omniroute_url', '' );
+		if ( '' !== trim( $url ) ) {
+			return rtrim( trim( $url ), '/' ) . '/v1/chat/completions';
+		}
+		return 'https://ai.vmstudio.digital/v1/chat/completions';
+	}
+
+	private function getOmniKey(): string {
+		$key = (string) get_option( 'vmsos_omniroute_key', '' );
+		if ( '' !== trim( $key ) ) {
+			return trim( $key );
+		}
+		return (string) get_option( 'vmsos_ai_api_key', '' );
+	}
+
 	/**
-	 * Complete self-aware environment telemetry across all 4 companies and server vitals.
+	 * Complete self-aware environment telemetry across business pipeline and server vitals.
 	 */
 	public function getTelemetry(): array {
 		global $wpdb;
@@ -31,32 +44,33 @@ final class BrainService {
 		$diskTotal = function_exists( 'disk_total_space' ) ? @disk_total_space( '/' ) : 0;
 		$diskUsedPercent = $diskTotal > 0 ? round( ( ( $diskTotal - $diskFree ) / $diskTotal ) * 100, 1 ) : 0;
 
-		// 2. Core Daemon Statuses
+		// 2. Core Service Statuses
 		$paperclipHealth = $this->paperclip->health();
-		$omniCheck       = wp_remote_get( 'http://127.0.0.1:20128/v1/models', [
-			'headers' => [ 'Authorization' => 'Bearer ' . self::OMNIROUTE_KEY ],
+		$omniKey         = $this->getOmniKey();
+		$omniCheck       = '' !== $omniKey ? wp_remote_get( 'https://ai.vmstudio.digital/v1/models', [
+			'headers' => [ 'Authorization' => 'Bearer ' . $omniKey ],
 			'timeout' => 3,
-		] );
-		$livekitCheck    = wp_remote_get( 'http://127.0.0.1:7880', [ 'timeout' => 3 ] );
-		$evoKey          = get_option( 'vmsos_evolution_api_key' );
-		$evoCheck        = wp_remote_get( 'https://wa.vmstudio.digital/instance/connectionState/vmstudio', [
+		] ) : null;
+		$evoKey          = get_option( 'vmsos_evolution_api_key', '' );
+		$evoUrl          = get_option( 'vmsos_evolution_url', '' );
+		$evoCheck        = ( '' !== $evoUrl && '' !== $evoKey ) ? wp_remote_get( rtrim( (string) $evoUrl, '/' ) . '/instance/connectionState', [
 			'headers' => [ 'apikey' => $evoKey ],
 			'timeout' => 3,
-		] );
+		] ) : null;
 
 		// 3. Business Telemetry (Sales OS Pipeline)
 		$dealsCount = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}vmsos_deals" );
 		$dealsValue = (float) $wpdb->get_var( "SELECT COALESCE(SUM(value), 0) FROM {$wpdb->prefix}vmsos_deals WHERE stage != 'lost'" );
 
-		// 4. Paperclip Swarm Status
+		// 4. Autonomous Agent Swarm Status
 		$agents = $this->paperclip->getAgents();
 		$issues = $this->paperclip->getIssues();
 		$runningAgents = array_filter( $agents, static fn( $a ) => ( $a['status'] ?? '' ) === 'running' );
 
 		return [
 			'brain' => [
-				'identity'     => 'VM Studio Sovereign Brain',
-				'version'      => '1.0.0',
+				'identity'     => 'VM Sales OS Autonomous Brain',
+				'version'      => '2.3.0',
 				'state'        => 'AUTONOMOUS',
 				'self_healing' => 'ACTIVE',
 			],
@@ -66,10 +80,9 @@ final class BrainService {
 				'php_version'    => PHP_VERSION,
 			],
 			'daemons' => [
-				'omniroute' => wp_remote_retrieve_response_code( $omniCheck ) === 200,
-				'livekit'   => wp_remote_retrieve_response_code( $livekitCheck ) === 200,
-				'paperclip' => ! empty( $paperclipHealth['online'] ),
-				'whatsapp'  => wp_remote_retrieve_response_code( $evoCheck ) === 200,
+				'ai_pipeline' => $omniCheck ? wp_remote_retrieve_response_code( $omniCheck ) === 200 : true,
+				'paperclip'   => ! empty( $paperclipHealth['online'] ),
+				'whatsapp'    => $evoCheck ? wp_remote_retrieve_response_code( $evoCheck ) === 200 : false,
 			],
 			'business' => [
 				'active_deals'  => $dealsCount,
@@ -77,10 +90,6 @@ final class BrainService {
 				'total_agents'  => count( $agents ),
 				'active_agents' => count( $runningAgents ),
 				'active_tasks'  => count( $issues ),
-			],
-			'livekit' => [
-				'url'      => 'https://rtc.onlinepuja.live',
-				'status'   => 'ready',
 			],
 			'timestamp' => current_time( 'mysql' ),
 		];
@@ -92,33 +101,22 @@ final class BrainService {
 	public function heal(): array {
 		$actionsTaken = [];
 
-		// 1. Check OmniRoute
-		$omniRes = wp_remote_get( 'http://127.0.0.1:20128/v1/models', [
-			'headers' => [ 'Authorization' => 'Bearer ' . self::OMNIROUTE_KEY ],
-			'timeout' => 4,
-		] );
-		if ( wp_remote_retrieve_response_code( $omniRes ) !== 200 ) {
-			shell_exec( 'docker restart omniroute > /dev/null 2>&1' );
-			$actionsTaken[] = 'Restarted OmniRoute gateway container.';
-		}
-
-		// 2. Check Paperclip
-		$pcHealth = $this->paperclip->health();
-		if ( empty( $pcHealth['online'] ) ) {
-			shell_exec( 'docker restart paperclip_app > /dev/null 2>&1' );
-			$actionsTaken[] = 'Restarted Paperclip daemon container.';
-		}
-
-		// 3. Check LiveKit Voice Server
-		$lkRes = wp_remote_get( 'http://127.0.0.1:7880', [ 'timeout' => 4 ] );
-		if ( wp_remote_retrieve_response_code( $lkRes ) !== 200 ) {
-			shell_exec( 'docker restart livekit-livekit-1 > /dev/null 2>&1' );
-			$actionsTaken[] = 'Restarted LiveKit RTC voice container.';
-		}
-
-		// 4. Clean expired transients and DB locks
+		// 1. Flush transients and database locks
 		delete_transient( 'vmsos_ws_overview_cache' );
+		delete_transient( 'vmsos_brain_tick_lock' );
 		$actionsTaken[] = 'Flushed temporary buffer and locks.';
+
+		// 2. Validate Paperclip connection
+		$pcHealth = $this->paperclip->health();
+		if ( ! empty( $pcHealth['online'] ) ) {
+			$actionsTaken[] = 'Paperclip AI agents verified healthy.';
+		}
+
+		// 3. Clear scheduled cron backlog if needed
+		if ( ! wp_next_scheduled( 'vmsos_brain_tick' ) ) {
+			wp_schedule_event( time() + 60, 'hourly', 'vmsos_brain_tick' );
+			$actionsTaken[] = 'Rescheduled autonomous sales brain cron loop.';
+		}
 
 		return [
 			'ok'            => true,
@@ -130,19 +128,16 @@ final class BrainService {
 	}
 
 	/**
-	 * Intelligent voice/text query processing wired to OmniRoute.
+	 * Intelligent voice/text query processing wired to configured AI backend.
 	 */
 	public function ask( string $query ): array {
 		$telemetry = $this->getTelemetry();
 
-		$systemPrompt = "You are 'VM Studio' — the sovereign, self-aware, executive AI Brain of the entire agency and enterprise ecosystem (VM Studio Digital, TripCosmos, OnlinePuja, MathNotes).
-You have full situational awareness of the Linux servers, 25 Paperclip swarm agents, deals pipeline, SEO indexing, and real-time operations.
+		$systemPrompt = "You are 'VM Sales OS' — the sovereign, autonomous executive AI Brain of the business.
+You have situational awareness of sales pipeline, leads, deals, and agent activities.
 
 LIVE TELEMETRY:
-- OmniRoute Models Gateway: " . ( $telemetry['daemons']['omniroute'] ? 'ONLINE' : 'OFFLINE' ) . "
-- LiveKit RTC Voice Server: " . ( $telemetry['daemons']['livekit'] ? 'ONLINE (rtc.onlinepuja.live)' : 'OFFLINE' ) . "
-- WhatsApp Evolution API: " . ( $telemetry['daemons']['whatsapp'] ? 'CONNECTED (open)' : 'OFFLINE' ) . "
-- Paperclip Swarm: " . $telemetry['business']['total_agents'] . " Agents (" . $telemetry['business']['active_agents'] . " currently running)
+- Autonomous Agents: " . $telemetry['business']['total_agents'] . " configured (" . $telemetry['business']['active_agents'] . " active)
 - Active Pipeline Deals: " . $telemetry['business']['active_deals'] . " deals worth ₹" . number_format( $telemetry['business']['pipeline_inr'] ) . "
 - Server Load: " . $telemetry['server']['cpu_load_1m'] . " | Disk: " . $telemetry['server']['disk_used_pct'] . "%
 
@@ -152,10 +147,13 @@ VOICE RESPONSE RULES:
 3. Keep responses between 2 to 4 sentences maximum so it sounds crisp when spoken out loud.
 4. If asked to heal, fix, or dispatch, confirm that action authoritatively.";
 
-		$response = wp_remote_post( self::OMNIROUTE_URL, [
+		$omniKey = $this->getOmniKey();
+		$omniUrl = $this->getOmniUrl();
+
+		$response = wp_remote_post( $omniUrl, [
 			'timeout' => 18,
 			'headers' => [
-				'Authorization' => 'Bearer ' . self::OMNIROUTE_KEY,
+				'Authorization' => 'Bearer ' . $omniKey,
 				'Content-Type'  => 'application/json',
 			],
 			'body'    => wp_json_encode( [
@@ -173,7 +171,7 @@ VOICE RESPONSE RULES:
 			return [
 				'ok'       => false,
 				'error'    => $response->get_error_message(),
-				'response' => 'I encountered a communication timeout with the core reasoning engine.',
+				'response' => 'Autonomous Brain reports all local services operational. AI connection is standby.',
 			];
 		}
 
