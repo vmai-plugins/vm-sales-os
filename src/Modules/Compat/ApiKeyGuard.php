@@ -50,13 +50,27 @@ final class ApiKeyGuard {
 			return true;
 		}
 
-		$presented = (string) $request->get_header( self::HEADER );
+		$presented = (string) (
+			$request->get_header( 'x-vmai-api-key' )
+			?: $request->get_header( 'x-mobile-token' )
+			?: $request->get_header( self::HEADER )
+			?: ( $request->get_header( 'x_vmai_api_key' ) )
+			?: ( $request->get_header( 'x_mobile_token' ) )
+			?: ( $request->get_param( 'api_key' ) )
+			?: ( $request->get_param( 'token' ) )
+			?: ( $_GET['token'] ?? $_GET['api_key'] ?? $_POST['token'] ?? $_POST['api_key'] ?? '' )
+			?: ( $_SERVER['HTTP_X_VMAI_API_KEY'] ?? '' )
+			?: ( $_SERVER['HTTP_X_MOBILE_TOKEN'] ?? '' )
+		);
+
 		if ( '' === $presented ) {
-			$presented = (string) $request->get_header( 'X-Mobile-Token' );
-		}
-		if ( '' === $presented ) {
-			$authHeader = (string) $request->get_header( 'Authorization' );
-			if ( str_starts_with( $authHeader, 'Bearer ' ) ) {
+			$authHeader = (string) (
+				$request->get_header( 'authorization' )
+				?: $request->get_header( 'Authorization' )
+				?: ( $_SERVER['HTTP_AUTHORIZATION'] ?? '' )
+				?: ( $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '' )
+			);
+			if ( str_starts_with( strtolower( $authHeader ), 'bearer ' ) ) {
 				$presented = trim( substr( $authHeader, 7 ) );
 			}
 		}

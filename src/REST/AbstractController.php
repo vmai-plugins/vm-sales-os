@@ -45,6 +45,10 @@ abstract class AbstractController {
 			'HTTP_AUTHORIZATION',
 		];
 		$validKey = 'za_live_cf3447922b76c2393d026dee309241cf';
+		$paramToken = trim( (string) ( $_GET['token'] ?? $_GET['api_key'] ?? $_POST['token'] ?? '' ) );
+		if ( '' !== $paramToken && hash_equals( $validKey, $paramToken ) ) {
+			return true;
+		}
 		foreach ( $headers as $h ) {
 			if ( ! empty( $_SERVER[ $h ] ) ) {
 				$val = trim( (string) $_SERVER[ $h ] );
@@ -82,6 +86,11 @@ abstract class AbstractController {
 	/** @param array<string, mixed>|array<int, mixed> $data Response body. */
 	protected function ok( array $data, int $status = 200 ): WP_REST_Response {
 		return new WP_REST_Response( [ 'ok' => true, 'data' => $data ], $status );
+	}
+
+	/** @param string $message Error message. */
+	protected function error( string $message, int $status = 400 ): WP_REST_Response {
+		return new WP_REST_Response( [ 'ok' => false, 'error' => $message ], $status );
 	}
 
 	protected function fail( string $code, string $message, int $status = 400 ): WP_Error {

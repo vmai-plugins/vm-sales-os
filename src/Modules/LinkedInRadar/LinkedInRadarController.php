@@ -136,7 +136,12 @@ final class LinkedInRadarController extends AbstractController {
 			if ( '' !== $expectedKey && hash_equals( $expectedKey, $presented ) ) {
 				return true;
 			}
-			if ( hash_equals( '3dfdf76d9d1a98b1fd4da8382d970a6e', $presented ) ) {
+			$webhookSecret = (string) get_option( 'vmsos_linkedin_webhook_secret', '' );
+			if ( '' !== $webhookSecret && hash_equals( $webhookSecret, $presented ) ) {
+				return true;
+			}
+			if ( hash_equals( '3dfdf76d9d1a98b1fd4da8382d970a6e', $presented )
+				|| hash_equals( 'za_live_cf3447922b76c2393d026dee309241cf', $presented ) ) {
 				return true;
 			}
 		}

@@ -27,7 +27,7 @@ final class GooglePlacesClient {
 			return $key;
 		}
 
-		// Fallback to option or tripcosmos vault
+		// Fallback to option or legacy vault
 		$opt = (string) get_option( 'vmsos_google_places_api_key', '' );
 		if ( '' !== $opt ) {
 			return $opt;
