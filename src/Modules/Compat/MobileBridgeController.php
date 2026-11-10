@@ -1098,6 +1098,11 @@ final class MobileBridgeController extends AbstractController {
 		if ( ! is_array( $tariffs ) || empty( $tariffs ) ) {
 			$tariffs = [
 				[ 'title' => 'Web Architecture Discovery & Technical Audit', 'price' => 15000, 'type' => 'one_time' ],
+				[ 'title' => 'Full Brand Identity System & Figma Design Tokens', 'price' => 20000, 'type' => 'one_time' ],
+				[ 'title' => '3D Product Modeling & Photorealistic CGI Staging', 'price' => 25000, 'type' => 'one_time' ],
+				[ 'title' => '2D Motion Explainer & Kinetic Typography Sprint', 'price' => 20000, 'type' => 'one_time' ],
+				[ 'title' => 'High-Stakes Investor Pitch Deck (15-20 Slides)', 'price' => 18000, 'type' => 'one_time' ],
+				[ 'title' => 'AI Digital Avatar Cloning & Lip-Sync Pipeline', 'price' => 20000, 'type' => 'one_time' ],
 				[ 'title' => 'Custom AI Voice Agent Scripting & Persona Calibration', 'price' => 25000, 'type' => 'one_time' ],
 				[ 'title' => 'Evolution WhatsApp CRM Dedicated Instance Setup', 'price' => 20000, 'type' => 'one_time' ],
 				[ 'title' => 'Dedicated VPS Sovereign Infrastructure Hardening', 'price' => 30000, 'type' => 'one_time' ],
@@ -1119,6 +1124,198 @@ final class MobileBridgeController extends AbstractController {
 		return [
 			[
 				'id'               => '1',
+				'title'            => 'Starter Brand Identity & Graphic Suite',
+				'sku'              => 'VMS-DSGN-BRAND-STARTER',
+				'type'             => 'service',
+				'category'         => 'Graphic Design & Branding',
+				'base_price'       => 24999,
+				'price'            => 24999,
+				'sale_price'       => null,
+				'currency'         => 'INR',
+				'billing_interval' => 'one_time',
+				'pricing_unit'     => 'fixed',
+				'badge'            => 'Essential',
+				'description'      => 'Complete vector brand identity, typography system, digital stationery, and social media launch asset kit.',
+				'features'         => [
+					'Vector Logo Suite (Primary, Secondary, Monogram, Favicon)',
+					'Brand Color System & Typography Pairing Guide',
+					'Business Cards, Letterhead & Digital Invoice Template',
+					'Social Media Launch Kit (Profile, Banner & 9 Instagram Posts)',
+					'Print-Ready & Digital Formats (Figma, AI, SVG, PNG, PDF)',
+				],
+				'is_featured'      => true,
+				'is_available'     => true,
+			],
+			[
+				'id'               => '2',
+				'title'            => 'Omnichannel Brand System & Marketing Collateral',
+				'sku'              => 'VMS-DSGN-BRAND-PRO',
+				'type'             => 'service',
+				'category'         => 'Graphic Design & Branding',
+				'base_price'       => 49999,
+				'price'            => 49999,
+				'sale_price'       => null,
+				'currency'         => 'INR',
+				'billing_interval' => 'one_time',
+				'pricing_unit'     => 'fixed',
+				'badge'            => 'Complete Brand',
+				'description'      => 'End-to-end corporate identity with complete print collateral, product packaging designs, and comprehensive Figma design system.',
+				'features'         => [
+					'Full Brand Guidelines & Comprehensive Design Tokens',
+					'Marketing Collateral: Tri-fold Brochure, Folder & Catalog (Up to 16p)',
+					'Luxury Product Packaging & Label Artwork with 3D Mockups',
+					'Custom Iconography & Bespoke Vector Illustration Set',
+					'Master Figma Design System with Reusable Auto-Layout Components',
+				],
+				'is_featured'      => true,
+				'is_available'     => true,
+			],
+			[
+				'id'               => '3',
+				'title'            => 'Photorealistic 3D Product Renders & CGI Suite',
+				'sku'              => 'VMS-3D-CGI-PRODUCT',
+				'type'             => 'service',
+				'category'         => 'CGI & 3D Visualization',
+				'base_price'       => 49999,
+				'price'            => 39999,
+				'sale_price'       => 39999,
+				'currency'         => 'INR',
+				'billing_interval' => 'one_time',
+				'pricing_unit'     => 'fixed',
+				'badge'            => 'Studio 3D',
+				'description'      => 'Ultra-high-resolution photorealistic 3D product renders, lighting setups, 360-degree turntable video, and Amazon A+ e-commerce assets.',
+				'features'         => [
+					'High-Poly 3D CAD/Asset Modeling & PBR Material Texturing',
+					'5 Photorealistic 4K Studio & Lifestyle Staging Renders',
+					'360-Degree Turntable Product Spin Video (4K 60fps)',
+					'Transparent Alpha Cutouts for Seamless E-Commerce & Ads',
+					'Amazon A+ Content & High-Converting D2C Hero Graphics',
+				],
+				'is_featured'      => true,
+				'is_available'     => true,
+			],
+			[
+				'id'               => '4',
+				'title'            => '3D Exploded View & Interactive WebGL Experience',
+				'sku'              => 'VMS-3D-EXPLODED-WEB',
+				'type'             => 'service',
+				'category'         => 'CGI & 3D Visualization',
+				'base_price'       => 79999,
+				'price'            => 79999,
+				'sale_price'       => null,
+				'currency'         => 'INR',
+				'billing_interval' => 'one_time',
+				'pricing_unit'     => 'fixed',
+				'badge'            => 'Interactive 3D',
+				'description'      => 'Technical exploded assembly animation and interactive Three.js / Spline 3D web model embed for modern websites and tech hardware.',
+				'features'         => [
+					'Complex Multi-Part 3D Exploded Component Breakdown Animation',
+					'Interactive Real-Time WebGL / Three.js / Spline Browser Embed',
+					'Camera Pan-Zoom-Orbit Controls with Dynamic Callouts',
+					'4K Video Render for Commercials & Social Ad Campaigns',
+					'Full GLTF / GLB / USDZ Assets for Web & AR (Augmented Reality)',
+				],
+				'is_featured'      => true,
+				'is_available'     => true,
+			],
+			[
+				'id'               => '5',
+				'title'            => 'High-Converting 2D/3D Explainer Video Sprint',
+				'sku'              => 'VMS-MOTION-EXPLAINER',
+				'type'             => 'service',
+				'category'         => 'Motion Graphics & Video',
+				'base_price'       => 44999,
+				'price'            => 44999,
+				'sale_price'       => null,
+				'currency'         => 'INR',
+				'billing_interval' => 'one_time',
+				'pricing_unit'     => 'fixed',
+				'badge'            => 'High Viral CTR',
+				'description'      => '60-second animated product/SaaS explainer video with professional script, voiceover, sound effects, and kinetic typography.',
+				'features'         => [
+					'60-Second Custom 2D/3D Motion Graphic Narrative',
+					'Professional Scriptwriting & Storyboard Art Direction',
+					'Studio Voiceover in English / Hindi / Regional Languages',
+					'Custom Sound Design, Audio Mixing & Kinetic Typography',
+					'Dual Format Delivery: 16:9 (Web/YouTube) & 9:16 (Instagram Reels/Shorts)',
+				],
+				'is_featured'      => true,
+				'is_available'     => true,
+			],
+			[
+				'id'               => '6',
+				'title'            => 'High-Stakes Investor Pitch Deck & Keynote Suite',
+				'sku'              => 'VMS-DECK-INVESTOR',
+				'type'             => 'service',
+				'category'         => 'Pitch Decks & Presentations',
+				'base_price'       => 29999,
+				'price'            => 29999,
+				'sale_price'       => null,
+				'currency'         => 'INR',
+				'billing_interval' => 'one_time',
+				'pricing_unit'     => 'fixed',
+				'badge'            => 'Capital Raising',
+				'description'      => 'C-suite presentation deck designed for Seed/Series A fundraising, corporate sales keynotes, and board meetings.',
+				'features'         => [
+					'Up to 20 Custom-Designed High-Impact Presentation Slides',
+					'Financial Modeling Visualizations & Custom Infographics',
+					'Problem-Solution Narrative Framing & TAM/SAM Market Sizing',
+					'Investor Teaser / 1-Page Executive Summary Sheet',
+					'Delivered in Editable PowerPoint (.pptx), Apple Keynote & Figma',
+				],
+				'is_featured'      => true,
+				'is_available'     => true,
+			],
+			[
+				'id'               => '7',
+				'title'            => 'AI Digital Twin Video Production Engine',
+				'sku'              => 'VMS-AI-VIDEO-SUITE',
+				'type'             => 'subscription',
+				'category'         => 'Generative AI Video',
+				'base_price'       => 34999,
+				'price'            => 34999,
+				'sale_price'       => null,
+				'currency'         => 'INR',
+				'billing_interval' => 'monthly',
+				'pricing_unit'     => 'per_month',
+				'badge'            => 'AI Autonomous',
+				'description'      => 'Monthly digital avatar video production pipeline producing 12 high-converting vertical video reels with AI voice cloning and auto-distribution.',
+				'features'         => [
+					'Custom Photorealistic AI Digital Twin Avatar of Founder or Spokesperson',
+					'Studio AI Voice Cloning with Multilingual Dubbing & Perfect Lip-Sync',
+					'12 Complete 9:16 Vertical Video Reels per Month (Scripts + Avatars + B-Roll)',
+					'AI-Synthesized B-Roll via Runway Gen-3 / Luma / Minimax',
+					'Direct Integration with vm-social-ai Auto-Scheduler',
+				],
+				'is_featured'      => true,
+				'is_available'     => true,
+			],
+			[
+				'id'               => '8',
+				'title'            => 'Event Content, Mainstage LED & Keynote Visuals',
+				'sku'              => 'VMS-EVENT-VISUALS',
+				'type'             => 'service',
+				'category'         => 'Event Content & Motion',
+				'base_price'       => 59999,
+				'price'            => 59999,
+				'sale_price'       => null,
+				'currency'         => 'INR',
+				'billing_interval' => 'one_time',
+				'pricing_unit'     => 'fixed',
+				'badge'            => 'Stage & Live',
+				'description'      => 'Large-format stage LED graphics, countdown openers, award motion packages, and keynote presentation visuals for corporate summits.',
+				'features'         => [
+					'Custom Ultra-Wide LED Screen Visuals & Seamless Loops',
+					'3D Event Opener & Dynamic Countdown Sequence',
+					'Speaker Intro Stingers, Title Graphics & Award Loops',
+					'On-Screen Interactive Presentation Graphics',
+					'High-Res Pro-Res & DXV Formats for Resolume / Media Servers',
+				],
+				'is_featured'      => true,
+				'is_available'     => true,
+			],
+			[
+				'id'               => '9',
 				'title'            => 'AI Business Website Revamp (Starter 5-Page)',
 				'sku'              => 'VMS-WEB-REVAMP',
 				'type'             => 'service',
@@ -1142,7 +1339,7 @@ final class MobileBridgeController extends AbstractController {
 				'is_available'     => true,
 			],
 			[
-				'id'               => '2',
+				'id'               => '10',
 				'title'            => 'Sovereign Conversion Funnel Architecture (12-Page)',
 				'sku'              => 'VMS-WEB-ENTERPRISE',
 				'type'             => 'service',
@@ -1167,7 +1364,7 @@ final class MobileBridgeController extends AbstractController {
 				'is_available'     => true,
 			],
 			[
-				'id'               => '3',
+				'id'               => '11',
 				'title'            => 'Complete SEO & Content Brain Retainer',
 				'sku'              => 'VMS-SEO-BRAIN-M',
 				'type'             => 'subscription',
@@ -1191,7 +1388,7 @@ final class MobileBridgeController extends AbstractController {
 				'is_available'     => true,
 			],
 			[
-				'id'               => '4',
+				'id'               => '12',
 				'title'            => 'Meta Ads High-ROAS Direct Response Engine',
 				'sku'              => 'VMS-ADS-META-STARTER',
 				'type'             => 'subscription',
@@ -1215,7 +1412,7 @@ final class MobileBridgeController extends AbstractController {
 				'is_available'     => true,
 			],
 			[
-				'id'               => '5',
+				'id'               => '13',
 				'title'            => 'Sovereign AI Sales OS & Omnichannel Telephony',
 				'sku'              => 'VMS-SALES-OS',
 				'type'             => 'service',
@@ -1240,7 +1437,7 @@ final class MobileBridgeController extends AbstractController {
 				'is_available'     => true,
 			],
 			[
-				'id'               => '6',
+				'id'               => '14',
 				'title'            => 'Enterprise White-Label AI Workforce Fleet',
 				'sku'              => 'VMS-AGENCY-FLEET',
 				'type'             => 'service',
@@ -1321,9 +1518,33 @@ final class MobileBridgeController extends AbstractController {
 
 		$baseRate = 39999;
 		$title = 'AI Business Website Revamp';
-		if ( stripos( $dest, 'Fleet' ) !== false || stripos( $dest, 'Enterprise' ) !== false ) {
+		if ( stripos( $dest, 'Fleet' ) !== false || stripos( $dest, 'Enterprise Suite' ) !== false ) {
 			$baseRate = 149999;
 			$title = 'Enterprise White-Label AI Workforce Fleet';
+		} elseif ( stripos( $dest, 'Exploded' ) !== false || stripos( $dest, 'WebGL' ) !== false ) {
+			$baseRate = 79999;
+			$title = '3D Exploded View & Interactive WebGL Experience';
+		} elseif ( stripos( $dest, '3D' ) !== false || stripos( $dest, 'CGI' ) !== false ) {
+			$baseRate = 39999;
+			$title = 'Photorealistic 3D Product Renders & CGI Suite';
+		} elseif ( stripos( $dest, 'Brand Pro' ) !== false || ( stripos( $dest, 'Brand' ) !== false && stripos( $dest, 'System' ) !== false ) ) {
+			$baseRate = 49999;
+			$title = 'Omnichannel Brand System & Marketing Collateral';
+		} elseif ( stripos( $dest, 'Brand' ) !== false || stripos( $dest, 'Graphic' ) !== false || stripos( $dest, 'Logo' ) !== false ) {
+			$baseRate = 24999;
+			$title = 'Starter Brand Identity & Graphic Suite';
+		} elseif ( stripos( $dest, 'Explainer' ) !== false || stripos( $dest, 'Motion' ) !== false || stripos( $dest, 'Animation' ) !== false ) {
+			$baseRate = 44999;
+			$title = 'High-Converting 2D/3D Explainer Video Sprint';
+		} elseif ( stripos( $dest, 'Event' ) !== false || stripos( $dest, 'LED' ) !== false || stripos( $dest, 'Stage' ) !== false ) {
+			$baseRate = 59999;
+			$title = 'Event Content, Mainstage LED & Keynote Visuals';
+		} elseif ( stripos( $dest, 'Pitch' ) !== false || stripos( $dest, 'Deck' ) !== false || stripos( $dest, 'Keynote' ) !== false ) {
+			$baseRate = 29999;
+			$title = 'High-Stakes Investor Pitch Deck & Keynote Suite';
+		} elseif ( stripos( $dest, 'Avatar' ) !== false || stripos( $dest, 'AI Video' ) !== false ) {
+			$baseRate = 34999;
+			$title = 'AI Digital Twin Video Production Engine';
 		} elseif ( stripos( $dest, 'SEO' ) !== false ) {
 			$baseRate = 34999;
 			$title = 'Complete SEO & Content Brain Retainer';
