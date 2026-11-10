@@ -115,6 +115,10 @@ final class MobileBridgeController extends AbstractController {
 		$route( '/mobile/deals/(?P<id>\d+)/stage', 'POST', 'moveDealStage' );
 		$route( '/cabs', 'GET', 'getCabs' );
 		$route( '/cabs', 'POST', 'saveCabs' );
+		$route( '/services', 'GET', 'getCabs' );
+		$route( '/services', 'POST', 'saveCabs' );
+		$route( '/mobile/services', 'GET', 'getCabs' );
+		$route( '/mobile/services', 'POST', 'saveCabs' );
 		$route( '/tariffs', 'GET', 'getTariffs' );
 		$route( '/tariffs', 'POST', 'saveTariffs' );
 		$route( '/catalog', 'GET', 'getCatalog' );
@@ -3789,8 +3793,71 @@ final class MobileBridgeController extends AbstractController {
 	 * Fetch WhatsApp hub leads stream.
 	 */
 	public function getWhatsAppLeads( WP_REST_Request $request ): WP_REST_Response {
-		$raw      = $this->contacts->search( [], 50, 1 );
-		$leads    = array_map( fn( $c ) => $this->asLead( $c ), $raw );
+		global $wpdb;
+		$includeAll = ! empty( $request->get_param( 'include_all' ) ) || ! empty( $request->get_param( 'all' ) );
+
+		// 1. Identify contacts with actual WhatsApp activities or conversations
+		$waContactIds = $wpdb->get_col(
+			"SELECT DISTINCT subject_id FROM {$wpdb->prefix}vmsos_activities 
+			 WHERE subject_type = 'contact' AND (type = 'whatsapp' OR meta LIKE '%whatsapp%')"
+		);
+		$convContactIds = $wpdb->get_col(
+			"SELECT DISTINCT contact_id FROM {$wpdb->prefix}vmsos_conversations 
+			 WHERE channel = 'whatsapp' AND contact_id > 0"
+		);
+		$activeIds = array_unique( array_filter( array_map( 'intval', array_merge( $waContactIds ?: [], $convContactIds ?: [] ) ) ) );
+
+		$raw = [];
+		if ( ! empty( $activeIds ) ) {
+			foreach ( $activeIds as $aid ) {
+				$c = $this->contacts->find( (int) $aid );
+				if ( $c ) {
+					$raw[] = $c;
+				}
+			}
+		} elseif ( $includeAll ) {
+			$raw = $this->contacts->search( [], 50, 1 );
+		} else {
+			// Find contacts where source is specifically WhatsApp
+			$raw = $this->contacts->search( [ 'source' => 'whatsapp' ], 50, 1 );
+		}
+
+		$leads = [];
+		foreach ( $raw as $c ) {
+			$lead = $this->asLead( $c );
+			$cid  = (int) ( $c['id'] ?? 0 );
+
+			// Find latest real WhatsApp activity/message
+			$lastAct = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT body, actor, created_at FROM {$wpdb->prefix}vmsos_activities 
+					 WHERE subject_type = 'contact' AND subject_id = %d AND (type = 'whatsapp' OR meta LIKE '%whatsapp%')
+					 ORDER BY created_at DESC LIMIT 1",
+					$cid
+				),
+				ARRAY_A
+			);
+
+			if ( $lastAct ) {
+				$lead['last_message']         = (string) $lastAct['body'];
+				$lead['last_message_from_me'] = ( 'user' === $lastAct['actor'] || 'agent' === $lastAct['actor'] );
+				$lead['timestamp']            = (string) $lastAct['created_at'];
+				$lead['has_whatsapp_chat']    = true;
+			} else {
+				$lead['has_whatsapp_chat']    = ( 'whatsapp' === ( $c['source'] ?? '' ) );
+				if ( ! empty( $c['requirements'] ) ) {
+					$lead['last_message'] = (string) $c['requirements'];
+				}
+			}
+
+			// Unless explicitly requesting all, only include genuine WhatsApp interactions
+			if ( ! $includeAll && empty( $lastAct ) && 'whatsapp' !== ( $c['source'] ?? '' ) ) {
+				continue;
+			}
+
+			$leads[] = $lead;
+		}
+
 		$instance = (string) get_option( 'vmsos_evolution_instance', 'vmstudio' );
 
 		return $this->bare( [
@@ -3801,7 +3868,7 @@ final class MobileBridgeController extends AbstractController {
 				'instance'  => $instance,
 				'state'     => 'open',
 				'connected' => true,
-				'number'    => '918368316403',
+				'number'    => (string) get_option( 'vmsos_whatsapp_phone_number', '918368316403' ),
 			],
 		] );
 	}

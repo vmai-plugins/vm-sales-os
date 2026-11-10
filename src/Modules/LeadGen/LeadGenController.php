@@ -441,26 +441,32 @@ final class LeadGenController extends AbstractController {
 	 * Cycles through target cities and discovers new B2B partners via Google Places & Website Crawler.
 	 */
 	public function runScheduledDailyImport(): array {
+		if ( ! get_option( 'vmsos_b2b_import_enabled', false ) ) {
+			return [ 'status' => 'skipped', 'reason' => 'Scheduled lead import is disabled in settings' ];
+		}
+
 		if ( ! $this->placesClient->isConfigured() ) {
 			return [ 'status' => 'skipped', 'reason' => 'Places API key missing' ];
 		}
 
-		$cities = (string) get_option( 'vmsos_b2b_import_cities', '' );
-		if ( '' === $cities ) {
-			$cities = (string) get_option( 'tc_agents_b2b_import_cities', 'Varanasi, Delhi, Mumbai, Jaipur, Kolkata, Chennai, Bengaluru, Hyderabad, Ahmedabad, Lucknow' );
-		}
+		$cities = (string) get_option( 'vmsos_b2b_import_cities', 'Delhi, Mumbai, Bengaluru, Hyderabad, Pune' );
 		$cityList = array_values( array_filter( array_map( 'trim', explode( ',', $cities ) ) ) );
 		if ( empty( $cityList ) ) {
-			$cityList = [ 'Varanasi', 'Delhi', 'Mumbai', 'Jaipur', 'Bengaluru' ];
+			$cityList = [ 'Delhi', 'Mumbai', 'Bengaluru' ];
 		}
 
-		$index = (int) get_option( 'vmsos_b2b_city_index', get_option( 'tc_agents_b2b_city_index', 0 ) );
+		$index = (int) get_option( 'vmsos_b2b_city_index', 0 );
 		if ( $index >= count( $cityList ) ) {
 			$index = 0;
 		}
 		$currentCity = $cityList[ $index ];
 
-		$query = 'travel agency in ' . $currentCity;
+		$niche = trim( (string) get_option( 'vmsos_b2b_import_niche', 'business enterprises' ) );
+		if ( '' === $niche ) {
+			$niche = 'business enterprises';
+		}
+
+		$query = $niche . ' in ' . $currentCity;
 		$res   = $this->placesClient->search( $query, 20, true );
 
 		if ( isset( $res['error'] ) || empty( $res['places'] ) ) {

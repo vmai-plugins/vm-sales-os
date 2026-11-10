@@ -891,17 +891,42 @@ final class AdminArea {
 						</div>
 
 						<div class="vmsos-form-group" style="margin-bottom: 16px;">
+							<label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--vmsos-text); font-size: 13px;">
+								<input type="checkbox" name="vmsos_b2b_import_enabled" value="1" <?php checked( (bool) get_option( 'vmsos_b2b_import_enabled', false ) ); ?> />
+								<strong><?php esc_html_e( 'Enable Automated Daily Scheduled B2B Prospecting', 'vm-sales-os' ); ?></strong>
+							</label>
+							<span style="font-size: 11px; color: var(--vmsos-muted); margin-top: 4px; display: block;">
+								<?php esc_html_e( 'When enabled, the background engine discovers new businesses from Google Places on a daily schedule.', 'vm-sales-os' ); ?>
+							</span>
+						</div>
+
+						<div class="vmsos-form-group" style="margin-bottom: 16px;">
+							<label><?php esc_html_e( 'Target Industry Niche / Keyword', 'vm-sales-os' ); ?></label>
+							<input
+								type="text"
+								name="vmsos_b2b_import_niche"
+								id="vmsos_b2b_import_niche"
+								class="vmsos-input-modern"
+								value="<?php echo esc_attr( (string) get_option( 'vmsos_b2b_import_niche', 'business enterprises' ) ); ?>"
+								placeholder="business enterprises, digital marketing, solar EPC, interior design..."
+							/>
+							<span style="font-size: 11px; color: var(--vmsos-muted); margin-top: 4px;">
+								<?php esc_html_e( 'Universal niche query used for local lead radar (e.g. "business enterprises", "consultancy", "agencies").', 'vm-sales-os' ); ?>
+							</span>
+						</div>
+
+						<div class="vmsos-form-group" style="margin-bottom: 16px;">
 							<label><?php esc_html_e( 'Rotating Cities for Daily Prospecting', 'vm-sales-os' ); ?></label>
 							<input
 								type="text"
 								name="vmsos_b2b_import_cities"
 								id="vmsos_b2b_import_cities"
 								class="vmsos-input-modern"
-								value="<?php echo esc_attr( (string) get_option( 'vmsos_b2b_import_cities', get_option( 'tc_agents_b2b_import_cities', 'Dubai, Abu Dhabi, London, New York, Singapore, Mumbai, Riyadh' ) ) ); ?>"
+								value="<?php echo esc_attr( (string) get_option( 'vmsos_b2b_import_cities', 'Dubai, London, New York, Singapore, Mumbai, Delhi, Bengaluru' ) ); ?>"
 								placeholder="Dubai, London, New York, Singapore..."
 							/>
 							<span style="font-size: 11px; color: var(--vmsos-muted); margin-top: 4px;">
-								<?php esc_html_e( 'Each daily run advances to the next city in this list, discovering 20 fresh local B2B prospects per day.', 'vm-sales-os' ); ?>
+								<?php esc_html_e( 'Each daily run advances to the next city in this list, discovering fresh local B2B prospects per day.', 'vm-sales-os' ); ?>
 							</span>
 						</div>
 
@@ -2330,6 +2355,12 @@ final class AdminArea {
 		// B2B Lead Gen & Maps.
 		if ( isset( $_POST['vmsos_b2b_import_cities'] ) ) {
 			update_option( 'vmsos_b2b_import_cities', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_b2b_import_cities'] ) ), false );
+		}
+		if ( isset( $_POST['vmsos_b2b_import_niche'] ) ) {
+			update_option( 'vmsos_b2b_import_niche', sanitize_text_field( (string) wp_unslash( $_POST['vmsos_b2b_import_niche'] ) ), false );
+		}
+		if ( isset( $_POST['vmsos_b2b_import_enabled'] ) || isset( $_POST['vmsos_active_tab'] ) ) {
+			update_option( 'vmsos_b2b_import_enabled', ! empty( $_POST['vmsos_b2b_import_enabled'] ), false );
 		}
 		if ( isset( $_POST['vmsos_leadgen_shadow_email_sync'] ) || isset( $_POST['vmsos_active_tab'] ) ) {
 			update_option( 'vmsos_leadgen_shadow_email_sync', ! empty( $_POST['vmsos_leadgen_shadow_email_sync'] ), false );
