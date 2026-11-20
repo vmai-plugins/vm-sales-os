@@ -1467,6 +1467,46 @@ final class AdminArea {
 							<span style="font-size: 12px; font-weight: 600; color: #fff;"><?php esc_html_e( 'Active Mobile REST Endpoints:', 'vm-sales-os' ); ?></span>
 							<code style="display: block; margin-top: 6px; font-size: 11px; color: #38bdf8;"><?php echo esc_html( rest_url( 'vmai/v1' ) ); ?> (/leads, /dashboard, /inbox/conversations, /inbox/reply, /call/log, /call/summary)</code>
 						</div>
+
+						<?php
+						$currentSiteName = get_bloginfo( 'name' );
+						$currentSiteUrl  = home_url();
+						$activeMobileKey = $this->vault->get( 'mobile.api_key' ) ?: get_option( 'vmsos_mobile_api_key', 'za_live_cf3447922b76c2393d026dee309241cf' );
+						$qrPayload = [
+							'type'  => 'zagents_workspace',
+							'name'  => $currentSiteName,
+							'url'   => $currentSiteUrl,
+							'token' => $activeMobileKey,
+						];
+						$qrJson = wp_json_encode( $qrPayload );
+						$qrImageUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=8&data=' . rawurlencode( $qrJson );
+						?>
+						<div style="margin-top: 20px; padding: 20px; background: linear-gradient(135deg, rgba(6,182,212,0.12), rgba(99,102,241,0.06)); border: 1px solid rgba(6,182,212,0.35); border-radius: 12px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
+							<div style="background: #ffffff; padding: 10px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.35); text-align: center;">
+								<img src="<?php echo esc_url( $qrImageUrl ); ?>" alt="<?php esc_attr_e( 'Scan with Z-Agents App', 'vm-sales-os' ); ?>" width="180" height="180" style="display:block; border-radius: 6px;" />
+								<span style="display: block; margin-top: 6px; font-size: 11px; font-weight: 700; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px;">
+									<?php esc_html_e( 'Scan in Z-Agents', 'vm-sales-os' ); ?>
+								</span>
+							</div>
+							<div style="flex: 1; min-width: 280px;">
+								<h3 style="margin: 0 0 8px; color: #38bdf8; font-size: 17px; display: flex; align-items: center; gap: 8px;">
+									<span class="dashicons dashicons-smartphone" style="font-size: 22px; width: 22px; height: 22px;"></span>
+									<?php esc_html_e( '1-Tap Z-Agents Mobile Connect', 'vm-sales-os' ); ?>
+								</h3>
+								<p style="margin: 0 0 14px; font-size: 13px; color: var(--vmsos-text); line-height: 1.5;">
+									<?php esc_html_e( 'Scan this QR code from the Z-Agents mobile app to instantly bind this business workspace. All contacts, seva/service tariffs, deal pipelines, and WhatsApp conversations sync automatically in real-time.', 'vm-sales-os' ); ?>
+								</p>
+								<div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+									<button type="button" class="button button-primary" onclick="navigator.clipboard.writeText('<?php echo esc_js( $qrJson ); ?>'); alert('✓ 1-Tap Connect Code copied to clipboard!');">
+										<span class="dashicons dashicons-admin-page" style="vertical-align: middle;"></span>
+										<?php esc_html_e( 'Copy 1-Tap Connect Code', 'vm-sales-os' ); ?>
+									</button>
+									<span style="font-size: 12px; color: var(--vmsos-muted);">
+										Workspace: <strong style="color: #fff;"><?php echo esc_html( $currentSiteName ); ?></strong>
+									</span>
+								</div>
+							</div>
+						</div>
 					</div>
 
 					<!-- GitHub In-Place Updates -->
