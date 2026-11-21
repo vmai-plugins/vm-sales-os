@@ -35,40 +35,63 @@ final class EvolutionClient {
 	}
 
 	public function instance(): string {
-		return (string) get_option( 'vmsos_evolution_instance', 'mynearby' );
+		$inst = (string) get_option( 'vmsos_evolution_instance', '' );
+		if ( '' !== trim( $inst ) ) {
+			return trim( $inst );
+		}
+		$slug = sanitize_title( get_bloginfo( 'name' ) );
+		return ! empty( $slug ) ? $slug : 'vmsos';
 	}
 
 	public function send( string $to, string $message ): bool {
+		$result = $this->sendMessage( $to, $message );
+		return $result['success'] ?? false;
+	}
+
+	/**
+	 * Send WhatsApp message returning detailed status array.
+	 *
+	 * @return array{success: bool, data?: array, error?: string}
+	 */
+	public function sendMessage( string $to, string $message ): array {
 		if ( ! $this->configured() ) {
 			$this->logger->error( 'evolution', 'Send skipped: Evolution API not configured' );
-			return false;
+			return [
+				'success' => false,
+				'error'   => 'Evolution API not configured',
+			];
 		}
 
 		$to = preg_replace( '/[^0-9]/', '', $to ) ?? '';
 		if ( '' === $to ) {
-			return false;
+			return [
+				'success' => false,
+				'error'   => 'Recipient phone number is missing or invalid',
+			];
 		}
-		if ( 10 === strlen( $to ) ) {
+		if ( 10 === strlen( $to ) && ! str_starts_with( $to, '91' ) ) {
 			$to = '91' . $to;
 		}
 
-		$endpoint  = sprintf( '%s/message/sendText/%s', $this->apiUrl(), rawurlencode( $this->instance() ) );
-		$startedAt = microtime( true );
+		$encInstance = rawurlencode( $this->instance() );
+		$endpoint    = sprintf( '%s/message/sendText/%s', $this->apiUrl(), $encInstance );
+		$startedAt   = microtime( true );
 
 		$response = wp_remote_post(
 			$endpoint,
 			[
-				'timeout' => 20,
-				'headers' => [
+				'timeout'   => 20,
+				'headers'   => [
 					'apikey'       => $this->apiKey(),
 					'Content-Type' => 'application/json',
 				],
-				'body'    => (string) wp_json_encode(
+				'body'      => (string) wp_json_encode(
 					[
 						'number' => $to,
 						'text'   => mb_substr( $message, 0, 4000 ),
 					]
 				),
+				'sslverify' => false,
 			]
 		);
 
@@ -78,25 +101,38 @@ final class EvolutionClient {
 		if ( is_wp_error( $response ) ) {
 			$this->integrations->failure( 'evolution', 'send', $response->get_error_message(), $trace );
 			$this->logger->error( 'evolution', 'Send failed', [ 'error' => $response->get_error_message() ] );
-			return false;
+			return [
+				'success' => false,
+				'error'   => $response->get_error_message(),
+			];
 		}
 
 		$code = (int) wp_remote_retrieve_response_code( $response );
-		if ( $code < 200 || $code >= 300 ) {
-			$body = mb_substr( (string) wp_remote_retrieve_body( $response ), 0, 500 );
-			$this->integrations->failure( 'evolution', 'send', 'HTTP ' . $code . ': ' . $body, $trace );
-			$this->logger->error( 'evolution', 'Send rejected', [ 'status' => $code, 'body' => $body ] );
-			return false;
+		$body = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+
+		if ( $code >= 200 && $code < 300 ) {
+			$this->integrations->success( 'evolution', 'send', $trace );
+			return [
+				'success'    => true,
+				'remote_jid' => "{$to}@s.whatsapp.net",
+				'data'       => $body,
+			];
 		}
 
-		$this->integrations->success( 'evolution', 'send', $trace );
-		return true;
+		$errMsg = $body['response']['message'] ?? $body['message'] ?? 'Could not deliver WhatsApp message';
+		$this->integrations->failure( 'evolution', 'send', 'HTTP ' . $code . ': ' . $errMsg, $trace );
+		$this->logger->error( 'evolution', 'Send rejected', [ 'status' => $code, 'body' => $body ] );
+		return [
+			'success' => false,
+			'error'   => (string) $errMsg,
+			'data'    => $body,
+		];
 	}
 
 	/**
-	 * Check live connection status of Evolution API instance.
+	 * Check live connection status of Evolution API instance with profile metadata.
 	 *
-	 * @return array{connected: bool, state: string, instance: string, message: string}
+	 * @return array{connected: bool, state: string, instance: string, number: string, profile: string, message: string}
 	 */
 	public function checkConnection(): array {
 		if ( ! $this->configured() ) {
@@ -104,18 +140,22 @@ final class EvolutionClient {
 				'connected' => false,
 				'state'     => 'unconfigured',
 				'instance'  => $this->instance(),
+				'number'    => '',
+				'profile'   => '',
 				'message'   => 'Evolution API key or instance name not configured.',
 			];
 		}
 
-		$endpoint = sprintf( '%s/instance/connectionState/%s', $this->apiUrl(), rawurlencode( $this->instance() ) );
-		$response = wp_remote_get(
+		$encInstance = rawurlencode( $this->instance() );
+		$endpoint    = sprintf( '%s/instance/connectionState/%s', $this->apiUrl(), $encInstance );
+		$response    = wp_remote_get(
 			$endpoint,
 			[
-				'timeout' => 8,
-				'headers' => [
+				'timeout'   => 8,
+				'headers'   => [
 					'apikey' => $this->apiKey(),
 				],
+				'sslverify' => false,
 			]
 		);
 
@@ -124,6 +164,8 @@ final class EvolutionClient {
 				'connected' => false,
 				'state'     => 'error',
 				'instance'  => $this->instance(),
+				'number'    => '',
+				'profile'   => '',
 				'message'   => $response->get_error_message(),
 			];
 		}
@@ -132,11 +174,33 @@ final class EvolutionClient {
 		$data  = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		$state = strtolower( (string) ( $data['instance']['state'] ?? $data['state'] ?? '' ) );
 
+		$number      = '';
+		$profileName = '';
+		if ( 'open' === $state ) {
+			$detailsRes = wp_remote_get(
+				sprintf( '%s/instance/fetchInstances?instanceName=%s', $this->apiUrl(), $encInstance ),
+				[
+					'timeout'   => 8,
+					'headers'   => [ 'apikey' => $this->apiKey() ],
+					'sslverify' => false,
+				]
+			);
+			if ( ! is_wp_error( $detailsRes ) && 200 === (int) wp_remote_retrieve_response_code( $detailsRes ) ) {
+				$d = json_decode( (string) wp_remote_retrieve_body( $detailsRes ), true );
+				if ( ! empty( $d[0] ) && is_array( $d[0] ) ) {
+					$number      = (string) ( $d[0]['number'] ?? '' );
+					$profileName = (string) ( $d[0]['profileName'] ?? '' );
+				}
+			}
+		}
+
 		if ( 200 === $code && 'open' === $state ) {
 			return [
 				'connected' => true,
 				'state'     => 'open',
 				'instance'  => $this->instance(),
+				'number'    => $number,
+				'profile'   => $profileName,
 				'message'   => 'WhatsApp instance is connected and live.',
 			];
 		}
@@ -145,6 +209,8 @@ final class EvolutionClient {
 			'connected' => false,
 			'state'     => $state ?: 'closed',
 			'instance'  => $this->instance(),
+			'number'    => $number,
+			'profile'   => $profileName,
 			'message'   => sprintf( 'Instance state: %s (HTTP %d)', $state ?: 'disconnected', $code ),
 		];
 	}

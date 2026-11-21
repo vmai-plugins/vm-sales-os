@@ -70,8 +70,20 @@ final class MobileBridgeController extends AbstractController {
 		private InboxService $inbox,
 		private MetricsService $metrics,
 		private ActivityRepository $activities,
-		private EnrollmentRepository $enrollments
+		private EnrollmentRepository $enrollments,
+		private ?\VMStudio\SalesOS\Modules\Channels\EvolutionClient $evolution = null
 	) {}
+
+	private function getEvolutionClient(): ?\VMStudio\SalesOS\Modules\Channels\EvolutionClient {
+		if ( $this->evolution ) {
+			return $this->evolution;
+		}
+		if ( function_exists( 'vmsos' ) && vmsos()->container()->has( \VMStudio\SalesOS\Modules\Channels\EvolutionClient::class ) ) {
+			$this->evolution = vmsos()->container()->get( \VMStudio\SalesOS\Modules\Channels\EvolutionClient::class );
+			return $this->evolution;
+		}
+		return null;
+	}
 
 	public function register(): void {
 		$auth = fn( WP_REST_Request $request ) => $this->guard->check( $request );
@@ -989,7 +1001,8 @@ final class MobileBridgeController extends AbstractController {
 	public function getMe( WP_REST_Request $request ): WP_REST_Response {
 		$currentUser = wp_get_current_user();
 		$userId      = $currentUser->ID ?: 1;
-		$userEmail   = $currentUser->user_email ?: 'admin@' . ( $_SERVER['HTTP_HOST'] ?? 'vmstudio.digital' );
+		$adminEmail = (string) get_option( 'admin_email' );
+		$userEmail   = $currentUser->user_email ?: ( $adminEmail ?: 'admin@' . ( $_SERVER['HTTP_HOST'] ?? 'localhost' ) );
 		$userName    = $currentUser->display_name ?: 'Executive Admin';
 
 		if ( $currentUser->exists() ) {
@@ -3617,11 +3630,10 @@ final class MobileBridgeController extends AbstractController {
 		if ( str_ends_with( $cleanUsername, '@gmail' ) ) {
 			$cleanUsername .= '.com';
 		}
-		// Tolerance for common keystroke typos in official domain email
-		if ( str_contains( $cleanUsername, 'visualls' ) || str_contains( $cleanUsername, 'studiomaketing' ) || str_contains( $cleanUsername, 'visualsstudio' ) ) {
-			if ( str_ends_with( $cleanUsername, '@gmail.com' ) || ! str_contains( $cleanUsername, '@' ) ) {
-				$cleanUsername = 'visualsstudiomarketing@gmail.com';
-			}
+		// Tolerance for admin email matching site configuration
+		$siteAdminEmail = (string) get_option( 'admin_email' );
+		if ( ! empty( $siteAdminEmail ) && strcasecmp( $cleanUsername, $siteAdminEmail ) === 0 ) {
+			$cleanUsername = $siteAdminEmail;
 		}
 
 		$cand = get_user_by( 'login', $username );
@@ -3781,8 +3793,9 @@ final class MobileBridgeController extends AbstractController {
 			if ( str_ends_with( $clean, '@gmail' ) ) {
 				$clean .= '.com';
 			}
-			if ( str_contains( $clean, 'visualls' ) || str_contains( $clean, 'studiomaketing' ) || str_contains( $clean, 'visualsstudio' ) ) {
-				$clean = 'visualsstudiomarketing@gmail.com';
+			$siteAdminEmail = (string) get_option( 'admin_email' );
+			if ( ! empty( $siteAdminEmail ) && strcasecmp( $clean, $siteAdminEmail ) === 0 ) {
+				$clean = $siteAdminEmail;
 			}
 			$email = sanitize_email( $clean );
 		}
@@ -3873,7 +3886,7 @@ final class MobileBridgeController extends AbstractController {
 	}
 
 	/**
-	 * Send WhatsApp message through Evolution API.
+	 * Send WhatsApp message through Evolution API (Unified via EvolutionClient).
 	 */
 	public function sendWhatsApp( WP_REST_Request $request ): WP_REST_Response {
 		$params   = $request->get_json_params() ?: $request->get_params();
@@ -3888,38 +3901,13 @@ final class MobileBridgeController extends AbstractController {
 			return $this->error( 'Phone number and message are required.', 400 );
 		}
 
-		$apiUrl   = rtrim( (string) get_option( 'vmsos_evolution_api_url', 'https://wa.vmstudio.digital' ), '/' );
-		$instance = (string) get_option( 'vmsos_evolution_instance', 'vmstudio' );
-		$apiKey   = $this->guard->vault()->get( 'evolution_api_key' );
-		if ( empty( $apiKey ) ) {
-			$apiKey = 'bebf8554b69b4eff665465956069890dadeb84547a964ba0ac129e43e98576a2';
+		$evo = $this->getEvolutionClient();
+		if ( ! $evo ) {
+			return $this->error( 'Evolution WhatsApp client not available on server.', 500 );
 		}
 
-		$endpoint = "{$apiUrl}/message/sendText/{$instance}";
-		$response = wp_remote_post(
-			$endpoint,
-			[
-				'headers'   => [
-					'apikey'       => $apiKey,
-					'Content-Type' => 'application/json',
-				],
-				'body'      => wp_json_encode( [
-					'number' => $phone,
-					'text'   => $message,
-				] ),
-				'timeout'   => 15,
-				'sslverify' => false,
-			]
-		);
-
-		if ( is_wp_error( $response ) ) {
-			return $this->error( 'Failed to connect to WhatsApp Evolution API: ' . $response->get_error_message(), 502 );
-		}
-
-		$code = wp_remote_retrieve_response_code( $response );
-		$body = json_decode( wp_remote_retrieve_body( $response ), true );
-
-		if ( $code >= 200 && $code < 300 ) {
+		$sendResult = $evo->sendMessage( $phone, $message );
+		if ( ! empty( $sendResult['success'] ) ) {
 			$leadId = (int) ( $params['lead_id'] ?? 0 );
 			if ( $leadId <= 0 && $phone ) {
 				$contact = $this->contacts->findByPhone( $phone );
@@ -3935,12 +3923,12 @@ final class MobileBridgeController extends AbstractController {
 				'ok'         => true,
 				'success'    => true,
 				'remote_jid' => "{$phone}@s.whatsapp.net",
-				'data'       => $body,
+				'data'       => $sendResult['data'] ?? [],
 			] );
 		}
 
 		return $this->error(
-			'Evolution API error: ' . ( $body['response']['message'] ?? $body['message'] ?? 'Could not deliver WhatsApp message' ),
+			'Evolution API error: ' . ( $sendResult['error'] ?? 'Could not deliver WhatsApp message' ),
 			502
 		);
 	}
@@ -3953,60 +3941,34 @@ final class MobileBridgeController extends AbstractController {
 	}
 
 	/**
-	 * Check Evolution API connection state and details.
+	 * Check Evolution API connection state and details (Unified via EvolutionClient).
 	 */
 	public function getEvolutionStatus( WP_REST_Request $request ): WP_REST_Response {
-		$apiUrl   = rtrim( (string) get_option( 'vmsos_evolution_api_url', 'https://wa.vmstudio.digital' ), '/' );
-		$instance = (string) get_option( 'vmsos_evolution_instance', 'vmstudio' );
-		$apiKey   = $this->guard->vault()->get( 'evolution_api_key' );
-		if ( empty( $apiKey ) ) {
-			$apiKey = 'bebf8554b69b4eff665465956069890dadeb84547a964ba0ac129e43e98576a2';
+		$evo = $this->getEvolutionClient();
+		if ( ! $evo ) {
+			return $this->bare( [
+				'ok'           => false,
+				'state'        => 'unconfigured',
+				'connected'    => false,
+				'instance'     => sanitize_title( get_bloginfo( 'name' ) ) ?: 'vmsos',
+				'number'       => '',
+				'profile_name' => '',
+				'counts'       => [],
+				'message'      => 'Evolution API transport not initialized',
+			] );
 		}
 
-		$res = wp_remote_get(
-			"{$apiUrl}/instance/connectionState/{$instance}",
-			[
-				'headers'   => [ 'apikey' => $apiKey ],
-				'timeout'   => 10,
-				'sslverify' => false,
-			]
-		);
-
-		$state = 'close';
-		if ( ! is_wp_error( $res ) && 200 === wp_remote_retrieve_response_code( $res ) ) {
-			$data  = json_decode( wp_remote_retrieve_body( $res ), true );
-			$state = $data['instance']['state'] ?? 'close';
-		}
-
-		$detailsRes = wp_remote_get(
-			"{$apiUrl}/instance/fetchInstances?instanceName={$instance}",
-			[
-				'headers'   => [ 'apikey' => $apiKey ],
-				'timeout'   => 10,
-				'sslverify' => false,
-			]
-		);
-
-		$number      = '';
-		$profileName = '';
-		$counts      = [];
-		if ( ! is_wp_error( $detailsRes ) && 200 === wp_remote_retrieve_response_code( $detailsRes ) ) {
-			$d = json_decode( wp_remote_retrieve_body( $detailsRes ), true );
-			if ( ! empty( $d[0] ) ) {
-				$number      = $d[0]['number'] ?? '';
-				$profileName = $d[0]['profileName'] ?? '';
-				$counts      = $d[0]['_count'] ?? [];
-			}
-		}
+		$conn = $evo->checkConnection();
 
 		return $this->bare( [
 			'ok'           => true,
-			'state'        => $state,
-			'connected'    => ( 'open' === $state ),
-			'instance'     => $instance,
-			'number'       => $number,
-			'profile_name' => $profileName,
-			'counts'       => $counts,
+			'state'        => $conn['state'] ?? 'closed',
+			'connected'    => $conn['connected'] ?? false,
+			'instance'     => $conn['instance'] ?? $evo->instance(),
+			'number'       => $conn['number'] ?? (string) get_option( 'vmsos_whatsapp_phone_number', '' ),
+			'profile_name' => $conn['profile'] ?? '',
+			'counts'       => [],
+			'message'      => $conn['message'] ?? '',
 		] );
 	}
 
@@ -4079,7 +4041,9 @@ final class MobileBridgeController extends AbstractController {
 			$leads[] = $lead;
 		}
 
-		$instance = (string) get_option( 'vmsos_evolution_instance', 'vmstudio' );
+		$evo = $this->getEvolutionClient();
+		$instance = $evo ? $evo->instance() : ( (string) get_option( 'vmsos_evolution_instance', sanitize_title( get_bloginfo( 'name' ) ) ?: 'vmsos' ) );
+		$whatsappNum = (string) get_option( 'vmsos_whatsapp_phone_number', (string) get_option( 'vmsos_primary_phone', '' ) );
 
 		return $this->bare( [
 			'ok'        => true,
@@ -4089,7 +4053,7 @@ final class MobileBridgeController extends AbstractController {
 				'instance'  => $instance,
 				'state'     => 'open',
 				'connected' => true,
-				'number'    => (string) get_option( 'vmsos_whatsapp_phone_number', '918368316403' ),
+				'number'    => $whatsappNum,
 			],
 		] );
 	}
@@ -4337,7 +4301,7 @@ final class MobileBridgeController extends AbstractController {
 					'form_id'       => $formId,
 					'serial_number' => $serialNumber,
 					'response'      => wp_json_encode( $respData ),
-					'source_url'    => 'https://vmstudio.digital/apps',
+					'source_url'    => home_url( '/apps' ),
 					'status'        => 'unread',
 					'ip'            => sanitize_text_field( $_SERVER['REMOTE_ADDR'] ?? '' ),
 					'created_at'    => current_time( 'mysql' ),
@@ -4408,7 +4372,7 @@ final class MobileBridgeController extends AbstractController {
 			'ok'                => true,
 			'telephony_enabled' => true,
 			'provider'          => 'gsm_bridge',
-			'default_caller_id' => '+918368316403',
+			'default_caller_id' => (string) get_option( 'vmsos_primary_phone', (string) get_option( 'admin_phone', '' ) ),
 			'modes'             => [ 'gsm_bridge', 'external_intent', 'vapi' ],
 		] );
 	}
