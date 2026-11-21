@@ -65,11 +65,16 @@ final class PaperclipBridge {
 	 * Send an instant WhatsApp notification to the Founder via Evolution API.
 	 */
 	public static function notifyFounderWhatsApp( string $message ): bool {
-		$evoUrl = 'http://127.0.0.1:18080/message/sendText/vmstudio';
-		$apiKey = 'bebf8554b69b4eff665465956069890dadeb84547a964ba0ac129e43e98576a2';
-		$founderPhone = get_option( 'vmsos_widget_whatsapp', '918368316403' );
+		$founderPhone = (string) get_option( 'vmsos_widget_whatsapp', '' );
+		if ( empty( $founderPhone ) ) {
+			return false;
+		}
 
-		$res = wp_remote_post( $evoUrl, [
+		$evoBase  = untrailingslashit( (string) get_option( 'vmsos_evolution_api_url', 'http://127.0.0.1:18080' ) );
+		$instance = rawurlencode( (string) get_option( 'vmsos_evolution_instance', sanitize_title( get_bloginfo( 'name' ) ) ?: 'vmsos' ) );
+		$apiKey   = (string) get_option( 'vmsos_evolution_api_key', '' );
+
+		$res = wp_remote_post( "{$evoBase}/message/sendText/{$instance}", [
 			'timeout'   => 8,
 			'sslverify' => false,
 			'headers'   => [
@@ -77,7 +82,7 @@ final class PaperclipBridge {
 				'Content-Type' => 'application/json',
 			],
 			'body'      => wp_json_encode( [
-				'number' => preg_replace( '/[^0-9]/', '', (string) $founderPhone ),
+				'number' => preg_replace( '/[^0-9]/', '', $founderPhone ),
 				'text'   => $message,
 			] ),
 		] );

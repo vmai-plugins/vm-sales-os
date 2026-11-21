@@ -1030,8 +1030,8 @@ final class AdminArea {
 									</div>
 									<p style="margin: 6px 0 0 0; font-size: 13px; color: var(--vmsos-muted);">
 										<strong><?php esc_html_e( 'Provider:', 'vm-sales-os' ); ?></strong> <span id="vmsos-wa-provider-text"><?php echo esc_html( 'evolution' === ( $waStatus['provider'] ?? '' ) ? 'Evolution API (Self-Hosted on VPS)' : 'Meta WhatsApp Cloud API' ); ?></span> &bull; 
-										<strong><?php esc_html_e( 'Instance:', 'vm-sales-os' ); ?></strong> <code><?php echo esc_html( $waStatus['instance'] ?? 'vmstudio' ); ?></code> &bull;
-										<strong><?php esc_html_e( 'Connected Number:', 'vm-sales-os' ); ?></strong> <code id="vmsos-wa-phone-text" style="color: #25D366; font-weight: bold;">+<?php echo esc_html( ltrim( (string) ( $waStatus['phone'] ?? get_option( 'vmsos_widget_whatsapp', '918368316403' ) ), '+' ) ); ?></code>
+										<strong><?php esc_html_e( 'Instance:', 'vm-sales-os' ); ?></strong> <code><?php echo esc_html( $waStatus['instance'] ?? sanitize_title( get_bloginfo( 'name' ) ) ?: 'vmsos' ); ?></code> &bull;
+										<strong><?php esc_html_e( 'Connected Number:', 'vm-sales-os' ); ?></strong> <code id="vmsos-wa-phone-text" style="color: #25D366; font-weight: bold;">+<?php echo esc_html( ltrim( (string) ( $waStatus['phone'] ?? get_option( 'vmsos_widget_whatsapp', '' ) ), '+' ) ); ?></code>
 									</p>
 								</div>
 							</div>
@@ -1039,7 +1039,7 @@ final class AdminArea {
 							<!-- Action Buttons -->
 							<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
 								<?php
-								$cleanWaNum = ltrim( (string) ( $waStatus['phone'] ?? get_option( 'vmsos_widget_whatsapp', '918368316403' ) ), '+' );
+								$cleanWaNum = ltrim( (string) ( $waStatus['phone'] ?? get_option( 'vmsos_widget_whatsapp', '' ) ), '+' );
 								?>
 								<!-- Prominent Green Button -->
 								<a href="https://wa.me/<?php echo esc_attr( $cleanWaNum ); ?>" target="_blank" id="vmsos-btn-open-wa-chat" class="button" style="background: #25D366 !important; color: #fff !important; border: 1px solid #20ba5a !important; font-weight: 700 !important; font-size: 13px !important; padding: 7px 18px !important; border-radius: 6px !important; display: inline-flex !important; align-items: center !important; gap: 8px !important; box-shadow: 0 4px 14px rgba(37, 211, 102, 0.35) !important; text-decoration: none !important;">
@@ -2293,8 +2293,8 @@ final class AdminArea {
 			'provider'  => $provider,
 			'connected' => false,
 			'state'     => 'unknown',
-			'phone'     => (string) get_option( 'vmsos_widget_whatsapp', '918368316403' ),
-			'instance'  => 'evolution' === $provider ? (string) get_option( 'vmsos_evolution_instance', 'vmstudio' ) : (string) get_option( 'vmsos_whatsapp_phone_id', '' ),
+			'phone'     => (string) get_option( 'vmsos_widget_whatsapp', '' ),
+			'instance'  => 'evolution' === $provider ? (string) get_option( 'vmsos_evolution_instance', sanitize_title( get_bloginfo( 'name' ) ) ?: 'vmsos' ) : (string) get_option( 'vmsos_whatsapp_phone_id', '' ),
 			'message'   => __( 'Not tested yet.', 'vm-sales-os' ),
 		];
 
